@@ -10,6 +10,7 @@ import { authOptions } from "../api/auth/options";
 const Layout = async ({ children }: { children: React.ReactNode }) => {
   try {
     const session = await getServerSession(authOptions);
+    console.log("session", session);
     if (!session?.address) {
       return <UnauthorizedPage />;
     }

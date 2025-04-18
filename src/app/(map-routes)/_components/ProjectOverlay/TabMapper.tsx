@@ -6,6 +6,7 @@ import AIAssistant from "./AIAssistant";
 import { Project } from "./store/types";
 import Biodiversity from "./Biodiversity";
 import Community from "./Community";
+import Ecocerts from "./Ecocerts";
 const TabMapper = ({ projectData }: { projectData: Project }) => {
   const activeTab = useProjectOverlayStore((state) => state.activeTab);
 
@@ -18,6 +19,8 @@ const TabMapper = ({ projectData }: { projectData: Project }) => {
       return <Biodiversity />;
     case "community":
       return <Community />;
+    case "ecocerts":
+      return <Ecocerts />;
     default:
       return null;
   }

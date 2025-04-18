@@ -57,6 +57,7 @@ export const PROJECT_OVERLAY_TABS = [
   "community",
   "logbook",
   "edit",
+  "ecocerts",
 ] as const;
 
 export type ProjectOverlayState = {
