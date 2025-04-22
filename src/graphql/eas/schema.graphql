@@ -1,0 +1,98 @@
+"""
+Use to check whether or not a user is authenticated and is associated
+with an optional set of roles.
+"""
+directive @requireAuth(roles: [String]) on FIELD_DEFINITION
+
+"""Use to skip authentication checks and allow public access."""
+directive @skipAuth on FIELD_DEFINITION
+
+"""
+The `BigInt` scalar type represents non-fractional signed whole numeric values.
+"""
+scalar BigInt
+
+"""
+A date string, such as 2007-12-03, compliant with the `full-date` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar Date
+
+"""
+A time string at UTC, such as 10:15:30Z, compliant with the `full-time` format outlined in section 5.6 of the RFC 3339profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar Time
+
+"""
+A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar DateTime
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
+
+"""
+The `JSONObject` scalar type represents JSON objects as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSONObject @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
+
+"""The `Byte` scalar type represents byte value as a Buffer"""
+scalar Byte
+
+"""
+The RedwoodJS Root Schema
+
+Defines details about RedwoodJS such as the current user and version information.
+"""
+type Redwood {
+  """The version of Redwood."""
+  version: String
+
+  """The current user."""
+  currentUser: JSON
+
+  """The version of Prisma."""
+  prismaVersion: String
+}
+
+"""About the Redwood queries."""
+type Query {
+  """Fetches the Redwood root schema."""
+  redwood: Redwood
+  ecocertsInProjects: [EcocertsInProject!]!
+  ecocertsInProject(id: BigInt!): EcocertsInProject
+}
+
+scalar File
+
+type EcocertsInProject {
+  id: BigInt!
+  project_id: String!
+  ecocert_id: String!
+  attestation_id: String!
+  attester: String!
+  timestamp: Int!
+}
+
+input CreateEcocertsInProjectInput {
+  project_id: String!
+  ecocert_id: String!
+  attestation_id: String!
+  attester: String!
+  timestamp: Int!
+}
+
+input UpdateEcocertsInProjectInput {
+  project_id: String
+  ecocert_id: String
+  attestation_id: String
+  attester: String
+  timestamp: Int
+}
+
+type Mutation {
+  createEcocertsInProject(input: CreateEcocertsInProjectInput!): EcocertsInProject!
+  updateEcocertsInProject(id: BigInt!, input: UpdateEcocertsInProjectInput!): EcocertsInProject!
+  deleteEcocertsInProject(id: BigInt!): EcocertsInProject!
+}
