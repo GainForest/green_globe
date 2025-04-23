@@ -11,11 +11,11 @@ import {
   Loader2,
   XCircle,
 } from "lucide-react";
+import useProjectOverlayStore from "../../ProjectOverlay/store";
 import { useAppKitNetwork } from "@reown/appkit/react";
 import { getEASConfig } from "@/config/eas";
 import Link from "next/link";
 import WalletButton from "@/app/_components/WalletButton";
-import useProjectOverlayStore from "@/app/(map-routes)/(main)/_components/ProjectOverlay/store";
 
 const EcocertAttestationCreation = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);

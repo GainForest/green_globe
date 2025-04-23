@@ -3,7 +3,7 @@
 import ProjectOverlay from "../ProjectOverlay";
 import LayersOverlay from "../LayersOverlay";
 import { AnimatePresence, motion } from "framer-motion";
-import useOverlayTabsStore from "@/app/(map-routes)/_components/Overlay/OverlayTabs/store";
+import useOverlayTabsStore from "@/app/(map-routes)/(main)/_components/Overlay/OverlayTabs/store";
 import SearchOverlay from "../SearchOverlay";
 import usePanelsStore from "../Panels/store";
 import { panelIdToComponent } from "../Panels/store";
