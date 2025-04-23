@@ -32,6 +32,7 @@ export type AsyncDataCatalog<T> = {
   error: {
     _status: "error";
     data: null;
+    error?: string;
   };
 };
 

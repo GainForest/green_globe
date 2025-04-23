@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import WagmiContextProvider from "./_contexts/wagmi";
 import Providers from "./_components/Providers";
 import { metadata as metadataConfig } from "@/config/metadata";
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen flex-col dark`}
       >
+        <Analytics />
         <Providers>
           <WagmiContextProvider cookies={cookies}>
             {children}
