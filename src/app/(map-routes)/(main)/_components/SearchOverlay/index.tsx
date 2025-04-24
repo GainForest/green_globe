@@ -66,7 +66,7 @@ const SearchOverlay = () => {
     setProjectId(projectId, navigate);
     setTimeout(() => {
       setActiveTab("project", navigate);
-    }, 250);
+    }, 400);
     setCurrentMapView("project");
   };
 

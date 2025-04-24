@@ -20,7 +20,14 @@ const remotePatterns = [
 const nextConfig: NextConfig = {
   reactStrictMode: false,
   images: {
-    remotePatterns: [...remotePatterns],
+    remotePatterns: [
+      ...remotePatterns,
+      {
+        protocol: "https",
+        hostname:
+          "gainforest-transparency-dashboard.s3.us-east-1.amazonaws.com",
+      },
+    ],
   },
   /* config options here */
   experimental: {

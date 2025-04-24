@@ -16,7 +16,7 @@ type TabButton = {
   key: Exclude<OverlayTabsState["activeTab"], undefined>;
 };
 
-const OverlayTabs = () => {
+const OverlayTabs = ({ onTabClick }: { onTabClick?: () => void }) => {
   const activeTab = useOverlayTabsStore((state) => state.activeTab);
   const setActiveTab = useOverlayTabsStore((state) => state.setActiveTab);
   const activeProjectId = useProjectOverlayStore((state) => state.projectId);
@@ -64,7 +64,10 @@ const OverlayTabs = () => {
             <Button
               variant="ghost"
               className="flex-1"
-              onClick={() => setActiveTab(button.key, navigate)}
+              onClick={() => {
+                setActiveTab(button.key, navigate);
+                onTabClick?.();
+              }}
               disabled={button.shouldBeDisabled}
             >
               <button.icon /> {button.label}

@@ -11,12 +11,15 @@ import {
   MoveVertical,
 } from "lucide-react";
 import useHoveredTreeOverlayStore from "./store";
+import useOverlayStore from "../Overlay/store";
+import { cn } from "@/lib/utils";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 const HoveredTreeOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
+  const overlaySize = useOverlayStore((state) => state.size);
   const hoveredTree = useHoveredTreeOverlayStore(
     (state) => state.treeInformation
   );
@@ -36,7 +39,10 @@ const HoveredTreeOverlay = () => {
           animate={animate}
           exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           onAnimationComplete={onAnimationComplete}
-          className="fixed top-2 right-2 w-[25%] max-w-[280px] min-w-[180px]"
+          className={cn(
+            "fixed right-2 w-[25%] max-w-[280px] min-w-[180px]",
+            overlaySize === "desktop" ? "top-2" : "top-16"
+          )}
         >
           <UIBase innerClassName="p-0 overflow-hidden relative">
             <Image
@@ -109,7 +115,10 @@ const HoveredTreeOverlay = () => {
           animate={animate}
           exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           onAnimationComplete={onAnimationComplete}
-          className="fixed top-2 right-2 flex flex-col items-end gap-2"
+          className={cn(
+            "fixed right-2 flex flex-col items-end gap-2",
+            overlaySize === "desktop" ? "top-2" : "top-16"
+          )}
         >
           <UIBase innerClassName="w-28 p-0 overflow-hidden">
             <button

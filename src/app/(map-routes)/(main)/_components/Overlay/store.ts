@@ -1,18 +1,22 @@
 import { create } from "zustand";
 
-export type SidebarState = {
+export type OverlayState = {
   isOpen: boolean;
+  size: "desktop" | "smaller";
 };
 
-export type SidebarActions = {
+export type OverlayActions = {
   setIsOpen: (isOpen: boolean) => void;
+  setSize: (size: "desktop" | "smaller") => void;
 };
 
-type SidebarStore = SidebarState & SidebarActions;
+type OverlayStore = OverlayState & OverlayActions;
 
-const useSidebarStore = create<SidebarStore>((set) => ({
+const useOverlayStore = create<OverlayStore>((set) => ({
   isOpen: true,
+  size: "smaller",
   setIsOpen: (isOpen: boolean) => set({ isOpen }),
+  setSize: (size: "desktop" | "smaller") => set({ size }),
 }));
 
-export default useSidebarStore;
+export default useOverlayStore;

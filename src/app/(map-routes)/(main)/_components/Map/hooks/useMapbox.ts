@@ -31,7 +31,7 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
     setOverlayTab("project", navigate);
     setTimeout(() => {
       setActiveProjectId(projectId, navigate);
-    }, 250);
+    }, 400);
   };
 
   useEffect(() => {
