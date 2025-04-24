@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import useOverlayTabsStore from "./OverlayTabs/store";
 import useOverlayStore from "./store";
 import useProjectOverlayStore from "../ProjectOverlay/store";
-import OverlayContent from "../OverlayContent";
+import OverlayContent from "./OverlayContent";
 import UIBase from "@/components/ui/ui-base";
 import OverlayTabs from "./OverlayTabs";
 import Header from "./Header";

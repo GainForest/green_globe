@@ -5,7 +5,7 @@ import Header from "./Header";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import OverlayTabs from "./OverlayTabs";
-import OverlayContent from "../OverlayContent";
+import OverlayContent from "./OverlayContent";
 import { cn } from "@/lib/utils";
 
 const HeaderWhenFullHeight = ({ onBack }: { onBack: () => void }) => {
