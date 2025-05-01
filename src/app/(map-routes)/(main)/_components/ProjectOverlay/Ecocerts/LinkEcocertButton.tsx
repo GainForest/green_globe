@@ -26,7 +26,12 @@ const LinkEcocertButton = ({ onClick }: { onClick: () => void }) => {
   if (tooltipTextWhenDisabled) {
     return (
       <QuickTooltip tooltipContent={tooltipTextWhenDisabled}>
-        <Button size={"sm"} asChild disabled>
+        <Button
+          size={"sm"}
+          asChild
+          disabled
+          className="cursor-not-allowed opacity-50"
+        >
           <span>Link Ecocert</span>
         </Button>
       </QuickTooltip>

@@ -264,7 +264,7 @@ const EcocertLinking = () => {
                 <Button variant="outline">View on EASScan</Button>
               </Link>
             )}
-            <Button onClick={() => reset()}>Create Another</Button>
+            <Button onClick={() => reset()}>Link Another Ecocert</Button>
           </div>
         </div>
       )}
