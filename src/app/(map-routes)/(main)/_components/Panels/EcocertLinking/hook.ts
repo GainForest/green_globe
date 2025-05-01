@@ -3,16 +3,16 @@ import { useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
 import { create } from "zustand";
 import { useRef } from "react";
 import { getEASConfig } from "@/config/eas";
-import { createEcocertAttestation } from "./utils";
+import { linkEcocert } from "./utils";
 import useEthersSigner from "@/app/_hooks/use-ethers-signer";
 import tryCatch from "@/lib/try-catch";
 
-export type EcocertAttestationData = {
+export type EcocertLinkingData = {
   project_id: string;
   ecocert_id: string;
 };
 
-type EcocertAttestationCreationStatusCatalog = {
+type EcocertLinkingStatusCatalog = {
   idle: {
     status: "idle";
   };
@@ -38,43 +38,39 @@ type EcocertAttestationCreationStatusCatalog = {
   };
 };
 
-type EcocertAttestationCreationStatusKey =
-  keyof EcocertAttestationCreationStatusCatalog;
-type EcocertAttestationCreationStatus =
-  EcocertAttestationCreationStatusCatalog[EcocertAttestationCreationStatusKey];
+type EcocertLinkingStatusKey = keyof EcocertLinkingStatusCatalog;
+type EcocertLinkingStatus =
+  EcocertLinkingStatusCatalog[EcocertLinkingStatusKey];
 
-export type EcocertAttestationStoreState = {
-  attestationData: EcocertAttestationData | null;
-  creationStatus: EcocertAttestationCreationStatus;
+export type EcocertLinkingStoreState = {
+  linkingData: EcocertLinkingData | null;
+  linkingStatus: EcocertLinkingStatus;
 };
 
-export type EcocertAttestationStoreActions = {
-  setAttestationData: (attestation: EcocertAttestationData | null) => void;
-  setCreationStatus: (status: EcocertAttestationCreationStatus) => void;
+export type EcocertLinkingStoreActions = {
+  setLinkingData: (linkingData: EcocertLinkingData | null) => void;
+  setLinkingStatus: (status: EcocertLinkingStatus) => void;
 };
 
-const useEcocertAttestationStore = create<
-  EcocertAttestationStoreState & EcocertAttestationStoreActions
+const useEcocertLinkingStore = create<
+  EcocertLinkingStoreState & EcocertLinkingStoreActions
 >((set) => ({
-  attestationData: null,
-  creationStatus: {
+  linkingData: null,
+  linkingStatus: {
     status: "idle",
   },
-  setAttestationData: (attestation) => set({ attestationData: attestation }),
-  setCreationStatus: (status) => set({ creationStatus: status }),
+  setLinkingData: (linkingData) => set({ linkingData }),
+  setLinkingStatus: (linkingStatus) => set({ linkingStatus }),
 }));
 
-const useEcocertAttestationCreation = () => {
-  const stateAndActions = useEcocertAttestationStore();
-  const {
-    attestationData,
-    creationStatus,
-    setAttestationData,
-    setCreationStatus,
-  } = stateAndActions;
+const useEcocertLinking = () => {
+  const stateAndActions = useEcocertLinkingStore();
+  const { linkingData, linkingStatus, setLinkingData, setLinkingStatus } =
+    stateAndActions;
 
   const { address, isConnected } = useAppKitAccount();
   const { chainId } = useAppKitNetwork();
+
   const signer = useEthersSigner({
     chainId: chainId ? Number(chainId) : undefined,
   });
@@ -86,12 +82,12 @@ const useEcocertAttestationCreation = () => {
 
   const onStop = (showError?: boolean) => {
     if (showError) {
-      setCreationStatus({
+      setLinkingStatus({
         status: "error",
-        message: "The ecocert attestation was cancelled.",
+        message: "The ecocert linking was cancelled.",
       });
     } else {
-      setCreationStatus({
+      setLinkingStatus({
         status: "idle",
       });
     }
@@ -110,30 +106,30 @@ const useEcocertAttestationCreation = () => {
     }
   };
 
-  const startAttestationCreation = async () => {
-    if (creationStatus.status === "loading") return;
+  const startLinking = async () => {
+    if (linkingStatus.status === "loading") return;
 
-    setCreationStatus({
+    setLinkingStatus({
       status: "loading",
       message: "Initializing...",
     });
     if (isCancelling()) return;
 
     if (!isConnected || !address || !signer) {
-      setCreationStatus({
+      setLinkingStatus({
         status: "error",
         type: "wallet-not-connected",
-        message: "Please connect your wallet to create an ecocert attestation.",
+        message: "Please connect your wallet to link an ecocert.",
       });
       return;
     }
     if (isCancelling()) return;
 
     if (!chainId) {
-      setCreationStatus({
+      setLinkingStatus({
         status: "error",
         type: "chain-not-supported",
-        message: "Ecocert attestations are not supported on this chain.",
+        message: "Linking ecocerts are not supported on this chain.",
       });
       return;
     }
@@ -141,51 +137,51 @@ const useEcocertAttestationCreation = () => {
 
     const easConfig = getEASConfig(Number(chainId));
     if (!easConfig) {
-      setCreationStatus({
+      setLinkingStatus({
         status: "error",
         type: "chain-not-supported",
-        message: "Ecocert attestations are not supported on this chain.",
+        message: "Linking ecocerts are not supported on this chain.",
       });
       return;
     }
     if (isCancelling()) return;
 
-    if (!attestationData) {
-      setCreationStatus({
+    if (!linkingData) {
+      setLinkingStatus({
         status: "error",
-        message: "No data for attestation could be found. Please try again.",
+        message:
+          "No data for linking the ecocert could be found. Please try again.",
       });
       return;
     }
     if (isCancelling()) return;
 
-    setCreationStatus({
+    setLinkingStatus({
       status: "loading",
       message: "Preparing the transaction...",
     });
 
     if (isCancelling()) return;
     const [tx, error] = await tryCatch(() => {
-      return createEcocertAttestation(signer, attestationData, easConfig);
+      return linkEcocert(signer, linkingData, easConfig);
     });
     if (isCancelling()) return;
 
     if (error) {
       if (error.message === "unsupported-chain") {
-        setCreationStatus({
+        setLinkingStatus({
           status: "error",
           type: "chain-not-supported",
-          message: "Ecocert attestations are not supported on this chain.",
+          message: "Linking ecocerts are not supported on this chain.",
         });
       } else if (error.message === "signer-not-found") {
-        setCreationStatus({
+        setLinkingStatus({
           status: "error",
           type: "wallet-not-connected",
-          message:
-            "Please connect your wallet to create an ecocert attestation.",
+          message: "Please connect your wallet to link an ecocert.",
         });
       } else {
-        setCreationStatus({
+        setLinkingStatus({
           status: "error",
           message: "The transaction was rejected.",
         });
@@ -194,7 +190,7 @@ const useEcocertAttestationCreation = () => {
     }
 
     if (!tx) {
-      setCreationStatus({
+      setLinkingStatus({
         status: "error",
         message: "Something went wrong. Please try again.",
       });
@@ -203,7 +199,7 @@ const useEcocertAttestationCreation = () => {
 
     console.log("txn", tx);
     if (isCancelling()) return;
-    setCreationStatus({
+    setLinkingStatus({
       status: "loading",
       message:
         "Please sign the transaction and wait for the transaction to be confirmed...",
@@ -215,36 +211,36 @@ const useEcocertAttestationCreation = () => {
 
     if (txReceiptError) {
       console.error(txReceiptError);
-      setCreationStatus({
+      setLinkingStatus({
         status: "error",
         message: "The transaction failed. Please try again.",
       });
       return;
     }
 
-    setCreationStatus({
+    setLinkingStatus({
       status: "success",
-      message: "The ecocert was attested successfully.",
+      message: "The ecocert was linked successfully.",
       data: {
         attestationUid: txReceipt,
       },
     });
   };
 
-  const stopAttestationCreation = (showError?: boolean) => {
+  const stopLinking = (showError?: boolean) => {
     if (cancellationStatus.current.isCancelling) return;
 
     cancellationStatus.current.isCancelling = true;
     cancellationStatus.current.showError = showError ?? false;
 
-    if (creationStatus.status !== "loading") {
+    if (linkingStatus.status !== "loading") {
       onStop();
       cancellationStatus.current = {
         isCancelling: false,
         showError: false,
       };
     } else {
-      setCreationStatus({
+      setLinkingStatus({
         status: "cancelling",
         message: "Cancelling...",
       });
@@ -252,16 +248,16 @@ const useEcocertAttestationCreation = () => {
   };
 
   const storeStatesToReturn = {
-    attestationData,
-    creationStatus,
-  } satisfies EcocertAttestationStoreState;
+    linkingData: linkingData,
+    linkingStatus: linkingStatus,
+  } satisfies EcocertLinkingStoreState;
 
   const storeActionsToReturn = {
-    setAttestationData,
-  } satisfies Partial<EcocertAttestationStoreActions>;
+    setLinkingData: setLinkingData,
+  } satisfies Partial<EcocertLinkingStoreActions>;
 
   const reset = () => {
-    setCreationStatus({
+    setLinkingStatus({
       status: "idle",
     });
     cancellationStatus.current = {
@@ -273,10 +269,10 @@ const useEcocertAttestationCreation = () => {
   return {
     ...storeStatesToReturn,
     ...storeActionsToReturn,
-    startAttestationCreation,
-    stopAttestationCreation,
+    startLinking,
+    stopLinking,
     reset,
   };
 };
 
-export default useEcocertAttestationCreation;
+export default useEcocertLinking;

@@ -48,7 +48,7 @@ const NetworkBadge = ({
           rel="noopener noreferrer"
           className="text-xs text-muted-foreground hover:underline flex items-center gap-1"
         >
-          View Attestation
+          View on EASSCAN
           <ExternalLink size={12} />
         </a>
       )}

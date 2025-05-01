@@ -13,12 +13,17 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShareDialog from "../ShareDialog";
+import usePanelsStore from "../Panels/store";
 
 const OVERLAY_WIDTH = 500;
 
 const DesktopOverlay = () => {
   const isOpen = useOverlayStore((state) => state.isOpen);
   const setIsOpen = useOverlayStore((state) => state.setIsOpen);
+
+  const panelId = usePanelsStore((state) => state.panelId);
+  const backButtonText = usePanelsStore((state) => state.backButtonText);
+  const onBackButtonClick = usePanelsStore((state) => state.onBackButtonClick);
 
   const projectData = useProjectOverlayStore((state) => state.projectData);
   const isMaximized = useProjectOverlayStore((state) => state.isMaximized);
@@ -50,7 +55,21 @@ const DesktopOverlay = () => {
         >
           <div className="sticky top-0 flex flex-col gap-4 p-4 border-b border-b-border bg-background/50 backdrop-blur-lg shadow-lg z-10">
             <Header />
-            <OverlayTabs />
+            {panelId ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    onBackButtonClick();
+                  }}
+                >
+                  <ChevronLeft size={16} />
+                  {backButtonText ?? "Back"}
+                </Button>
+              </div>
+            ) : (
+              <OverlayTabs />
+            )}
           </div>
           <div className="w-full flex-1">
             <OverlayContent />

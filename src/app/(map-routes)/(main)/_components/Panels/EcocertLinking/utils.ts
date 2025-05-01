@@ -1,11 +1,11 @@
 import { EASConfig } from "@/config/eas";
-import { EcocertAttestationData } from "./hook";
+import { EcocertLinkingData } from "./hook";
 import { EAS, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
 import type { JsonRpcSigner } from "ethers";
 
-const createEcocertAttestation = (
+export const linkEcocert = (
   signer: JsonRpcSigner,
-  attestationData: EcocertAttestationData,
+  attestationData: EcocertLinkingData,
   easConfig: EASConfig
 ) => {
   const { easContractAddress, schemas } = easConfig;
@@ -31,12 +31,10 @@ const createEcocertAttestation = (
     data: {
       recipient: "0x0000000000000000000000000000000000000000",
       expirationTime: BigInt(0),
-      revocable: false, // Be aware that if your schema is not revocable, this MUST be false
+      revocable: true, // Be aware that if your schema is not revocable, this MUST be false
       data: encodedData,
       refUID:
         "0x0000000000000000000000000000000000000000000000000000000000000000",
     },
   });
 };
-
-export { createEcocertAttestation };

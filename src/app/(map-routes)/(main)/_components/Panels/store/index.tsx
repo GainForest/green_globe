@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import EcocertAttestationCreation from "../EcocertAttestationCreation";
+import EcocertLinking from "../EcocertLinking";
 
 export const panelIdToComponent = {
-  "attestation-creation": EcocertAttestationCreation,
+  "ecocert-linking": EcocertLinking,
 };
 
 export type PanelId = keyof typeof panelIdToComponent;

@@ -12,6 +12,7 @@ if (!projectId) {
 }
 
 export const networks = [celo] satisfies [typeof celo, ...(typeof celo)[]];
+export const chainIds = networks.map((network) => network.id);
 
 //Set up the Wagmi Adapter (Config)
 export const wagmiAdapter = new WagmiAdapter({

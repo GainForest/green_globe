@@ -60,8 +60,7 @@ type Redwood {
 type Query {
   """Fetches the Redwood root schema."""
   redwood: Redwood
-  ecocertsInProjects: [EcocertsInProject!]!
-  ecocertsInProject(id: BigInt!): EcocertsInProject
+  ecocerts(project_id: String): [EcocertsInProject!]!
 }
 
 scalar File
@@ -73,26 +72,4 @@ type EcocertsInProject {
   attestation_id: String!
   attester: String!
   timestamp: Int!
-}
-
-input CreateEcocertsInProjectInput {
-  project_id: String!
-  ecocert_id: String!
-  attestation_id: String!
-  attester: String!
-  timestamp: Int!
-}
-
-input UpdateEcocertsInProjectInput {
-  project_id: String
-  ecocert_id: String
-  attestation_id: String
-  attester: String
-  timestamp: Int
-}
-
-type Mutation {
-  createEcocertsInProject(input: CreateEcocertsInProjectInput!): EcocertsInProject!
-  updateEcocertsInProject(id: BigInt!, input: UpdateEcocertsInProjectInput!): EcocertsInProject!
-  deleteEcocertsInProject(id: BigInt!): EcocertsInProject!
 }
