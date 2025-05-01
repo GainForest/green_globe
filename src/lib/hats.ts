@@ -1,7 +1,13 @@
 import { chainIds, networks } from "@/config/wagmi";
 import { HatsClient } from "@hatsprotocol/sdk-v1-core";
 import { HatsSubgraphClient } from "@hatsprotocol/sdk-v1-subgraph";
-import { createPublicClient, extractChain, http, PublicClient } from "viem";
+import {
+  createPublicClient,
+  extractChain,
+  http,
+  PublicClient,
+  type Chain,
+} from "viem";
 import { verifyKeyType } from "./utils";
 
 // Initialize clients (you'll need to provide chainId and RPC URL in actual usage)
@@ -11,7 +17,7 @@ const initClients = (chainId: number) => {
     throw new Error(`This chain is not supported. Chain ID: ${chainId}`);
 
   const chain = extractChain({
-    chains: networks,
+    chains: networks as readonly Chain[],
     id: chainId as (typeof chainIds)[number],
   });
 
