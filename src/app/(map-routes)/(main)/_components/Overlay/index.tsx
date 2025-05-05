@@ -7,7 +7,10 @@ import DesktopOverlay from "./DesktopOverlay";
 import SmallerDeviceOverlay from "./SmallerDeviceOverlay";
 
 const Overlay = () => {
-  const isMediumSizeOrGreater = useMediaQuery({ query: "(width >= 48rem)" });
+  const isMediumSizeOrGreater = useMediaQuery({
+    query: "(min-width: 768px)",
+  });
+  const size = useOverlayStore((state) => state.size);
   const setSize = useOverlayStore((state) => state.setSize);
 
   useEffect(() => {
@@ -18,7 +21,7 @@ const Overlay = () => {
     }
   }, [isMediumSizeOrGreater, setSize]);
 
-  return isMediumSizeOrGreater ? <DesktopOverlay /> : <SmallerDeviceOverlay />;
+  return size === "desktop" ? <DesktopOverlay /> : <SmallerDeviceOverlay />;
 };
 
 export default Overlay;

@@ -7,6 +7,7 @@ import {
   MessageCircleQuestion,
   LucideProps,
   Users2,
+  GalleryVerticalEnd,
 } from "lucide-react";
 import QuickTooltip from "@/components/ui/quick-tooltip";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,11 @@ const TABS_CONFIG: {
     label: "AI Assistant",
     icon: MessageCircleQuestion,
     id: "ask-ai" as const,
+  },
+  {
+    label: "Ecocerts",
+    icon: GalleryVerticalEnd,
+    id: "ecocerts" as const,
   },
   // {
   //   label: "Media",

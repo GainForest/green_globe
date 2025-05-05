@@ -16,6 +16,21 @@
     "plugins": [
       {
         "name": "next"
+      },
+      {
+        "name": "gql.tada/ts-plugin",
+        "schemas": [
+          {
+            "name": "eas",
+            "schema": "./src/graphql/eas/schema.graphql",
+            "tadaOutputLocation": "./src/graphql/eas/eas-env.d.ts"
+          },
+          {
+            "name": "hypercerts",
+            "schema": "./src/graphql/hypercerts/schema.graphql",
+            "tadaOutputLocation": "./src/graphql/hypercerts/hypercerts-env.d.ts"
+          }
+        ]
       }
     ],
     "paths": {
