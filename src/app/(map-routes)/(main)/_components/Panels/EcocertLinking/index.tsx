@@ -1,19 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import useEcocertLinking from "./hook";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeftRightIcon,
-  Check,
   CheckCircle,
   CircleAlert,
-  Copy,
   Loader2,
   LucideProps,
   XCircle,
 } from "lucide-react";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
-import { useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
-import { getEASConfig } from "@/config/eas";
+import { useAppKitAccount } from "@reown/appkit/react";
 import Link from "next/link";
 import WalletButton from "@/app/_components/WalletButton";
 import { GG_HAT_ID } from "@/config/hats";
@@ -83,21 +80,14 @@ const EcocertsSkeleton = () => {
 
 const EcocertLinking = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
-  const {
-    linkingData,
-    linkingStatus,
-    setLinkingData,
-    startLinking,
-    stopLinking,
-    reset,
-  } = useEcocertLinking();
-  const { chainId } = useAppKitNetwork();
+  const { linkingData, linkingStatus, setLinkingData, startLinking, reset } =
+    useEcocertLinking();
   const { address } = useAppKitAccount();
   const { data: isProjectOwner } = useWearsHat({
     address: address as `0x${string}` | undefined,
     hatId: GG_HAT_ID,
   });
-  const easConfig = chainId ? getEASConfig(Number(chainId)) : undefined;
+  // const easConfig = chainId ? getEASConfig(Number(chainId)) : undefined;
 
   const {
     data: userEcocerts,
@@ -118,18 +108,18 @@ const EcocertLinking = () => {
     enabled: !!address,
   });
 
-  const [copiedAttestationUid, setCopiedAttestationUid] = useState(false);
+  // const [copiedAttestationUid, setCopiedAttestationUid] = useState(false);
 
-  const copyAttestationUid = () => {
-    if (linkingStatus.status === "success") {
-      if (copiedAttestationUid) return;
-      navigator.clipboard.writeText(linkingStatus.data.attestationUid);
-      setCopiedAttestationUid(true);
-      setTimeout(() => {
-        setCopiedAttestationUid(false);
-      }, 2000);
-    }
-  };
+  // const copyAttestationUid = () => {
+  //   if (linkingStatus.status === "success") {
+  //     if (copiedAttestationUid) return;
+  //     navigator.clipboard.writeText(linkingStatus.data.attestationUid);
+  //     setCopiedAttestationUid(true);
+  //     setTimeout(() => {
+  //       setCopiedAttestationUid(false);
+  //     }, 2000);
+  //   }
+  // };
 
   useEffect(() => {
     reset();
@@ -143,11 +133,12 @@ const EcocertLinking = () => {
 
   const handleEcocertSelect = (ecocertId: string) => {
     if (!projectId) return;
-    setLinkingData({
+    const newLinkingData = {
       project_id: projectId,
       ecocert_id: ecocertId,
-    });
-    startLinking();
+    };
+    setLinkingData(newLinkingData);
+    startLinking(newLinkingData);
   };
 
   if (!projectId) {
@@ -220,7 +211,7 @@ const EcocertLinking = () => {
           <p className="text-center text-balance px-4">
             {linkingStatus.message}
           </p>
-          <Button variant="outline" onClick={() => stopLinking()}>
+          <Button variant="outline" disabled>
             Cancel
           </Button>
         </div>
@@ -234,7 +225,7 @@ const EcocertLinking = () => {
           <p className="text-center text-balance px-4">
             {linkingStatus.message}
           </p>
-          <div className="flex flex-col w-full px-2">
+          {/* <div className="flex flex-col w-full px-2">
             <span className="font-bold text-sm text-muted-foreground">
               Attestation UID
             </span>
@@ -254,16 +245,16 @@ const EcocertLinking = () => {
                 {copiedAttestationUid ? <Check /> : <Copy />}
               </Button>
             </div>
-          </div>
+          </div> */}
           <div className="flex items-center gap-2">
-            {easConfig && (
+            {/* {easConfig && (
               <Link
                 href={`${easConfig.explorerUrl}/attestation/view/${linkingStatus.data.attestationUid}`}
                 target="_blank"
               >
                 <Button variant="outline">View on EASScan</Button>
               </Link>
-            )}
+            )} */}
             <Button onClick={() => reset()}>Link Another Ecocert</Button>
           </div>
         </div>

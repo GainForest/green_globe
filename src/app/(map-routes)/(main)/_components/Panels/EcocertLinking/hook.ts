@@ -59,7 +59,10 @@ const useEcocertLinkingStore = create<
   linkingStatus: {
     status: "idle",
   },
-  setLinkingData: (linkingData) => set({ linkingData }),
+  setLinkingData: (linkingData) => {
+    console.log(linkingData);
+    set({ linkingData });
+  },
   setLinkingStatus: (linkingStatus) => set({ linkingStatus }),
 }));
 
@@ -106,7 +109,8 @@ const useEcocertLinking = () => {
     }
   };
 
-  const startLinking = async () => {
+  const startLinking = async (newLinkingData?: EcocertLinkingData) => {
+    console.log("Starting linking with data:", newLinkingData ?? linkingData);
     if (linkingStatus.status === "loading") return;
 
     setLinkingStatus({
@@ -146,7 +150,8 @@ const useEcocertLinking = () => {
     }
     if (isCancelling()) return;
 
-    if (!linkingData) {
+    const dataToUse = newLinkingData ?? linkingData;
+    if (!dataToUse) {
       setLinkingStatus({
         status: "error",
         message:
@@ -163,7 +168,7 @@ const useEcocertLinking = () => {
 
     if (isCancelling()) return;
     const [tx, error] = await tryCatch(() => {
-      return linkEcocert(signer, linkingData, easConfig);
+      return linkEcocert(signer, dataToUse, easConfig);
     });
     if (isCancelling()) return;
 

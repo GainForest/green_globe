@@ -57,7 +57,7 @@ export const EcocertItem = ({
           className="object-cover object-top h-full w-full"
           height={200}
           width={100}
-          onLoadingComplete={() => setImageLoading(false)}
+          onLoad={() => setImageLoading(false)}
         />
         {imageLoading && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">

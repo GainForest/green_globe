@@ -41,25 +41,8 @@ const Ecocerts = () => {
     setBackButtonText("Ecocerts");
   };
 
-  // Loading State:
-  if (ecocertLinkingsLoading) {
-    <motion.div
-      className="flex flex-col gap-2"
-      initial={{ opacity: 0, filter: "blur(10px)" }}
-      animate={{ opacity: 1, filter: "blur(0px)" }}
-      exit={{
-        opacity: 0,
-        filter: "blur(10px)",
-      }}
-    >
-      {new Array(4).fill(0).map((_, index) => {
-        return <EcocertSkeleton key={index} index={index} />;
-      })}
-    </motion.div>;
-  }
-
   // Error State:
-  if (ecocertLinkingsFetchError || ecocertLinkings === undefined) {
+  if (ecocertLinkingsFetchError) {
     return (
       <motion.div
         className="flex flex-col gap-2"
@@ -87,6 +70,25 @@ const Ecocerts = () => {
             Retry
           </Button>
         </div>
+      </motion.div>
+    );
+  }
+
+  // Loading State:
+  if (ecocertLinkingsLoading || ecocertLinkings === undefined) {
+    return (
+      <motion.div
+        className="flex flex-col gap-2"
+        initial={{ opacity: 0, filter: "blur(10px)" }}
+        animate={{ opacity: 1, filter: "blur(0px)" }}
+        exit={{
+          opacity: 0,
+          filter: "blur(10px)",
+        }}
+      >
+        {new Array(4).fill(0).map((_, index) => {
+          return <EcocertSkeleton key={index} index={index} />;
+        })}
       </motion.div>
     );
   }
