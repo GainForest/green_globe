@@ -60,7 +60,6 @@ const useEcocertLinkingStore = create<
     status: "idle",
   },
   setLinkingData: (linkingData) => {
-    console.log(linkingData);
     set({ linkingData });
   },
   setLinkingStatus: (linkingStatus) => set({ linkingStatus }),
@@ -110,7 +109,6 @@ const useEcocertLinking = () => {
   };
 
   const startLinking = async (newLinkingData?: EcocertLinkingData) => {
-    console.log("Starting linking with data:", newLinkingData ?? linkingData);
     if (linkingStatus.status === "loading") return;
 
     setLinkingStatus({
