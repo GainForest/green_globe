@@ -1,45 +1,63 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import { useAppKitAccount } from "@reown/appkit/react";
 import UnauthorizedPage from "./UnauthorizedPage";
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useEffect } from "react";
+import Container from "@/components/Container";
+import { backendApiURL } from "@/config/endpoints";
+
 export default function ClientAuthBoundary({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { status } = useSession();
-  const { status: appKitStatus } = useAppKitAccount();
-
-  const [
-    isInitialConnectingStageComplete,
-    setIsInitialConnectingStageComplete,
-  ] = useState(false);
+  const { ready, authenticated, user, getAccessToken } = usePrivy();
 
   useEffect(() => {
-    if (
-      appKitStatus !== "connecting" &&
-      appKitStatus !== "reconnecting" &&
-      appKitStatus !== undefined
-    ) {
-      setIsInitialConnectingStageComplete(true);
-    }
-  }, [isInitialConnectingStageComplete, appKitStatus]);
+    if (!user?.wallet) return;
+    getAccessToken().then((token) => {
+      console.log("token", token);
+      if (!token) return;
+      fetch(`${backendApiURL}/user/me/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => {
+          console.log(res);
+        })
+        .catch((err) => {
+          console.error("Unable to auth from backend", err);
+        });
+    });
+  }, [user?.wallet, getAccessToken]);
 
-  // Render a loading spinner if the initial connecting stage is not complete
-  if (!isInitialConnectingStageComplete) {
+  if (!ready) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin" />
+      <div className="flex gap-2 h-screen w-screen p-2">
+        <div className="hidden md:flex h-full w-64 bg-accent/50 animate-pulse rounded-xl flex-col justify-between p-4">
+          <div className="flex flex-col gap-2">
+            <div className="h-10 w-10 bg-accent animate-pulse rounded-xl"></div>
+            <div className="h-10 w-full bg-accent animate-pulse rounded-xl"></div>
+          </div>
+          <div className="h-20 rounded-xl bg-accent animate-pulse"></div>
+        </div>
+        <div className="h-full flex-1 bg-accent/50 animate-pulse rounded-xl delay-700">
+          <Container>
+            <div className="flex flex-col gap-2 mt-8">
+              <div className="h-10 w-1/2 bg-accent animate-pulse rounded-xl"></div>
+              <div className="h-10 w-1/4 bg-accent animate-pulse rounded-xl"></div>
+            </div>
+            <div className="mt-8 h-36 bg-accent animate-pulse rounded-xl"></div>
+          </Container>
+        </div>
       </div>
     );
   }
 
-  if (status === "authenticated" && appKitStatus === "connected") {
-    return children;
+  if (!authenticated || user?.wallet === undefined) {
+    return <UnauthorizedPage />;
   }
 
-  return <UnauthorizedPage />;
+  return children;
 }

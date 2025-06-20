@@ -10,8 +10,10 @@ const Container = ({
   outerClassName?: string;
 } & React.HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div className={cn("w-full flex flex-col items-center", outerClassName)}>
-      <div {...props} className={cn("w-full max-w-6xl", props.className)}>
+    <div
+      className={cn("w-full flex flex-col items-center p-4", outerClassName)}
+    >
+      <div {...props} className={cn("w-full max-w-4xl", props.className)}>
         {children}
       </div>
     </div>

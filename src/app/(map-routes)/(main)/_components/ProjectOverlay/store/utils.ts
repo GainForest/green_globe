@@ -8,6 +8,7 @@ import {
   TreeFeature,
 } from "./types";
 import { getTreeSpeciesName } from "../../Map/sources-and-layers/measured-trees";
+import { backendApiURL } from "@/config/endpoints";
 
 export const fetchProjectData = async (projectId: string) => {
   const endpoint = `${process.env.NEXT_PUBLIC_GAINFOREST_ENDPOINT}/api/graphql`;
@@ -72,6 +73,28 @@ export const fetchProjectData = async (projectId: string) => {
     const responseData: ProjectDataApiResponse = await response.json();
     if ("project" in responseData.data && responseData.data.project) {
       const project = responseData.data.project;
+      try {
+        const projectFromNewBackendResponse = await fetch(
+          `${backendApiURL}/projects/${projectId}`
+        );
+        if (projectFromNewBackendResponse.ok) {
+          const projectFromNewBackendData =
+            await projectFromNewBackendResponse.json();
+          const {
+            name,
+            country,
+            short_description,
+            long_description,
+            objective,
+          } = projectFromNewBackendData;
+          project.name = name;
+          project.country = country;
+          project.description = short_description;
+          project.longDescription = long_description;
+          project.objective = objective;
+        }
+      } catch {}
+
       return project;
     } else {
       return null;

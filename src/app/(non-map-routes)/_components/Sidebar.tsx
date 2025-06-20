@@ -9,20 +9,24 @@ import {
   SidebarGroupContent,
 } from "@/components/ui/sidebar";
 import { blo } from "blo";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { truncateAddress } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { MapPinned, Settings2 } from "lucide-react";
+import { MapPinned } from "lucide-react";
 import Image from "next/image";
+import { usePrivy } from "@privy-io/react-auth";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 export function AppSidebar() {
-  const { address } = useAppKitAccount();
-  const { open } = useAppKit();
+  const { ready, authenticated, user } = usePrivy();
+  const pathname = usePathname();
+
+  const address = user?.wallet?.address;
 
   return (
     <Sidebar className="border-r-transparent">
       <SidebarHeader>
-        <div className="flex items-center gap-2 p-1">
+        <Link href="/" className="flex items-center gap-2 p-1">
           <Image
             src="/assets/logo.webp"
             className="border border-border rounded-md"
@@ -31,46 +35,59 @@ export function AppSidebar() {
             height={32}
           />
           <span className="font-bold">GainForest</span>
-        </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
           <SidebarGroupContent>
-            <Button
-              variant={"secondary"}
-              size={"sm"}
-              className="w-full justify-start"
-            >
-              <MapPinned className="w-4 h-4" />
-              My Projects
-            </Button>
+            <Link href="/projects">
+              <Button
+                variant={
+                  pathname.startsWith("/projects") ? "secondary" : "ghost"
+                }
+                size={"sm"}
+                className="w-full justify-start"
+              >
+                <MapPinned className="w-4 h-4" />
+                Projects
+              </Button>
+            </Link>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        {address && (
-          <ul className="w-full rounded-xl p-2 py-4 bg-muted/50 border border-border transition-all duration-300 flex flex-col items-center gap-2">
-            <li className="flex flex-col items-center gap-2">
-              <Avatar className="h-10 w-10">
-                <AvatarImage
-                  src={blo(address as `0x${string}`)}
-                  alt="avatar"
-                  width={20}
-                  height={20}
-                />
-              </Avatar>
-              <span className="text-sm font-bold">
-                {truncateAddress(address as `0x${string}`)}
-              </span>
-            </li>
-            <li>
-              <Button variant={"outline"} size={"sm"} onClick={() => open()}>
-                <Settings2 className="w-4 h-4" />
-                Account Options
-              </Button>
-            </li>
-          </ul>
+        {ready && authenticated && (
+          <div className="border border-border p-3 rounded-xl">
+            {!address && "Loading..."}
+            {address && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-10 w-10 border border-border">
+                    <AvatarImage
+                      src={blo(address as `0x${string}`)}
+                      alt="avatar"
+                    />
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-muted-foreground">
+                      Signed in as
+                    </span>
+                    <span className="text-sm font-bold">
+                      {user.email?.address
+                        ? user.email.address.slice(0, 10) + "..."
+                        : truncateAddress(address)}
+                    </span>
+                  </div>
+                </div>
+                <Link href="/me">
+                  <Button variant={"secondary"} className="w-full" size={"sm"}>
+                    Account Options
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
         )}
       </SidebarFooter>
     </Sidebar>
