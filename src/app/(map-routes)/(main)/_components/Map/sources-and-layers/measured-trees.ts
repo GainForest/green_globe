@@ -108,12 +108,12 @@ export const toggleMeasuredTreesLayer = (
 };
 
 export const getTreeSpeciesName = (tree: TreeFeature["properties"]) => {
-  const upperCaseEveryWord = (name: string) =>
-    name.replace(/(^\w{1})|(\s+\w{1})/g, (letter) => letter.toUpperCase());
+  const upperCaseFirstLetter = (name: string) =>
+    name.charAt(0).toUpperCase() + name.slice(1);
   if (tree?.Plant_Name) {
-    return upperCaseEveryWord(tree?.Plant_Name);
+    return upperCaseFirstLetter(tree?.Plant_Name);
   } else if (tree?.species) {
-    return tree?.species;
+    return upperCaseFirstLetter(tree?.species);
   } else {
     return undefined;
   }
