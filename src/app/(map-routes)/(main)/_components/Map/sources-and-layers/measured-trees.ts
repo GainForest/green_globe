@@ -150,23 +150,24 @@ export const getTreeDateOfMeasurement = (tree: TreeFeature["properties"]) => {
   } else if (tree?.dateMeasured) {
     return dayjs(tree?.dateMeasured).format("DD/MM/YYYY");
   } else if (tree["FCD-tree_records-tree_time"]) {
-    function formatDateTime(input: string) {
-      const [datePart, timePart] = input.split(" ");
-      const ddmmyyArr = datePart.split("/");
-      const [day, month] = ddmmyyArr;
-      let [, , year] = ddmmyyArr;
-      year = year.length === 2 ? `20${year}` : year;
-      const isoDateString = `${year}-${month}-${day}T${timePart}:00`;
-      const date = new Date(isoDateString);
-      const formattedDate = date.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-
-      return formattedDate;
+    const input = tree["FCD-tree_records-tree_time"];
+    if (input.includes("T")) {
+      return dayjs(input).format("DD/MM/YYYY");
     }
-    return formatDateTime(tree["FCD-tree_records-tree_time"]);
+    const [datePart, timePart] = input.split(" ");
+    const ddmmyyArr = datePart.split("/");
+    const [day, month] = ddmmyyArr;
+    let [, , year] = ddmmyyArr;
+    year = year.length === 2 ? `20${year}` : year;
+    const isoDateString = `${year}-${month}-${day}T${timePart}:00`;
+    const date = new Date(isoDateString);
+    const formattedDate = date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    return formattedDate;
   } else {
     return "unknown";
   }
