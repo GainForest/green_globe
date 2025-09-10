@@ -1,0 +1,24 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.organization.defs",
+  "defs": {
+    "organizations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the organization"
+          },
+          "country": {
+            "type": "string",
+            "description": "The country of the organization",
+            "enum": ["US", "GB", "CA", "AU", "NZ", "Other"]
+          }
+        }
+      }
+    }
+  }
+}

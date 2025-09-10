@@ -1,0 +1,37 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.organization.site",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A declaration of a site for an organization",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "lat", "lon", "area", "shapefile", "isDefault"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the site"
+          },
+          "lat": {
+            "type": "number",
+            "description": "The latitude of the centerpoint of the site"
+          },
+          "lon": {
+            "type": "number",
+            "description": "The longitude of the centerpoint of the site"
+          },
+          "area": {
+            "type": "number",
+            "description": "The area of the site in hectares"
+          },
+          "shapefile": {
+            "type": "uri",
+            "description": "The uri pointing to the shapefile of the site"
+          }
+        }
+      }
+    }
+  }
+}

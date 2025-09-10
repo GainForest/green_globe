@@ -1,0 +1,21 @@
+{
+    "lexicon": 1,
+    "id": "app.gainforest.organization.default-site",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "A declaration of the default site for an organization",
+            "key": "literal:self",
+            "record": {
+                "type": "object",
+                "required": ["site"],
+                "properties": {
+                    "site": {
+                        "type": "string",
+                        "description": "The id of the site"
+                    }
+                }
+            }
+        }
+    }
+}
