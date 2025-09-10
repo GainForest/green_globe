@@ -7,9 +7,12 @@
                     "build":  "next build",
                     "start":  "next start",
                     "lint":  "next lint",
-                    "prepare":  "husky"
+                    "prepare":  "husky",
+                    "setup-client-metadata":  "node scripts/setup-client-metadata.js"
                 },
     "dependencies":  {
+                         "@atproto/api":  "*",
+                         "@atproto/oauth-client-browser":  "*",
                          "@formkit/auto-animate":  "^0.8.2",
                          "@google-cloud/bigquery":  "^7.9.2",
                          "@hookform/resolvers":  "^5.0.1",

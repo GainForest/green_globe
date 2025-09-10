@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import React from "react";
 import Link from "next/link";
+import AccountButton from "@/app/_components/account-button";
 
 const Header = () => {
   return (
@@ -17,11 +18,14 @@ const Header = () => {
         />
         <span className="font-bold text-lg">GainForest</span>
       </div>
-      <Link href="/">
-        <Button variant={"outline"} size={"icon"}>
-          <Home />
-        </Button>
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link href="/">
+          <Button variant={"outline"} size={"icon"}>
+            <Home />
+          </Button>
+        </Link>
+        <AccountButton />
+      </div>
     </div>
   );
 };

@@ -5,16 +5,22 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun run dev
 ```
 
 Open [http://localhost:8910](http://localhost:8910) with your browser to see the result.
+
+## Development
+
+- Install dependencies: `bun install`
+- Run dev server: `bun run dev` (http://localhost:8910)
+- Lint: `bun run lint`
+- Build: `bun run build`
+
+### Environment
+
+- Set `NEXT_PUBLIC_APP_ORIGIN` in production to your deployed origin.
+- In development, it defaults to `http://127.0.0.1:8910`.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
