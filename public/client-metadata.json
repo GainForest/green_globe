@@ -8,8 +8,6 @@
   "redirect_uris": ["PLACEHOLDER_TO_BE_REPLACED_WITH_ACTUAL_ORIGIN/callback"],
   "response_types": ["code"],
   "scope": "atproto transition:generic",
-  "token_endpoint_auth_method": "none",
-  "tos_uri": "PLACEHOLDER_TO_BE_REPLACED_WITH_ACTUAL_ORIGIN/terms",
-  "policy_uri": "PLACEHOLDER_TO_BE_REPLACED_WITH_ACTUAL_ORIGIN/privacy"
+  "token_endpoint_auth_method": "none"
 }
 
