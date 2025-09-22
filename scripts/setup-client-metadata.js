@@ -30,8 +30,16 @@ function setupClientMetadata() {
   const appOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN.replace(/\/$/, '');
 
   const clientName = process.env.CLIENT_NAME || 'Gainforest App';
-  const tosUri = process.env.TOS_URI || '/terms';
-  const policyUri = process.env.POLICY_URI || '/privacy';
+  const tosUri = process.env.TOS_URI?.trim();
+  const policyUri = process.env.POLICY_URI?.trim();
+
+  const normalizeOptionalUri = (uri) => {
+    if (!uri) return null;
+    if (/^https?:\/\//i.test(uri)) return uri;
+
+    const prefixed = uri.startsWith('/') ? uri : `/${uri}`;
+    return `${appOrigin}${prefixed}`;
+  };
 
   const clientMetadata = {
     client_id: `${appOrigin}/client-metadata.json`,
@@ -44,9 +52,17 @@ function setupClientMetadata() {
     response_types: ["code"],
     scope: "atproto transition:generic",
     token_endpoint_auth_method: "none",
-    tos_uri: `${appOrigin}${tosUri}`,
-    policy_uri: `${appOrigin}${policyUri}`
   };
+
+  const resolvedTos = normalizeOptionalUri(tosUri);
+  if (resolvedTos) {
+    clientMetadata.tos_uri = resolvedTos;
+  }
+
+  const resolvedPolicy = normalizeOptionalUri(policyUri);
+  if (resolvedPolicy) {
+    clientMetadata.policy_uri = resolvedPolicy;
+  }
   
   try {
     fs.writeFileSync(
