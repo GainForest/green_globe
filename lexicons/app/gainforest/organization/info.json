@@ -16,7 +16,6 @@
           "startDate",
           "website",
           "country",
-          "isPublished",
           "visibility"
         ],
         "properties": {
@@ -66,10 +65,6 @@
             "type": "string",
             "description": "The country of the organization or project in two letter code (ISO 3166-1 alpha-2)",
             "pattern": "^[A-Z]{2}$"
-          },
-          "isPublished": {
-            "type": "boolean",
-            "description": "Whether the organization or project is published"
           },
           "visibility": {
             "type": "string",
