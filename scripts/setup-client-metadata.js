@@ -16,11 +16,18 @@ function setupClientMetadata() {
 
   const rawEnvOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN?.trim();
   const vercelUrl = process.env.VERCEL_URL?.trim();
+  const vercelEnv = process.env.VERCEL_ENV?.trim();
   const derivedOrigin = vercelUrl
     ? `https://${vercelUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '')}`
     : null;
 
-  const resolvedOrigin = rawEnvOrigin || derivedOrigin;
+  let resolvedOrigin;
+
+  if (vercelEnv && vercelEnv !== 'production') {
+    resolvedOrigin = derivedOrigin || rawEnvOrigin;
+  } else {
+    resolvedOrigin = rawEnvOrigin || derivedOrigin;
+  }
 
   if (!resolvedOrigin) {
     console.error('❌ Unable to determine app origin. Set NEXT_PUBLIC_APP_ORIGIN or ensure VERCEL_URL is available.');
@@ -34,7 +41,7 @@ function setupClientMetadata() {
 
   const appOrigin = resolvedOrigin.replace(/\/$/, '');
 
-  if (!rawEnvOrigin && derivedOrigin) {
+  if ((!rawEnvOrigin && derivedOrigin) || (vercelEnv && vercelEnv !== 'production' && derivedOrigin)) {
     console.log(`ℹ️  Using Vercel URL as app origin: ${appOrigin}`);
   }
 
