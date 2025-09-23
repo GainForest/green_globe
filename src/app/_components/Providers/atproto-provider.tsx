@@ -44,17 +44,25 @@ function getATProtoConfig() {
 const { handleResolver: HANDLE_RESOLVER, allowedServers: ALLOWED_AUTH_SERVERS } = getATProtoConfig();
 
 function getAppOrigin() {
-  const envOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN;
+  const envOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN?.replace(/\/$/, "");
+  const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL?.replace(/\/$/, "");
 
-  if (envOrigin) {
-    return envOrigin.replace(/\/$/, "");
+  if (typeof window === 'undefined') {
+    if (envOrigin) return envOrigin;
+    if (vercelUrl) return `https://${vercelUrl.replace(/^https?:\/\//i, '')}`;
+    return "http://127.0.0.1:8910";
   }
 
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin.replace(/\/$/, "");
+  const browserOrigin = window.location.origin.replace(/\/$/, "");
+
+  if (envOrigin && envOrigin !== browserOrigin) {
+    console.warn(
+      `NEXT_PUBLIC_APP_ORIGIN (${envOrigin}) does not match window origin (${browserOrigin}). Falling back to window origin.`
+    );
+    return browserOrigin;
   }
 
-  throw new Error("Unable to determine application origin");
+  return envOrigin || browserOrigin;
 }
 
 
