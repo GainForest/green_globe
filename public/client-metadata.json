@@ -1,13 +1,19 @@
 {
   "client_id": "PLACEHOLDER_TO_BE_REPLACED_WITH_ACTUAL_ORIGIN/client-metadata.json",
   "application_type": "web",
-  "client_name": "Gainforest",
+  "client_name": "Gainforest App",
   "client_uri": "PLACEHOLDER_TO_BE_REPLACED_WITH_ACTUAL_ORIGIN",
   "dpop_bound_access_tokens": true,
-  "grant_types": ["authorization_code", "refresh_token"],
-  "redirect_uris": ["PLACEHOLDER_TO_BE_REPLACED_WITH_ACTUAL_ORIGIN/callback"],
-  "response_types": ["code"],
+  "grant_types": [
+    "authorization_code",
+    "refresh_token"
+  ],
+  "redirect_uris": [
+    "PLACEHOLDER_TO_BE_REPLACED_WITH_ACTUAL_ORIGIN/callback"
+  ],
+  "response_types": [
+    "code"
+  ],
   "scope": "atproto transition:generic",
   "token_endpoint_auth_method": "none"
 }
-
