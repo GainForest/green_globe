@@ -14,20 +14,29 @@ const path = require('path');
 function setupClientMetadata() {
   const clientMetadataPath = path.join(__dirname, '..', 'public', 'client-metadata.json');
 
-  const requiredEnvVars = {
-    'NEXT_PUBLIC_APP_ORIGIN': process.env.NEXT_PUBLIC_APP_ORIGIN
-  };
-  
-  const missingVars = Object.entries(requiredEnvVars)
-    .filter(([, value]) => !value)
-    .map(([key]) => key);
-  
-  if (missingVars.length > 0) {
-    console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`);
+  const rawEnvOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN?.trim();
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  const derivedOrigin = vercelUrl
+    ? `https://${vercelUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '')}`
+    : null;
+
+  const resolvedOrigin = rawEnvOrigin || derivedOrigin;
+
+  if (!resolvedOrigin) {
+    console.error('❌ Unable to determine app origin. Set NEXT_PUBLIC_APP_ORIGIN or ensure VERCEL_URL is available.');
     process.exit(1);
   }
-  
-  const appOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN.replace(/\/$/, '');
+
+  if (!/^https?:\/\//i.test(resolvedOrigin)) {
+    console.error(`❌ Invalid app origin. Expected an absolute URL, received: ${resolvedOrigin}`);
+    process.exit(1);
+  }
+
+  const appOrigin = resolvedOrigin.replace(/\/$/, '');
+
+  if (!rawEnvOrigin && derivedOrigin) {
+    console.log(`ℹ️  Using Vercel URL as app origin: ${appOrigin}`);
+  }
 
   const clientName = process.env.CLIENT_NAME || 'Gainforest App';
   const tosUri = process.env.TOS_URI?.trim();
