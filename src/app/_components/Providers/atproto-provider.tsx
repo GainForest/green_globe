@@ -43,33 +43,18 @@ function getATProtoConfig() {
 
 const { handleResolver: HANDLE_RESOLVER, allowedServers: ALLOWED_AUTH_SERVERS } = getATProtoConfig();
 
-function validateProductionEnvVars() {
-  const isProd = process.env.NODE_ENV === "production";
-  if (!isProd) return;
-  
-  const required = [
-    { name: 'NEXT_PUBLIC_APP_ORIGIN', value: process.env.NEXT_PUBLIC_APP_ORIGIN },
-  ];
-  
-  const missing = required.filter(({ value }) => !value);
-  
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables in production: ${missing.map(({ name }) => name).join(', ')}`
-    );
-  }
-}
-
 function getAppOrigin() {
-  const isProd = process.env.NODE_ENV === "production";
   const envOrigin = process.env.NEXT_PUBLIC_APP_ORIGIN;
 
-  validateProductionEnvVars();
-  
-  if (isProd) {
-    return envOrigin!.replace(/\/$/, "");
+  if (envOrigin) {
+    return envOrigin.replace(/\/$/, "");
   }
-  return (envOrigin || "http://127.0.0.1:8910").replace(/\/$/, "");
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, "");
+  }
+
+  throw new Error("Unable to determine application origin");
 }
 
 
