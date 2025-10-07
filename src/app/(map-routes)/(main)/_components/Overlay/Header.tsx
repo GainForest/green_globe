@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import AccountButton from "@/app/_components/account-button";
 
 const Header = ({ showBrandName = true }: { showBrandName?: boolean }) => {
   return (
@@ -16,8 +17,9 @@ const Header = ({ showBrandName = true }: { showBrandName?: boolean }) => {
         />
         {showBrandName && <span className="font-bold text-lg">GainForest</span>}
       </div>
-      {/* Auth controls removed; no-op header for now */}
-      <div />
+      <div className="flex items-center gap-2">
+        <AccountButton />
+      </div>
     </div>
   );
 };

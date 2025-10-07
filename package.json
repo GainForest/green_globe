@@ -2,14 +2,23 @@
     "name":  "impact-trace",
     "version":  "0.1.0",
     "private":  true,
-    "scripts":  {
+  "scripts":  {
                     "dev":  "next dev -p 8910",
                     "build":  "next build",
                     "start":  "next start",
                     "lint":  "next lint",
-                    "prepare":  "husky"
+                    "prepare":  "husky",
+                    "setup-client-metadata":  "node scripts/setup-client-metadata.js",
+                    "vercel-build":  "NODE_ENV=production bun run setup-client-metadata && bun run build",
+                    "pds:describe": "node scripts/pds/describe-server.js",
+                    "migrate:dry-run": "node scripts/migrations/dry-run-sql.js organization_dump.sql --out tmp/migration-dry-run.json",
+                    "pds:constraints": "node scripts/pds/constraints-probe.js",
+                    "pds:invites": "node scripts/pds/create-invite-codes.js",
+                    "migrate:run": "node scripts/migrations/run-migration.js --service https://climateai.org --domain climateai.org --limit 3"
                 },
     "dependencies":  {
+                         "@atproto/api":  "*",
+                         "@atproto/oauth-client-browser":  "*",
                          "@formkit/auto-animate":  "^0.8.2",
                          "@google-cloud/bigquery":  "^7.9.2",
                          "@hookform/resolvers":  "^5.0.1",
