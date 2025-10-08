@@ -1,14 +1,14 @@
 {
   "lexicon": 1,
-  "id": "app.gainforest.organization.site",
+  "id": "app.gainforest.organization.sites",
   "defs": {
     "main": {
       "type": "record",
-      "description": "A declaration of a site for an organization",
+      "description": "A site boundary for an organization, defined by a GeoJSON shapefile",
       "key": "tid",
       "record": {
         "type": "object",
-        "required": ["name", "lat", "lon", "area"],
+        "required": ["name"],
         "properties": {
           "name": {
             "type": "string",
@@ -26,10 +26,10 @@
             "type": "number",
             "description": "The area of the site in hectares"
           },
-          "shapefile": {
+          "boundary": {
             "type": "string",
             "format": "uri",
-            "description": "The uri pointing to the shapefile of the site"
+            "description": "IPFS URI of the GeoJSON file defining the site boundary"
           }
         }
       }

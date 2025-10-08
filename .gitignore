@@ -42,3 +42,20 @@ next-env.d.ts
 
 # IDE
 .idea/
+
+# Temporary files
+tmp/
+DB Exports/
+downloaded/
+docs/
+pds-env.json
+pds-help.txt
+Report_ GainForest PDS Deployment.txt
+scripts/migrations/
+scripts/pds/
+
+# PDS Credentials
+**/pds-credentials.json
+**/pds-credentials*.json
+!**/pds-credentials.example.json
+!**/pds-credentials-template.json

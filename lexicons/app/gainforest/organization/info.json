@@ -13,9 +13,6 @@
           "shortDescription",
           "longDescription",
           "objectives",
-          "startDate",
-          "website",
-          "country",
           "isPublished",
           "visibility"
         ],
