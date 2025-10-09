@@ -13,7 +13,7 @@
           "site": {
             "type": "string",
             "format": "at-uri",
-            "description": "The id of the site"
+            "description": "The reference to the default site record in the PDS"
           }
         }
       }
