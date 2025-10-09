@@ -16,6 +16,7 @@
           "startDate",
           "website",
           "country",
+          "isPublished",
           "visibility"
         ],
         "properties": {

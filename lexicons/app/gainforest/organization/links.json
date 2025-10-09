@@ -1,0 +1,25 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.organization.links",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "External links and references for an organization/project",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "website": { "type": "string", "format": "uri", "description": "Primary website (may duplicate info.website)" },
+          "projectUrl": { "type": "string", "format": "uri", "description": "Project registry or overview URL" },
+          "discordId": { "type": "string", "maxLength": 80, "description": "Discord server or channel identifier" },
+          "stripeUrl": { "type": "string", "format": "uri", "description": "Stripe checkout or dashboard URL" },
+          "dataDownloadUrl": { "type": "string", "format": "uri", "description": "Data download URL" },
+          "dataDownloadInfo": { "type": "string", "maxLength": 2000, "description": "Description of downloadable data" },
+          "customEnterBtnText": { "type": "string", "maxLength": 120, "description": "Custom CTA label for project entry" }
+        }
+      }
+    }
+  }
+}
+

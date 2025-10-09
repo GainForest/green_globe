@@ -1,0 +1,24 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.organization.registry",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Legacy identifiers and registry references for an organization/project",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "verraId": { "type": "integer", "description": "Verra registry project ID" },
+          "methodologyId": { "type": "integer", "description": "Methodology ID (legacy)" },
+          "verifierId": { "type": "integer", "description": "Verifier ID (legacy)" },
+          "proponentId": { "type": "integer", "description": "Proponent ID (legacy)" },
+          "organizationId": { "type": "integer", "description": "Organization ID (legacy)" },
+          "walletId": { "type": "integer", "description": "Wallet ID (legacy)" }
+        }
+      }
+    }
+  }
+}
+
