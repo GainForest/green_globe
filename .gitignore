@@ -53,6 +53,7 @@ pds-help.txt
 Report_ GainForest PDS Deployment.txt
 scripts/migrations/
 scripts/pds/
+Tree Data/
 
 # PDS Credentials
 **/pds-credentials.json
