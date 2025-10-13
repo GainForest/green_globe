@@ -8,8 +8,13 @@
       "key": "tid",
       "record": {
         "type": "object",
-        "required": ["shapefile", "name"],
-        "properties": {}
+        "required": ["tbd"],
+        "properties": {
+          "tbd": {
+            "type": "string",
+            "description": "TBD"
+          }
+        }
       }
     }
   }

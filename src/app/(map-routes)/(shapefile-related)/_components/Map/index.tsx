@@ -6,7 +6,7 @@ import { MAP_FOG_CONFIG } from "@/config/map";
 import { MAP_CONFIG } from "@/config/map";
 import mapboxgl, { Map as MapInterface } from "mapbox-gl";
 import {
-  addProjectMarkerHandlers,
+  addOrganizationPointClickHandlers,
   setProjectMarkers,
   spinGlobe,
 } from "@/app/(map-routes)/_utils/map";
@@ -126,7 +126,7 @@ const Map = () => {
       );
       map.setFog(MAP_FOG_CONFIG);
       setProjectMarkers(map).then(() => {
-        addProjectMarkerHandlers(map, handleProjectMarkerClick);
+        addOrganizationPointClickHandlers(map, handleProjectMarkerClick);
       });
       setMapLoaded(true);
     };

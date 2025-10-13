@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "app.gainforest.organization.measured-trees",
+  "id": "app.gainforest.organization.measuredTrees",
   "defs": {
     "main": {
       "type": "record",
@@ -11,7 +11,8 @@
         "required": ["shapefile"],
         "properties": {
           "shapefile": {
-            "type": "uri",
+            "type": "string",
+            "format": "uri",
             "description": "The uri pointing to the shapefile of the measured trees"
           }
         }

@@ -15,15 +15,15 @@
             "description": "The name of the site"
           },
           "lat": {
-            "type": "number",
+            "type": "integer",
             "description": "The latitude of the centerpoint of the site"
           },
           "lon": {
-            "type": "number",
+            "type": "integer",
             "description": "The longitude of the centerpoint of the site"
           },
           "area": {
-            "type": "number",
+            "type": "integer",
             "description": "The area of the site in hectares"
           },
           "boundary": {

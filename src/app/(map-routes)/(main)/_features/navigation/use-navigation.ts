@@ -17,11 +17,11 @@ const useNavigation = () => {
 
     // Create new state using Immer without updating the store
     const newState =
-      typeof state === "function"
-        ? produce(currentState, state)
-        : produce(currentState, (draft) => {
-            Object.assign(draft, state);
-          });
+      typeof state === "function" ?
+        produce(currentState, state)
+      : produce(currentState, (draft) => {
+          Object.assign(draft, state);
+        });
 
     const { overlay, layers, search, project, map } = newState;
 
