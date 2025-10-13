@@ -33,29 +33,6 @@ export const schemaDict = {
       },
     },
   },
-  AppGainforestOrganizationDefaultSites: {
-    lexicon: 1,
-    id: 'app.gainforest.organization.defaultSites',
-    defs: {
-      main: {
-        type: 'record',
-        description: 'A declaration of the default site for an organization',
-        key: 'literal:self',
-        record: {
-          type: 'object',
-          required: ['site'],
-          properties: {
-            site: {
-              type: 'string',
-              format: 'at-uri',
-              description:
-                'AT-URI of the default site record (app.gainforest.organization.sites)',
-            },
-          },
-        },
-      },
-    },
-  },
   AppGainforestOrganizationDefs: {
     lexicon: 1,
     id: 'app.gainforest.organization.defs',
@@ -473,46 +450,6 @@ export const schemaDict = {
       },
     },
   },
-  AppGainforestOrganizationSites: {
-    lexicon: 1,
-    id: 'app.gainforest.organization.sites',
-    defs: {
-      main: {
-        type: 'record',
-        description:
-          'A site boundary for an organization, defined by a GeoJSON shapefile',
-        key: 'tid',
-        record: {
-          type: 'object',
-          required: ['name'],
-          properties: {
-            name: {
-              type: 'string',
-              description: 'The name of the site',
-            },
-            lat: {
-              type: 'integer',
-              description: 'The latitude of the centerpoint of the site',
-            },
-            lon: {
-              type: 'integer',
-              description: 'The longitude of the centerpoint of the site',
-            },
-            area: {
-              type: 'integer',
-              description: 'The area of the site in hectares',
-            },
-            boundary: {
-              type: 'string',
-              format: 'uri',
-              description:
-                'IPFS URI of the GeoJSON file defining the site boundary',
-            },
-          },
-        },
-      },
-    },
-  },
   AppGainforestOrganizationTags: {
     lexicon: 1,
     id: 'app.gainforest.organization.tags',
@@ -606,8 +543,6 @@ export function validate(
 export const ids = {
   AppGainforestOrganizationDefaultSite:
     'app.gainforest.organization.defaultSite',
-  AppGainforestOrganizationDefaultSites:
-    'app.gainforest.organization.defaultSites',
   AppGainforestOrganizationDefs: 'app.gainforest.organization.defs',
   AppGainforestOrganizationGetIndexedOrganizations:
     'app.gainforest.organization.getIndexedOrganizations',
@@ -620,6 +555,5 @@ export const ids = {
     'app.gainforest.organization.prediction.flora',
   AppGainforestOrganizationRegistry: 'app.gainforest.organization.registry',
   AppGainforestOrganizationSite: 'app.gainforest.organization.site',
-  AppGainforestOrganizationSites: 'app.gainforest.organization.sites',
   AppGainforestOrganizationTags: 'app.gainforest.organization.tags',
 } as const
