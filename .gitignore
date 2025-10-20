@@ -46,6 +46,7 @@ next-env.d.ts
 # Temporary files
 tmp/
 DB Exports/
+Tree Data/
 downloaded/
 docs/
 pds-env.json

@@ -18,14 +18,14 @@ export interface Record {
   $type: 'app.gainforest.organization.site'
   /** The name of the site */
   name: string
-  /** The latitude of the centerpoint of the site */
-  lat: number
-  /** The longitude of the centerpoint of the site */
-  lon: number
-  /** The area of the site in hectares */
-  area: number
-  /** The uri pointing to the shapefile of the site */
-  shapefile?: string
+  /** Latitude of the site centerpoint as a decimal string */
+  lat?: string
+  /** Longitude of the site centerpoint as a decimal string */
+  lon?: string
+  /** Area of the site in hectares as a decimal string */
+  area?: string
+  /** The URI pointing to the GeoJSON boundary of the site */
+  boundary?: string
   /** GeoJSON blob containing tree planting data for this site (max 10MB) */
   trees?: BlobRef
   [k: string]: unknown

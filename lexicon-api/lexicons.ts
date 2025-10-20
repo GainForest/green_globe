@@ -168,6 +168,12 @@ export const schemaDict = {
               description: 'The visibility of the organization or project',
               enum: ['Public', 'Private'],
             },
+            coverImage: {
+              type: 'blob',
+              accept: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+              maxSize: 5242880,
+              description: 'Cover image blob for the organization (max 5MB)',
+            },
           },
         },
       },
@@ -415,28 +421,31 @@ export const schemaDict = {
         key: 'tid',
         record: {
           type: 'object',
-          required: ['name', 'lat', 'lon', 'area'],
+          required: ['name'],
           properties: {
             name: {
               type: 'string',
               description: 'The name of the site',
             },
             lat: {
-              type: 'integer',
-              description: 'The latitude of the centerpoint of the site',
+              type: 'string',
+              description:
+                'Latitude of the site centerpoint as a decimal string',
             },
             lon: {
-              type: 'integer',
-              description: 'The longitude of the centerpoint of the site',
+              type: 'string',
+              description:
+                'Longitude of the site centerpoint as a decimal string',
             },
             area: {
-              type: 'integer',
-              description: 'The area of the site in hectares',
+              type: 'string',
+              description: 'Area of the site in hectares as a decimal string',
             },
-            shapefile: {
+            boundary: {
               type: 'string',
               format: 'uri',
-              description: 'The uri pointing to the shapefile of the site',
+              description:
+                'The URI pointing to the GeoJSON boundary of the site',
             },
             trees: {
               type: 'blob',
