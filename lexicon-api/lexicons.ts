@@ -110,7 +110,6 @@ export const schemaDict = {
             'longDescription',
             'objectives',
             'startDate',
-            'website',
             'country',
             'visibility',
           ],
@@ -133,6 +132,11 @@ export const schemaDict = {
                 'The long description of the organization or project in markdown',
               minLength: 50,
               maxLength: 5000,
+            },
+            coverImage: {
+              type: 'blob',
+              description: 'The cover image of the organization or project',
+              accept: ['image/*'],
             },
             objectives: {
               type: 'array',

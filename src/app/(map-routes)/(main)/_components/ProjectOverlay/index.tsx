@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import Splash from "./Splash";
 import Loading from "./loading";
@@ -8,20 +8,22 @@ import TabMapper from "./TabMapper";
 import useProjectOverlayStore from "./store";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import ErrorMessage from "./ErrorMessage";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import getRecord from "@/lib/atproto/getRecord";
 import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
 import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { PDS_ENDPOINT } from "@/config/atproto";
+import { BlobRef } from "@atproto/api";
 
 const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
 
   const queryKey = ["app.gainforest.organization.info", organizationDid];
-  const queryClient = useQueryClient();
   const {
     data: info,
     isPending,
     error,
+    isPlaceholderData,
   } = useQuery({
     queryKey: queryKey,
     queryFn: async () => {
@@ -31,23 +33,23 @@ const ProjectOverlay = () => {
         "self",
         validateRecord
       );
+      console.log("data", data);
       return data as AppGainforestOrganizationInfo.Record;
     },
     enabled: !!organizationDid,
   });
-
-  useEffect(() => {
-    return () => {
-      queryClient.invalidateQueries({ queryKey });
-    };
-  }, [queryKey]);
 
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const splashImageURL = null;
+  const coverImage = info?.coverImage;
+  const coverImageCID = coverImage ? (coverImage as BlobRef).ref : null;
+  const splashImageURL =
+    coverImageCID ?
+      `${PDS_ENDPOINT}/xrpc/com.atProto.sync.getBlob?did=${organizationDid}&cid=${coverImageCID}`
+    : null;
 
   return (
     <motion.div
@@ -59,7 +61,7 @@ const ProjectOverlay = () => {
       className="relative h-full w-full"
     >
       <div className="absolute inset-0 scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 flex flex-col">
-        {isPending ?
+        {isPending || isPlaceholderData ?
           <Loading />
         : error || !info ?
           <div className="p-4">

@@ -22,6 +22,8 @@ export interface Record {
   shortDescription: string
   /** The long description of the organization or project in markdown */
   longDescription: string
+  /** The cover image of the organization or project */
+  coverImage?: BlobRef
   /** The objectives of the organization or project */
   objectives: (
     | 'Conservation'
@@ -33,7 +35,7 @@ export interface Record {
   /** The start date of the organization or project */
   startDate: string
   /** The website of the organization or project */
-  website: string
+  website?: string
   /** The country of the organization or project in two letter code (ISO 3166-1 alpha-2) */
   country: string
   /** The visibility of the organization or project */
