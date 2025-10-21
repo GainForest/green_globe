@@ -33,7 +33,6 @@ const ProjectOverlay = () => {
         "self",
         validateRecord
       );
-      console.log("data", data);
       return data as AppGainforestOrganizationInfo.Record;
     },
     enabled: !!organizationDid,
