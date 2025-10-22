@@ -15,6 +15,7 @@ const getRecord = async <V>(
   if (!data.success) throw new Error("Failed to fetch record");
   if (!validationFn) return data.data.value as V;
   const validation = validationFn(data.data.value as V);
+  console.log("validation", validation);
   if (!validation.success)
     throw new Error(
       "Record fetched but validation failed: " + validation.error.message

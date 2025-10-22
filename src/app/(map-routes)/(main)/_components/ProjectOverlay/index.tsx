@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import Splash from "./Splash";
+import CoverImage from "./CoverImage";
 import Loading from "./loading";
 import Header from "./Header";
 import TabMapper from "./TabMapper";
@@ -45,10 +45,10 @@ const ProjectOverlay = () => {
 
   const coverImage = info?.coverImage;
   const coverImageCID = coverImage ? (coverImage as BlobRef).ref : null;
-  const splashImageURL =
+  const coverImageUrl =
     coverImageCID ?
       `${PDS_ENDPOINT}/xrpc/com.atProto.sync.getBlob?did=${organizationDid}&cid=${coverImageCID}`
-    : null;
+    : "/assets/placeholders/cover-image.png";
 
   return (
     <motion.div
@@ -76,7 +76,7 @@ const ProjectOverlay = () => {
             />
           </div>
         : <div className="w-full relative flex flex-col flex-1">
-            <Splash imageURL={splashImageURL} projectDetails={info} />
+            <CoverImage imageURL={coverImageUrl} projectDetails={info} />
             <Header organization={info} />
             <div className="flex flex-col gap-2 p-4 -translate-y-20 flex-1 -mb-20">
               <TabMapper organization={info} />
