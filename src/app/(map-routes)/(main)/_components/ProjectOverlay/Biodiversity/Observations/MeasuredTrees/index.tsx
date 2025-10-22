@@ -3,11 +3,20 @@ import React, { useState, useMemo } from "react";
 import useProjectOverlayStore from "../../../store";
 import ErrorMessage from "../../../ErrorMessage";
 import { Combobox } from "@/components/ui/combobox";
-import { NormalizedTreeProperties } from "../../../store/types";
+import {
+  MeasuredTreesGeoJSON,
+  NormalizedTreeProperties,
+} from "../../../store/types";
 import ExportDialog from "./ExportDialog";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import LoadingSkeleton from "./loading";
+import useRecord from "@/hooks/use-record";
+import { AppGainforestOrganizationSite } from "@/../lexicon-api";
+import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/site";
+import { BlobRef } from "@atproto/api";
+import { useQuery } from "@tanstack/react-query";
+import getBlobUrl from "@/lib/atproto/getBlobUrl";
 
 const NoDataMessage = () => {
   return <ErrorMessage message="No measured trees found for this project." />;
@@ -85,8 +94,27 @@ const heightRanges = [
 
 const MeasuredTrees = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
-  const treesAsync = useProjectOverlayStore((state) => state.treesAsync);
-  const { _status, data } = treesAsync ?? { _status: "loading", data: null };
+  const activeSiteId = useProjectOverlayStore((state) => state.activeSiteId);
+  const { data: site } = useRecord<AppGainforestOrganizationSite.Record>(
+    "app.gainforest.organization.measuredTrees",
+    projectId ?? undefined,
+    activeSiteId ?? undefined,
+    validateRecord
+  );
+  const treesBlobRef = site?.trees as BlobRef | undefined;
+  const treesBlobCid = treesBlobRef?.ref;
+  const { data, error, isPlaceholderData } = useQuery({
+    queryKey: ["measured-trees", treesBlobCid],
+    queryFn: async () => {
+      if (!treesBlobCid) throw new Error("No trees blob CID found");
+      const blobUrl = getBlobUrl(projectId ?? "", treesBlobCid);
+      const response = await fetch(blobUrl);
+      const data = await response.json();
+      return data as MeasuredTreesGeoJSON;
+    },
+    enabled: !!treesBlobCid,
+  });
+
   const [selectedFilter, setSelectedFilter] = useState("species");
 
   const projectTrees: NormalizedTreeProperties[] =
@@ -135,14 +163,11 @@ const MeasuredTrees = () => {
   ) {
     return <NoDataMessage />;
   }
-  if (treesAsync === null) {
+  if (data === undefined || isPlaceholderData) {
     return <LoadingSkeleton />;
   }
 
-  if (_status === "loading") {
-    return <LoadingSkeleton />;
-  }
-  if (_status === "error") {
+  if (error) {
     return <ErrorMessage />;
   }
 
@@ -174,7 +199,7 @@ const MeasuredTrees = () => {
       </div>
 
       <div className="mt-4">
-        {selectedFilter === "species" ? (
+        {selectedFilter === "species" ?
           <div className="grid rounded-lg border border-border divide-y overflow-hidden">
             {speciesGroups.map((group) => (
               <DataItem
@@ -186,8 +211,7 @@ const MeasuredTrees = () => {
               />
             ))}
           </div>
-        ) : (
-          <div className="grid rounded-lg border border-border divide-y overflow-hidden">
+        : <div className="grid rounded-lg border border-border divide-y overflow-hidden">
             {heightGroups.map((group) => (
               <DataItem
                 key={group.label}
@@ -198,7 +222,7 @@ const MeasuredTrees = () => {
               />
             ))}
           </div>
-        )}
+        }
       </div>
     </div>
   );

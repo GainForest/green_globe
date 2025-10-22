@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { SlidingTabs, Underlay, Tab } from "@/components/ui/sliding-tabs";
 import useProjectOverlayStore from "../../../store";
 import { NormalizedTreeProperties } from "@/app/(map-routes)/(main)/_components/ProjectOverlay/store/types";
+import useRecord from "@/hooks/use-record";
+import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
 
 interface ExportDialogProps {
   selectedFilter: string;
@@ -28,7 +31,13 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   speciesGroups,
   heightGroups,
 }) => {
-  const projectData = useProjectOverlayStore((state) => state.projectData);
+  const projectId = useProjectOverlayStore((state) => state.projectId);
+  const { data: project } = useRecord<AppGainforestOrganizationInfo.Record>(
+    "app.gainforest.organization.info",
+    projectId ?? undefined,
+    undefined,
+    validateRecord
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [exportTab, setExportTab] = useState("complete");
 
@@ -75,7 +84,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
   const handleExport = () => {
     let csvContent = "";
-    let filename = `tree-data-${projectData?.name ?? "untitled"}.csv`;
+    let filename = `tree-data-${project?.displayName ?? "untitled"}.csv`;
 
     if (exportTab === "complete") {
       // Export all tree data
@@ -96,9 +105,11 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
             const treeHeader = tree[header as keyof NormalizedTreeProperties];
             const value = treeHeader ?? "";
             // Escape commas and quotes
-            return typeof value === "string" &&
-              (value.includes(",") || value.includes('"'))
-              ? `"${value.replace(/"/g, '""')}"`
+            return (
+                typeof value === "string" &&
+                  (value.includes(",") || value.includes('"'))
+              ) ?
+                `"${value.replace(/"/g, '""')}"`
               : value;
           });
           csvContent += row.join(",") + "\n";
@@ -108,7 +119,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
     } else {
       // Export filtered data
       filename = `${selectedFilter}-distribution-${
-        projectData?.name ?? "untitled"
+        project?.displayName ?? "untitled"
       }.csv`;
       if (selectedFilter === "species") {
         // Export species data
@@ -185,17 +196,16 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
           </SlidingTabs>
 
           <div className="mt-6">
-            {exportTab === "complete" ? (
+            {exportTab === "complete" ?
               <p className="text-sm text-muted-foreground">
                 Export all tree data from this project, including all species
                 and measurements.
               </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
+            : <p className="text-sm text-muted-foreground">
                 Export tree data grouped by {selectedFilter}, as shown in the
                 current view.
               </p>
-            )}
+            }
           </div>
 
           {/* Preview Table */}

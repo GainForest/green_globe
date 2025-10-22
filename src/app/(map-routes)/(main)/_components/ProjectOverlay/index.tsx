@@ -8,42 +8,23 @@ import TabMapper from "./TabMapper";
 import useProjectOverlayStore from "./store";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import ErrorMessage from "./ErrorMessage";
-import { useQuery } from "@tanstack/react-query";
-import getRecord from "@/lib/atproto/getRecord";
-import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
-import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
 import { PDS_ENDPOINT } from "@/config/atproto";
 import { BlobRef } from "@atproto/api";
+import useOrganizationInfo from "./hooks/useOrganizationInfo";
 
 const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
 
-  const queryKey = ["app.gainforest.organization.info", organizationDid];
-  const {
-    data: info,
-    isPending,
-    error,
-    isPlaceholderData,
-  } = useQuery({
-    queryKey: queryKey,
-    queryFn: async () => {
-      const data = await getRecord(
-        organizationDid ?? "",
-        "app.gainforest.organization.info",
-        "self",
-        validateRecord
-      );
-      return data as AppGainforestOrganizationInfo.Record;
-    },
-    enabled: !!organizationDid,
-  });
+  const { organizationInfo, organizationInfoError } = useOrganizationInfo(
+    organizationDid ?? undefined
+  );
 
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const coverImage = info?.coverImage;
+  const coverImage = organizationInfo?.coverImage;
   const coverImageCID = coverImage ? (coverImage as BlobRef).ref : null;
   const coverImageUrl =
     coverImageCID ?
@@ -60,9 +41,9 @@ const ProjectOverlay = () => {
       className="relative h-full w-full"
     >
       <div className="absolute inset-0 scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 flex flex-col">
-        {isPending || isPlaceholderData ?
+        {organizationInfo === undefined ?
           <Loading />
-        : error || !info ?
+        : organizationInfoError ?
           <div className="p-4">
             <ErrorMessage
               message={
@@ -76,10 +57,13 @@ const ProjectOverlay = () => {
             />
           </div>
         : <div className="w-full relative flex flex-col flex-1">
-            <CoverImage imageURL={coverImageUrl} projectDetails={info} />
-            <Header organization={info} />
+            <CoverImage
+              imageURL={coverImageUrl}
+              projectDetails={organizationInfo}
+            />
+            <Header organization={organizationInfo} />
             <div className="flex flex-col gap-2 p-4 -translate-y-20 flex-1 -mb-20">
-              <TabMapper organization={info} />
+              <TabMapper organization={organizationInfo} />
             </div>
           </div>
         }

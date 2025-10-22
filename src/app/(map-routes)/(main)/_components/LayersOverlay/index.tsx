@@ -13,6 +13,9 @@ import QuickTooltip from "@/components/ui/quick-tooltip";
 import useMapStore from "../Map/store";
 import LandcoverControls from "./LandcoverControls";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
+import useRecord from "@/hooks/use-record";
+import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
 
 const LayersOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
@@ -20,7 +23,13 @@ const LayersOverlay = () => {
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const projectData = useProjectOverlayStore((state) => state.projectData);
+  const projectId = useProjectOverlayStore((state) => state.projectId);
+  const { data: project } = useRecord<AppGainforestOrganizationInfo.Record>(
+    "app.gainforest.organization.info",
+    projectId ?? undefined,
+    undefined,
+    validateRecord
+  );
   const toggledOnLayerIds = useLayersOverlayStore(
     (state) => state.toggledOnLayerIds
   );
@@ -67,7 +76,7 @@ const LayersOverlay = () => {
 
   useEffect(() => {
     fetchProjectSpecificLayers();
-  }, [projectData]);
+  }, [project]);
 
   const handleZoomToProjectSpecificLayer = useCallback(
     (layerEndpoint: string) => {
@@ -138,15 +147,17 @@ const LayersOverlay = () => {
           </div>
         );
       })}
-      {projectSpecificLayers.status === "loading" ? (
+      {projectSpecificLayers.status === "loading" ?
         <div className="flex flex-col gap-2">
           <div className="w-full h-12 bg-foreground/10 animate-pulse rounded-xl"></div>
           <div className="w-full h-12 bg-foreground/10 animate-pulse rounded-xl delay-500"></div>
           <div className="w-full h-12 bg-foreground/10 animate-pulse rounded-xl delay-1000"></div>
         </div>
-      ) : projectSpecificLayers.status === "success" &&
+      : (
+        projectSpecificLayers.status === "success" &&
         projectSpecificLayers.layers &&
-        projectSpecificLayers.layers.length > 0 ? (
+        projectSpecificLayers.layers.length > 0
+      ) ?
         <div className="mb-6">
           <h3 className="text-sm text-muted-foreground font-semibold mb-1 capitalize">
             Project Specific Layers
@@ -187,7 +198,7 @@ const LayersOverlay = () => {
             })}
           </div>
         </div>
-      ) : null}
+      : null}
     </motion.div>
   );
 };

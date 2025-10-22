@@ -1,7 +1,17 @@
 import dayjs from "dayjs";
 import { Payment, MemberInfo, FiatPayment } from "./types";
 import * as d3 from "d3";
-import { Project } from "@/app/(map-routes)/(main)/_components/ProjectOverlay/store/types";
+
+type CommunityMember = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profileUrl: string;
+  Wallet: {
+    CeloAccounts: string[];
+    SOLAccounts: string[];
+  };
+};
 
 const calculateStringDistance = (a: string, b: string): number => {
   if (!a || !b) return Infinity;
@@ -41,15 +51,16 @@ const formatFiatDate = (str: string) => {
 };
 
 export const fetchFiatPayments = async (
-  project: Project
+  projectName: string,
+  communityMembers: CommunityMember[]
 ): Promise<FiatPayment[]> => {
   const res = await d3.csv(
     `${process.env.NEXT_PUBLIC_AWS_STORAGE}/transactions/fiat-transactions.csv`
   );
   const filteredRes = res
-    .filter((d) => calculateStringDistance(d.orgName, project.name) < 3)
+    .filter((d) => calculateStringDistance(d.orgName, projectName) < 3)
     .map((d) => {
-      const member = project.communityMembers.find(
+      const member = communityMembers.find(
         (m) => m.id.toString() == d.communityMemberId
       );
       return {
@@ -70,13 +81,13 @@ export const fetchFiatPayments = async (
 };
 
 export const fetchCryptoPayments = async (
-  projectData: Project
+  communityMembers: CommunityMember[]
 ): Promise<Payment[]> => {
   const memberWallets = new Map<string, MemberInfo>();
   const celoRecipients: string[] = [];
   const solanaRecipients: string[] = [];
 
-  projectData.communityMembers.forEach((member) => {
+  communityMembers.forEach((member) => {
     const memberInfo: MemberInfo = {
       firstName: member.firstName,
       lastName: member.lastName,
@@ -218,9 +229,8 @@ export const fetchCeloPayments = async (
           (id) => `${id}`.toLowerCase() === `${transaction?.to}`.toLowerCase()
         );
 
-        const memberInfo = currentRecipientId
-          ? memberMap.get(currentRecipientId)
-          : undefined;
+        const memberInfo =
+          currentRecipientId ? memberMap.get(currentRecipientId) : undefined;
 
         return {
           to: transaction.to,

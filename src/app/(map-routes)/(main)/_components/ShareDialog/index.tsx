@@ -19,6 +19,7 @@ import { Check, Copy, LocateFixed, LucideProps, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useMapStore from "../Map/store";
 import { usePathname, useSearchParams } from "next/navigation";
+import useOrganizationInfo from "../ProjectOverlay/hooks/useOrganizationInfo";
 const ShareOption = ({
   title,
   description,
@@ -61,7 +62,10 @@ const ShareDialogWithoutSuspense = ({
 }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const project = useProjectOverlayStore((state) => state.projectData);
+  const projectId = useProjectOverlayStore((state) => state.projectId);
+  const { organizationInfo: project } = useOrganizationInfo(
+    projectId ?? undefined
+  );
   const getMapBounds = useMapStore((state) => state.getMapBounds);
 
   const [shouldShareOtherConfigs, setShouldShareOtherConfigs] = useState(true);
@@ -143,7 +147,7 @@ const ShareDialogWithoutSuspense = ({
           <DialogDescription>Share the map with others</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 my-6">
-          {project ? (
+          {project ?
             <div className="flex flex-col gap-2">
               <ShareOption
                 title="Share visible map area"
@@ -160,8 +164,7 @@ const ShareDialogWithoutSuspense = ({
                 onCheckedChange={() => setSharingOption("project")}
               />
             </div>
-          ) : (
-            <div className="bg-muted rounded-lg p-4 flex flex-col items-center gap-2">
+          : <div className="bg-muted rounded-lg p-4 flex flex-col items-center gap-2">
               <LocateFixed
                 className="text-muted-foreground opacity-50"
                 size={40}
@@ -174,7 +177,7 @@ const ShareDialogWithoutSuspense = ({
                 </p>
               </div>
             </div>
-          )}
+          }
           <div className="flex items-center gap-2">
             <Switch
               checked={shouldShareOtherConfigs}
@@ -195,7 +198,9 @@ const ShareDialogWithoutSuspense = ({
               copy(generateShareUrl());
             }}
           >
-            {isCopied ? <Check /> : <Copy />}
+            {isCopied ?
+              <Check />
+            : <Copy />}
             {isCopied ? "Copied" : "Copy URL"}
           </Button>
         </DialogFooter>
