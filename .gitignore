@@ -54,6 +54,7 @@ pds-help.txt
 Report_ GainForest PDS Deployment.txt
 scripts/migrations/
 scripts/pds/
+/SORALO
 
 # PDS Credentials
 **/pds-credentials.json
