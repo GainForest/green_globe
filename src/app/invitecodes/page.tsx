@@ -27,12 +27,13 @@ interface CreateInviteCodesResponse {
 }
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isCheckingPassword, setIsCheckingPassword] = useState(false);
   const [codeCount, setCodeCount] = useState(1);
   const [useCount, setUseCount] = useState(10);
+  const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<CreateInviteCodesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -202,7 +203,20 @@ export default function AdminPage() {
                 Between 1 and 1000 uses per code
               </p>
             </div>
-          </div>
+            <div className="space-y-2">
+                <Label htmlFor="useCount">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="test@example.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The email that is going to use this invite code
+                </p>
+              </div>
+            </div>
           
           <Button 
             onClick={handleGenerate} 
