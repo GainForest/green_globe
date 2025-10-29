@@ -20,25 +20,17 @@ import * as AppGainforestOrganizationDefaultSite from './types/app/gainforest/or
 import * as AppGainforestOrganizationDefs from './types/app/gainforest/organization/defs.js'
 import * as AppGainforestOrganizationGetIndexedOrganizations from './types/app/gainforest/organization/getIndexedOrganizations.js'
 import * as AppGainforestOrganizationInfo from './types/app/gainforest/organization/info.js'
-import * as AppGainforestOrganizationLinks from './types/app/gainforest/organization/links.js'
 import * as AppGainforestOrganizationMeasuredTrees from './types/app/gainforest/organization/measuredTrees.js'
-import * as AppGainforestOrganizationMetrics from './types/app/gainforest/organization/metrics.js'
 import * as AppGainforestOrganizationPredictionFlora from './types/app/gainforest/organization/prediction/flora.js'
-import * as AppGainforestOrganizationRegistry from './types/app/gainforest/organization/registry.js'
 import * as AppGainforestOrganizationSite from './types/app/gainforest/organization/site.js'
-import * as AppGainforestOrganizationTags from './types/app/gainforest/organization/tags.js'
 
 export * as AppGainforestOrganizationDefaultSite from './types/app/gainforest/organization/defaultSite.js'
 export * as AppGainforestOrganizationDefs from './types/app/gainforest/organization/defs.js'
 export * as AppGainforestOrganizationGetIndexedOrganizations from './types/app/gainforest/organization/getIndexedOrganizations.js'
 export * as AppGainforestOrganizationInfo from './types/app/gainforest/organization/info.js'
-export * as AppGainforestOrganizationLinks from './types/app/gainforest/organization/links.js'
 export * as AppGainforestOrganizationMeasuredTrees from './types/app/gainforest/organization/measuredTrees.js'
-export * as AppGainforestOrganizationMetrics from './types/app/gainforest/organization/metrics.js'
 export * as AppGainforestOrganizationPredictionFlora from './types/app/gainforest/organization/prediction/flora.js'
-export * as AppGainforestOrganizationRegistry from './types/app/gainforest/organization/registry.js'
 export * as AppGainforestOrganizationSite from './types/app/gainforest/organization/site.js'
-export * as AppGainforestOrganizationTags from './types/app/gainforest/organization/tags.js'
 
 export class AtpBaseClient extends XrpcClient {
   app: AppNS
@@ -78,12 +70,8 @@ export class AppGainforestOrganizationNS {
   _client: XrpcClient
   defaultSite: AppGainforestOrganizationDefaultSiteRecord
   info: AppGainforestOrganizationInfoRecord
-  links: AppGainforestOrganizationLinksRecord
   measuredTrees: AppGainforestOrganizationMeasuredTreesRecord
-  metrics: AppGainforestOrganizationMetricsRecord
-  registry: AppGainforestOrganizationRegistryRecord
   site: AppGainforestOrganizationSiteRecord
-  tags: AppGainforestOrganizationTagsRecord
   prediction: AppGainforestOrganizationPredictionNS
 
   constructor(client: XrpcClient) {
@@ -91,14 +79,10 @@ export class AppGainforestOrganizationNS {
     this.prediction = new AppGainforestOrganizationPredictionNS(client)
     this.defaultSite = new AppGainforestOrganizationDefaultSiteRecord(client)
     this.info = new AppGainforestOrganizationInfoRecord(client)
-    this.links = new AppGainforestOrganizationLinksRecord(client)
     this.measuredTrees = new AppGainforestOrganizationMeasuredTreesRecord(
       client,
     )
-    this.metrics = new AppGainforestOrganizationMetricsRecord(client)
-    this.registry = new AppGainforestOrganizationRegistryRecord(client)
     this.site = new AppGainforestOrganizationSiteRecord(client)
-    this.tags = new AppGainforestOrganizationTagsRecord(client)
   }
 
   getIndexedOrganizations(
@@ -389,94 +373,6 @@ export class AppGainforestOrganizationInfoRecord {
   }
 }
 
-export class AppGainforestOrganizationLinksRecord {
-  _client: XrpcClient
-
-  constructor(client: XrpcClient) {
-    this._client = client
-  }
-
-  async list(
-    params: OmitKey<ComAtprotoRepoListRecords.QueryParams, 'collection'>,
-  ): Promise<{
-    cursor?: string
-    records: { uri: string; value: AppGainforestOrganizationLinks.Record }[]
-  }> {
-    const res = await this._client.call('com.atproto.repo.listRecords', {
-      collection: 'app.gainforest.organization.links',
-      ...params,
-    })
-    return res.data
-  }
-
-  async get(
-    params: OmitKey<ComAtprotoRepoGetRecord.QueryParams, 'collection'>,
-  ): Promise<{
-    uri: string
-    cid: string
-    value: AppGainforestOrganizationLinks.Record
-  }> {
-    const res = await this._client.call('com.atproto.repo.getRecord', {
-      collection: 'app.gainforest.organization.links',
-      ...params,
-    })
-    return res.data
-  }
-
-  async create(
-    params: OmitKey<
-      ComAtprotoRepoCreateRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationLinks.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.links'
-    const res = await this._client.call(
-      'com.atproto.repo.createRecord',
-      undefined,
-      {
-        collection,
-        rkey: 'self',
-        ...params,
-        record: { ...record, $type: collection },
-      },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async put(
-    params: OmitKey<
-      ComAtprotoRepoPutRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationLinks.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.links'
-    const res = await this._client.call(
-      'com.atproto.repo.putRecord',
-      undefined,
-      { collection, ...params, record: { ...record, $type: collection } },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async delete(
-    params: OmitKey<ComAtprotoRepoDeleteRecord.InputSchema, 'collection'>,
-    headers?: Record<string, string>,
-  ): Promise<void> {
-    await this._client.call(
-      'com.atproto.repo.deleteRecord',
-      undefined,
-      { collection: 'app.gainforest.organization.links', ...params },
-      { headers },
-    )
-  }
-}
-
 export class AppGainforestOrganizationMeasuredTreesRecord {
   _client: XrpcClient
 
@@ -568,182 +464,6 @@ export class AppGainforestOrganizationMeasuredTreesRecord {
   }
 }
 
-export class AppGainforestOrganizationMetricsRecord {
-  _client: XrpcClient
-
-  constructor(client: XrpcClient) {
-    this._client = client
-  }
-
-  async list(
-    params: OmitKey<ComAtprotoRepoListRecords.QueryParams, 'collection'>,
-  ): Promise<{
-    cursor?: string
-    records: { uri: string; value: AppGainforestOrganizationMetrics.Record }[]
-  }> {
-    const res = await this._client.call('com.atproto.repo.listRecords', {
-      collection: 'app.gainforest.organization.metrics',
-      ...params,
-    })
-    return res.data
-  }
-
-  async get(
-    params: OmitKey<ComAtprotoRepoGetRecord.QueryParams, 'collection'>,
-  ): Promise<{
-    uri: string
-    cid: string
-    value: AppGainforestOrganizationMetrics.Record
-  }> {
-    const res = await this._client.call('com.atproto.repo.getRecord', {
-      collection: 'app.gainforest.organization.metrics',
-      ...params,
-    })
-    return res.data
-  }
-
-  async create(
-    params: OmitKey<
-      ComAtprotoRepoCreateRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationMetrics.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.metrics'
-    const res = await this._client.call(
-      'com.atproto.repo.createRecord',
-      undefined,
-      {
-        collection,
-        rkey: 'self',
-        ...params,
-        record: { ...record, $type: collection },
-      },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async put(
-    params: OmitKey<
-      ComAtprotoRepoPutRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationMetrics.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.metrics'
-    const res = await this._client.call(
-      'com.atproto.repo.putRecord',
-      undefined,
-      { collection, ...params, record: { ...record, $type: collection } },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async delete(
-    params: OmitKey<ComAtprotoRepoDeleteRecord.InputSchema, 'collection'>,
-    headers?: Record<string, string>,
-  ): Promise<void> {
-    await this._client.call(
-      'com.atproto.repo.deleteRecord',
-      undefined,
-      { collection: 'app.gainforest.organization.metrics', ...params },
-      { headers },
-    )
-  }
-}
-
-export class AppGainforestOrganizationRegistryRecord {
-  _client: XrpcClient
-
-  constructor(client: XrpcClient) {
-    this._client = client
-  }
-
-  async list(
-    params: OmitKey<ComAtprotoRepoListRecords.QueryParams, 'collection'>,
-  ): Promise<{
-    cursor?: string
-    records: { uri: string; value: AppGainforestOrganizationRegistry.Record }[]
-  }> {
-    const res = await this._client.call('com.atproto.repo.listRecords', {
-      collection: 'app.gainforest.organization.registry',
-      ...params,
-    })
-    return res.data
-  }
-
-  async get(
-    params: OmitKey<ComAtprotoRepoGetRecord.QueryParams, 'collection'>,
-  ): Promise<{
-    uri: string
-    cid: string
-    value: AppGainforestOrganizationRegistry.Record
-  }> {
-    const res = await this._client.call('com.atproto.repo.getRecord', {
-      collection: 'app.gainforest.organization.registry',
-      ...params,
-    })
-    return res.data
-  }
-
-  async create(
-    params: OmitKey<
-      ComAtprotoRepoCreateRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationRegistry.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.registry'
-    const res = await this._client.call(
-      'com.atproto.repo.createRecord',
-      undefined,
-      {
-        collection,
-        rkey: 'self',
-        ...params,
-        record: { ...record, $type: collection },
-      },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async put(
-    params: OmitKey<
-      ComAtprotoRepoPutRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationRegistry.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.registry'
-    const res = await this._client.call(
-      'com.atproto.repo.putRecord',
-      undefined,
-      { collection, ...params, record: { ...record, $type: collection } },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async delete(
-    params: OmitKey<ComAtprotoRepoDeleteRecord.InputSchema, 'collection'>,
-    headers?: Record<string, string>,
-  ): Promise<void> {
-    await this._client.call(
-      'com.atproto.repo.deleteRecord',
-      undefined,
-      { collection: 'app.gainforest.organization.registry', ...params },
-      { headers },
-    )
-  }
-}
-
 export class AppGainforestOrganizationSiteRecord {
   _client: XrpcClient
 
@@ -822,94 +542,6 @@ export class AppGainforestOrganizationSiteRecord {
       'com.atproto.repo.deleteRecord',
       undefined,
       { collection: 'app.gainforest.organization.site', ...params },
-      { headers },
-    )
-  }
-}
-
-export class AppGainforestOrganizationTagsRecord {
-  _client: XrpcClient
-
-  constructor(client: XrpcClient) {
-    this._client = client
-  }
-
-  async list(
-    params: OmitKey<ComAtprotoRepoListRecords.QueryParams, 'collection'>,
-  ): Promise<{
-    cursor?: string
-    records: { uri: string; value: AppGainforestOrganizationTags.Record }[]
-  }> {
-    const res = await this._client.call('com.atproto.repo.listRecords', {
-      collection: 'app.gainforest.organization.tags',
-      ...params,
-    })
-    return res.data
-  }
-
-  async get(
-    params: OmitKey<ComAtprotoRepoGetRecord.QueryParams, 'collection'>,
-  ): Promise<{
-    uri: string
-    cid: string
-    value: AppGainforestOrganizationTags.Record
-  }> {
-    const res = await this._client.call('com.atproto.repo.getRecord', {
-      collection: 'app.gainforest.organization.tags',
-      ...params,
-    })
-    return res.data
-  }
-
-  async create(
-    params: OmitKey<
-      ComAtprotoRepoCreateRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationTags.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.tags'
-    const res = await this._client.call(
-      'com.atproto.repo.createRecord',
-      undefined,
-      {
-        collection,
-        rkey: 'self',
-        ...params,
-        record: { ...record, $type: collection },
-      },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async put(
-    params: OmitKey<
-      ComAtprotoRepoPutRecord.InputSchema,
-      'collection' | 'record'
-    >,
-    record: Un$Typed<AppGainforestOrganizationTags.Record>,
-    headers?: Record<string, string>,
-  ): Promise<{ uri: string; cid: string }> {
-    const collection = 'app.gainforest.organization.tags'
-    const res = await this._client.call(
-      'com.atproto.repo.putRecord',
-      undefined,
-      { collection, ...params, record: { ...record, $type: collection } },
-      { encoding: 'application/json', headers },
-    )
-    return res.data
-  }
-
-  async delete(
-    params: OmitKey<ComAtprotoRepoDeleteRecord.InputSchema, 'collection'>,
-    headers?: Record<string, string>,
-  ): Promise<void> {
-    await this._client.call(
-      'com.atproto.repo.deleteRecord',
-      undefined,
-      { collection: 'app.gainforest.organization.tags', ...params },
       { headers },
     )
   }
