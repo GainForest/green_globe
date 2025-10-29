@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInviteCodes, type CreateInviteCodesParams } from "./action";
+import postgres from 'postgres';
+
+if (!process.env.POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING) {
+  throw new Error("Missing POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING env var");
+}
+const sql = postgres(process.env.POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING, { ssl: 'require' });
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,6 +91,9 @@ export async function POST(request: NextRequest) {
       (sum, acct) => sum + acct.codes.length,
       0
     );
+    const email = "kzoepa@gmail.com"
+    const code = result.codes[0]?.codes[0]
+    await sql`INSERT INTO invites(invite_token,email) VALUES (${code}, ${email}) RETURNING *`;
 
     // Return success response
     return NextResponse.json(
