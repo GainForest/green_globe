@@ -27,12 +27,12 @@ interface CreateInviteCodesResponse {
 }
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isCheckingPassword, setIsCheckingPassword] = useState(false);
-  const [codeCount, setCodeCount] = useState(1);
-  const [useCount, setUseCount] = useState(10);
+  // const [codeCount, setCodeCount] = useState(1);
+  // const [useCount, setUseCount] = useState(10);
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<CreateInviteCodesResponse | null>(null);
@@ -51,8 +51,9 @@ export default function AdminPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          codeCount,
-          useCount,
+          codeCount: 1,
+          useCount: 1,
+          email
         }),
       });
 
@@ -173,7 +174,7 @@ export default function AdminPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="codeCount">Number of Codes</Label>
               <Input
                 id="codeCount"
@@ -202,7 +203,7 @@ export default function AdminPage() {
               <p className="text-xs text-muted-foreground">
                 Between 1 and 1000 uses per code
               </p>
-            </div>
+            </div> */}
             <div className="space-y-2">
                 <Label htmlFor="useCount">Email</Label>
                 <Input

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body = await request.json();
-    const { codeCount = 1, useCount = 10 } = body;
+    const { codeCount = 1, useCount = 10, email } = body;
 
     // Validate parameters
     if (
@@ -91,7 +91,6 @@ export async function POST(request: NextRequest) {
       (sum, acct) => sum + acct.codes.length,
       0
     );
-    const email = "kzoepa@gmail.com"
     const code = result.codes[0]?.codes[0]
     await sql`INSERT INTO invites(invite_token,email) VALUES (${code}, ${email}) RETURNING *`;
 
