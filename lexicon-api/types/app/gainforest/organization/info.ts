@@ -40,6 +40,8 @@ export interface Record {
   visibility: 'Public' | 'Private'
   /** Cover image blob for the organization (max 5MB) */
   coverImage?: BlobRef
+  /** Logo blob for the organization (max 5MB) */
+  logo?: BlobRef
   [k: string]: unknown
 }
 

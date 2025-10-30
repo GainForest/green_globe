@@ -174,6 +174,12 @@ export const schemaDict = {
               maxSize: 5242880,
               description: 'Cover image blob for the organization (max 5MB)',
             },
+            logo: {
+              type: 'blob',
+              accept: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+              maxSize: 5242880,
+              description: 'Logo blob for the organization (max 5MB)',
+            },
           },
         },
       },
