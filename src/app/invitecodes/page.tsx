@@ -7,32 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Copy, Check, AlertCircle, Loader2, Lock } from "lucide-react";
-
-interface InviteCodeResult {
-  account: string;
-  codes: string[];
-}
-
-interface CreateInviteCodesResponse {
-  success: boolean;
-  codes: InviteCodeResult[];
-  metadata: {
-    codeCount: number;
-    useCount: number;
-    totalCodes: number;
-    generatedAt: string;
-  };
-  error?: string;
-  message?: string;
-}
+import { createInviteCodes, CreateInviteCodesResponse } from "../api/admin/invite-codes/action";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isCheckingPassword, setIsCheckingPassword] = useState(false);
-  // const [codeCount, setCodeCount] = useState(1);
-  // const [useCount, setUseCount] = useState(10);
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<CreateInviteCodesResponse | null>(null);
@@ -45,24 +26,16 @@ export default function AdminPage() {
     setResult(null);
 
     try {
-      const response = await fetch("/api/admin/invite-codes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          codeCount: 1,
-          useCount: 1,
-          email
-        }),
-      });
+      const data = await createInviteCodes({
+        codeCount: 1,
+        useCount: 1,
+        email
+      })
 
-      const data = await response.json();
-      
-      if (data.success) {
-        setResult(data);
+      if (data) {
+        setResult(data)
       } else {
-        setError(data.message || "Failed to generate invite codes");
+        setError("Failed to generate invite codes, try again");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -248,8 +221,8 @@ export default function AdminPage() {
           <CardHeader>
             <CardTitle>Generated Invite Codes</CardTitle>
             <CardDescription>
-              {result.metadata.totalCodes} codes generated on{" "}
-              {new Date(result.metadata.generatedAt).toLocaleString()}
+              {result.codeCount} codes generated on{" "}
+              {new Date().toLocaleString()}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -291,23 +264,17 @@ export default function AdminPage() {
             <div className="pt-4 border-t">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="font-medium">Total Codes</p>
-                  <p className="text-muted-foreground">{result.metadata.totalCodes}</p>
+                  <p className="font-medium">Token For Email</p>
+                  <p className="text-muted-foreground">{result.email}</p>
                 </div>
                 <div>
                   <p className="font-medium">Uses per Code</p>
-                  <p className="text-muted-foreground">{result.metadata.useCount}</p>
+                  <p className="text-muted-foreground">{result.useCount}</p>
                 </div>
                 <div>
                   <p className="font-medium">Total Uses</p>
                   <p className="text-muted-foreground">
-                    {result.metadata.totalCodes * result.metadata.useCount}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium">Generated</p>
-                  <p className="text-muted-foreground">
-                    {new Date(result.metadata.generatedAt).toLocaleTimeString()}
+                    {result.codeCount * result.useCount}
                   </p>
                 </div>
               </div>
