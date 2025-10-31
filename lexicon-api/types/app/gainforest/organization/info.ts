@@ -40,6 +40,10 @@ export interface Record {
   country: string
   /** The visibility of the organization or project */
   visibility: 'Public' | 'Private'
+  /** Cover image blob for the organization (max 5MB) */
+  coverImage?: BlobRef
+  /** Logo blob for the organization (max 5MB) */
+  logo?: BlobRef
   [k: string]: unknown
 }
 
