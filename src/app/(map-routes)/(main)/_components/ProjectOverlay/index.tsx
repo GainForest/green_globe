@@ -1,27 +1,29 @@
 "use client";
-import React, { useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import Splash from "./Splash";
+import CoverImage from "./CoverImage";
 import Loading from "./loading";
 import Header from "./Header";
 import TabMapper from "./TabMapper";
 import useProjectOverlayStore from "./store";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import ErrorMessage from "./ErrorMessage";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import getRecord from "@/lib/atproto/getRecord";
 import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
 import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { PDS_ENDPOINT } from "@/config/atproto";
+import { BlobRef } from "@atproto/api";
 
 const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
 
   const queryKey = ["app.gainforest.organization.info", organizationDid];
-  const queryClient = useQueryClient();
   const {
     data: info,
     isPending,
     error,
+    isPlaceholderData,
   } = useQuery({
     queryKey: queryKey,
     queryFn: async () => {
@@ -36,18 +38,17 @@ const ProjectOverlay = () => {
     enabled: !!organizationDid,
   });
 
-  useEffect(() => {
-    return () => {
-      queryClient.invalidateQueries({ queryKey });
-    };
-  }, [queryKey]);
-
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const splashImageURL = null;
+  const coverImage = info?.coverImage;
+  const coverImageCID = coverImage ? (coverImage as BlobRef).ref : null;
+  const coverImageUrl =
+    coverImageCID ?
+      `${PDS_ENDPOINT}/xrpc/com.atProto.sync.getBlob?did=${organizationDid}&cid=${coverImageCID}`
+    : "/assets/placeholders/cover-image.png";
 
   return (
     <motion.div
@@ -59,7 +60,7 @@ const ProjectOverlay = () => {
       className="relative h-full w-full"
     >
       <div className="absolute inset-0 scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 flex flex-col">
-        {isPending ?
+        {isPending || isPlaceholderData ?
           <Loading />
         : error || !info ?
           <div className="p-4">
@@ -75,7 +76,7 @@ const ProjectOverlay = () => {
             />
           </div>
         : <div className="w-full relative flex flex-col flex-1">
-            <Splash imageURL={splashImageURL} projectDetails={info} />
+            <CoverImage imageURL={coverImageUrl} projectDetails={info} />
             <Header organization={info} />
             <div className="flex flex-col gap-2 p-4 -translate-y-20 flex-1 -mb-20">
               <TabMapper organization={info} />
