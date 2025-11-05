@@ -22,7 +22,7 @@ export interface Record {
   shortDescription: string
   /** The long description of the organization or project in markdown */
   longDescription: string
-  /** The cover image of the organization or project */
+  /** Cover image blob for the organization (max 5MB) */
   coverImage?: BlobRef
   /** The objectives of the organization or project */
   objectives: (
@@ -40,8 +40,6 @@ export interface Record {
   country: string
   /** The visibility of the organization or project */
   visibility: 'Public' | 'Private'
-  /** Cover image blob for the organization (max 5MB) */
-  coverImage?: BlobRef
   /** Logo blob for the organization (max 5MB) */
   logo?: BlobRef
   [k: string]: unknown

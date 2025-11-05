@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -14,6 +15,16 @@ export async function POST(request: NextRequest) {
     }
     
     if (password === correctPassword) {
+      const basicAuth = Buffer.from(`captainfatin:${password}`).toString(
+        "base64"
+      );
+      const cookieStore = await cookies()
+      cookieStore.set({
+        name: 'admin_token',
+        value: basicAuth,
+        httpOnly:true,
+        path: '/',
+      })
       return NextResponse.json({ success: true });
     } else {
       return NextResponse.json(

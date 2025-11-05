@@ -135,8 +135,9 @@ export const schemaDict = {
             },
             coverImage: {
               type: 'blob',
-              description: 'The cover image of the organization or project',
-              accept: ['image/*'],
+              accept: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+              maxSize: 5242880,
+              description: 'Cover image blob for the organization (max 5MB)',
             },
             objectives: {
               type: 'array',
@@ -171,12 +172,6 @@ export const schemaDict = {
               type: 'string',
               description: 'The visibility of the organization or project',
               enum: ['Public', 'Private'],
-            },
-            coverImage: {
-              type: 'blob',
-              accept: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-              maxSize: 5242880,
-              description: 'Cover image blob for the organization (max 5MB)',
             },
             logo: {
               type: 'blob',
