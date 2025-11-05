@@ -133,11 +133,6 @@ export const schemaDict = {
               minLength: 50,
               maxLength: 5000,
             },
-            coverImage: {
-              type: 'blob',
-              description: 'The cover image of the organization or project',
-              accept: ['image/*'],
-            },
             objectives: {
               type: 'array',
               description: 'The objectives of the organization or project',
