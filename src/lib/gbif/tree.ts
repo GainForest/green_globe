@@ -230,6 +230,7 @@ export type TreeMeasurementType =
  */
 export interface TreeMeasurement extends DarwinCoreMeasurementOrFact {
   measurementType: TreeMeasurementType
+  /** Unit of measure; defaults to centimetres when omitted. */
   measurementUnit?: string
 }
 
