@@ -1,12 +1,16 @@
 "use server";
 import { cookies } from "next/headers";
-import postgres from 'postgres';
+import postgres from "postgres";
 
 if (!process.env.POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING) {
-  throw new Error("Missing POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING env var");
+  throw new Error(
+    "Missing POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING env var"
+  );
 }
-const sql = postgres(process.env.POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING, { ssl: 'require' });
-
+const sql = postgres(
+  process.env.POSTGRES_URL_NON_POOLING_ATPROTO_AUTH_MAPPING,
+  { ssl: "require" }
+);
 
 export type CreateInviteCodesParams = {
   codeCount: number;
@@ -31,10 +35,12 @@ export type CreateInviteCodesResponse = {
 
 const verifyAdmin = async () => {
   const cookieStore = await cookies();
-  const basicAuth = Buffer.from(`captainfatin:${process.env.INVITE_CODES_PASSWORD}`).toString("base64");
+  const basicAuth = Buffer.from(
+    `captainfatin:${process.env.INVITE_CODES_PASSWORD}`
+  ).toString("base64");
   const isAdmin = cookieStore.get("admin_token")?.value === basicAuth;
   return isAdmin;
-}
+};
 
 /**
  * Creates invite codes via the AT Protocol PDS server using HTTP Basic Auth
@@ -46,7 +52,9 @@ export const createInviteCodes = async (
 ): Promise<CreateInviteCodesResponse> => {
   const isAdmin = await verifyAdmin();
   if (!isAdmin) {
-    throw new Error("Unauthorized: Invalid credentials. Get correct credentials to access this.");
+    throw new Error(
+      "Unauthorized: Invalid credentials. Get correct credentials to access this."
+    );
   }
   const { codeCount, useCount, email } = params;
 
@@ -110,6 +118,6 @@ export const createInviteCodes = async (
     codes: data.codes,
     codeCount: Number(codeCount),
     useCount: Number(useCount),
-    email
+    email,
   };
 };
