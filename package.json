@@ -15,7 +15,8 @@
     "migrate:dry-run": "node scripts/migrations/dry-run-sql.js organization_dump.sql --out tmp/migration-dry-run.json",
     "pds:constraints": "node scripts/pds/constraints-probe.js",
     "pds:invites": "node scripts/pds/create-invite-codes.js",
-    "migrate:run": "node scripts/migrations/run-migration.js --service https://climateai.org --domain climateai.org --limit 3"
+    "migrate:run": "node scripts/migrations/run-migration.js --service https://climateai.org --domain climateai.org --limit 3",
+    "test": "vitest"
   },
   "dependencies": {
     "@atproto/api": "*",
@@ -65,6 +66,7 @@
   },
   "devDependencies": {
     "@atproto/lex-cli": "^0.9.5",
+    "@types/geojson": "^7946.0.14",
     "@types/d3": "^7.4.3",
     "@types/mapbox__mapbox-gl-draw": "^1.4.8",
     "@types/node": "^20",
@@ -77,6 +79,7 @@
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.4",
+    "vitest": "^2.1.4"
   }
 }
