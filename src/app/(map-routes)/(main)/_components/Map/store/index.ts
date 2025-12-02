@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { Map } from "mapbox-gl";
-import { ProjectPolygonAPIResponse } from "../../ProjectOverlay/store/types";
+import { GeoJsonObject } from "geojson";
 export type MapState = {
   currentView: "project";
   mapBounds: [number, number, number, number] | null;
   mapRef: React.RefObject<Map | null> | null;
   mapLoaded: boolean;
-  highlightedPolygon: ProjectPolygonAPIResponse | null;
+  highlightedPolygon: GeoJsonObject | null;
 };
 
 export type MapActions = {
@@ -15,7 +15,7 @@ export type MapActions = {
   setCurrentView: (currentView: "project") => void;
   setMapRef: (mapRef: React.RefObject<Map | null>) => void;
   setMapLoaded: (mapLoaded: boolean) => void;
-  setHighlightedPolygon: (polygon: ProjectPolygonAPIResponse | null) => void;
+  setHighlightedPolygon: (polygon: GeoJsonObject | null) => void;
 };
 
 const initialState: MapState = {

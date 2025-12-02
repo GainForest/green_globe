@@ -1,27 +1,37 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import Splash from "./Splash";
+import CoverImage from "./CoverImage";
 import Loading from "./loading";
 import Header from "./Header";
 import TabMapper from "./TabMapper";
 import useProjectOverlayStore from "./store";
-import { getProjectSplashImageURLFromProject } from "./store/utils";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import ErrorMessage from "./ErrorMessage";
+import { trpcApi } from "@/components/providers/TRPCProvider";
+import { allowedPDSDomains } from "@/config/climateai-sdk";
+
 const ProjectOverlay = () => {
-  const projectDataStatus = useProjectOverlayStore(
-    (state) => state.projectDataStatus
-  );
-  const projectData = useProjectOverlayStore((state) => state.projectData);
+  const organizationDid = useProjectOverlayStore((state) => state.projectId);
+
+  const { data: info, error } =
+    trpcApi.gainforest.organization.info.get.useQuery(
+      {
+        did: organizationDid ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!organizationDid,
+      }
+    );
+
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const splashImageURL = projectData
-    ? getProjectSplashImageURLFromProject(projectData)
-    : null;
+  // This should never happen
+  if (!organizationDid) return null;
 
   return (
     <motion.div
@@ -33,9 +43,9 @@ const ProjectOverlay = () => {
       className="relative h-full w-full"
     >
       <div className="absolute inset-0 scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 flex flex-col">
-        {projectDataStatus === "loading" ? (
+        {info === undefined ?
           <Loading />
-        ) : projectDataStatus === "error" || projectData === null ? (
+        : error ?
           <div className="p-4">
             <ErrorMessage
               message={
@@ -48,15 +58,18 @@ const ProjectOverlay = () => {
               }
             />
           </div>
-        ) : (
-          <div className="w-full relative flex flex-col flex-1">
-            <Splash imageURL={splashImageURL} projectDetails={projectData} />
-            <Header projectData={projectData} />
+        : <div className="w-full relative flex flex-col flex-1">
+            <CoverImage
+              organization={info.value}
+              did={organizationDid}
+              pdsDomain={allowedPDSDomains[0]}
+            />
+            <Header organization={info.value} />
             <div className="flex flex-col gap-2 p-4 -translate-y-20 flex-1 -mb-20">
-              <TabMapper projectData={projectData} />
+              <TabMapper organization={info.value} />
             </div>
           </div>
-        )}
+        }
       </div>
     </motion.div>
   );

@@ -2,15 +2,15 @@ import React, { useEffect, useRef } from "react";
 import useMapStore from "../store";
 import { addAllSourcesAndLayers } from "../utils";
 import {
-  addProjectMarkerHandlers,
-  setProjectMarkers,
+  addOrganizationPointClickHandlers,
   spinGlobe,
 } from "@/app/(map-routes)/_utils/map";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
 import useOverlayTabsStore from "@/app/(map-routes)/(main)/_components/Overlay/OverlayTabs/store";
-import mapboxgl, { Map as MapInterface } from "mapbox-gl";
+import mapboxgl, { GeoJSONSource, Map as MapInterface } from "mapbox-gl";
 import { MAP_CONFIG, MAP_FOG_CONFIG } from "../../../../../../config/map";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
+import useIndexedOrganizations from "@/app/(map-routes)/(main)/_hooks/useIndexedOrganizations";
 
 const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
   const mapRef = useRef<MapInterface | null>(null);
@@ -18,6 +18,7 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
 
   const navigate = useNavigation();
 
+  const mapLoaded = useMapStore((state) => state.mapLoaded);
   const setMapLoaded = useMapStore((state) => state.setMapLoaded);
 
   const setCurrentView = useMapStore((state) => state.setCurrentView);
@@ -26,11 +27,13 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
     (actions) => actions.setProjectId
   );
 
-  const handleProjectMarkerClick = (projectId: string) => {
+  const { organizations } = useIndexedOrganizations();
+
+  const handleOrganizationPointClick = (organizationId: string) => {
     setCurrentView("project");
     setOverlayTab("project", navigate);
     setTimeout(() => {
-      setActiveProjectId(projectId, navigate);
+      setActiveProjectId(organizationId, navigate);
     }, 400);
   };
 
@@ -70,9 +73,6 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
     const onLoad = () => {
       map.setFog(MAP_FOG_CONFIG);
       addAllSourcesAndLayers(map);
-      setProjectMarkers(map).then(() => {
-        addProjectMarkerHandlers(map, handleProjectMarkerClick);
-      });
       setMapLoaded(true);
     };
 
@@ -85,6 +85,34 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
       map.off("touchstart", stopSpin);
     };
   }, []);
+
+  // Add project markers when the organizations load or change
+  useEffect(() => {
+    if (organizations && mapRef.current) {
+      const map = mapRef.current;
+      const organizationsFeatureArray = organizations.map((organization) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [
+            organization.mapPoint.lon,
+            organization.mapPoint.lat,
+          ] as [number, number],
+        },
+        properties: {
+          name: organization.info.name,
+          country: organization.info.country,
+          did: organization.did,
+        },
+      }));
+      const source = map.getSource("projectMarkerSource") as GeoJSONSource;
+      source?.setData({
+        type: "FeatureCollection",
+        features: organizationsFeatureArray,
+      });
+      addOrganizationPointClickHandlers(map, handleOrganizationPointClick);
+    }
+  }, [organizations, mapLoaded]);
 };
 
 export default useMapbox;

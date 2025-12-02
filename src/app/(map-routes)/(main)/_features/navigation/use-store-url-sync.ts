@@ -52,8 +52,9 @@ const useStoreUrlSync = (
         );
       }
 
-      const { siteId, setSiteId } = useProjectOverlayStore.getState();
-      if (project["site-id"] !== siteId) {
+      const { activeSiteAtUri: activeSiteId, setActiveSiteAtUri: setSiteId } =
+        useProjectOverlayStore.getState();
+      if (project["site-id"] !== activeSiteId) {
         setSiteId(project["site-id"]);
       }
 

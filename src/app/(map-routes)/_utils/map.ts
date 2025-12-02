@@ -1,5 +1,5 @@
 import { GeoJSONSource, Map, Popup, MapMouseEvent } from "mapbox-gl";
-import { ProjectSitePoints } from "../_types/map";
+import { OrganizationPoints } from "../_types/map";
 
 export const spinGlobe = (map: Map, spinEnabled: boolean) => {
   const secondsPerRevolution = 120;
@@ -28,12 +28,12 @@ export const spinGlobe = (map: Map, spinEnabled: boolean) => {
   }
 };
 
-export const fetchProjectSites = async (): Promise<ProjectSitePoints> => {
+export const fetchProjectSites = async (): Promise<OrganizationPoints> => {
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_AWS_STORAGE}/shapefiles/gainforest-all-shapefiles.geojson`
     );
-    const projects: ProjectSitePoints = await response.json();
+    const projects: OrganizationPoints = await response.json();
     return projects;
   } catch (error) {
     console.error("Error fetching projects", error);
@@ -52,9 +52,9 @@ export const setProjectMarkers = async (map: Map) => {
   }
 };
 
-export const addProjectMarkerHandlers = (
+export const addOrganizationPointClickHandlers = (
   map: Map,
-  onClick: (projectId: string) => void
+  onClick: (organizationDid: string) => void
 ) => {
   const popup = new Popup({
     closeButton: false,
@@ -64,7 +64,7 @@ export const addProjectMarkerHandlers = (
   map.on("mousemove", "projectMarkerLayer", (e: MapMouseEvent) => {
     // Change the cursor style as a UI indicator.
     map.getCanvas().style.cursor = "pointer";
-    const features = e.features as ProjectSitePoints["features"] | undefined;
+    const features = e.features as OrganizationPoints["features"] | undefined;
     if (!features || features.length === 0) return;
 
     // Copy coordinates array.
@@ -91,10 +91,10 @@ export const addProjectMarkerHandlers = (
   });
 
   map.on("click", "projectMarkerLayer", (e: MapMouseEvent) => {
-    const features = e.features as ProjectSitePoints["features"] | undefined;
+    const features = e.features as OrganizationPoints["features"] | undefined;
     if (!features || features.length === 0) return;
-    const projectId = features[0].properties.projectId;
-    onClick(projectId);
+    const organizationDid = features[0].properties.did;
+    onClick(organizationDid);
   });
 
   map.on("mouseleave", "projectMarkerLayer", () => {

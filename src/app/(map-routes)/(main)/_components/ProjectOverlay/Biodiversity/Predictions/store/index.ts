@@ -51,25 +51,24 @@ const useBiodiversityPredictionsStore = create<
     ...initialState,
     fetchData: async () => {
       try {
-        const projectData = useProjectOverlayStore.getState().projectData;
-        if (!projectData) {
+        const projectId = useProjectOverlayStore.getState().projectId;
+        if (!projectId) {
           set({ dataStatus: "loading", data: null });
           return;
         }
         // Do not fetch data if the projectId is the same and the data is already loaded
-        if (
-          projectData.id === get().projectId &&
-          get().dataStatus === "success"
-        ) {
+        if (projectId === get().projectId && get().dataStatus === "success") {
           return;
         } else {
-          set({ projectId: projectData.id, dataStatus: "loading", data: null });
+          set({ projectId, dataStatus: "loading", data: null });
         }
-        const treesData = fetchPlantsData(projectData.name, "Trees");
-        const herbsData = fetchPlantsData(projectData.name, "Herbs");
-        const animalsData = fetchAnimalsData(projectData.name);
+        // @TODO: get the project name
+        const name = "Oceanus Conservation";
+        const treesData = fetchPlantsData(name, "Trees");
+        const herbsData = fetchPlantsData(name, "Herbs");
+        const animalsData = fetchAnimalsData(name);
         const allData = await Promise.all([treesData, herbsData, animalsData]);
-        if (get().projectId !== projectData.id) {
+        if (get().projectId !== projectId) {
           return;
         }
         set({

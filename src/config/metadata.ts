@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 
-const baseUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : `http://localhost:${process.env.PORT}`;
+const baseUrl = "https://gainforest.app";
 
 const imageUrl = `${baseUrl}/thumbnail.jpg`;
 
@@ -75,12 +73,6 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   manifest: "/site.webmanifest",
-  themeColor: "#34D399",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
   category: "Environment & Conservation",
   verification: {
     google: "google-site-verification-code", // Replace with actual verification code

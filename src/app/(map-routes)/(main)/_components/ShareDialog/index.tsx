@@ -13,12 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import React, { useCallback, useState } from "react";
+import React, { Suspense, useCallback, useState } from "react";
 import useProjectOverlayStore from "../ProjectOverlay/store";
 import { Check, Copy, LocateFixed, LucideProps, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useMapStore from "../Map/store";
 import { usePathname, useSearchParams } from "next/navigation";
+import { trpcApi } from "@/components/providers/TRPCProvider";
+import { allowedPDSDomains } from "@/config/climateai-sdk";
 const ShareOption = ({
   title,
   description,
@@ -54,10 +56,25 @@ const ShareOption = ({
   );
 };
 
-const ShareDialog = ({ children }: { children: React.ReactNode }) => {
+const ShareDialogWithoutSuspense = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const project = useProjectOverlayStore((state) => state.projectData);
+  const projectId = useProjectOverlayStore((state) => state.projectId);
+  const { data: projectResponse } =
+    trpcApi.gainforest.organization.info.get.useQuery(
+      {
+        did: projectId ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!projectId,
+      }
+    );
+  const project = projectResponse?.value;
   const getMapBounds = useMapStore((state) => state.getMapBounds);
 
   const [shouldShareOtherConfigs, setShouldShareOtherConfigs] = useState(true);
@@ -139,7 +156,7 @@ const ShareDialog = ({ children }: { children: React.ReactNode }) => {
           <DialogDescription>Share the map with others</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 my-6">
-          {project ? (
+          {project ?
             <div className="flex flex-col gap-2">
               <ShareOption
                 title="Share visible map area"
@@ -156,8 +173,7 @@ const ShareDialog = ({ children }: { children: React.ReactNode }) => {
                 onCheckedChange={() => setSharingOption("project")}
               />
             </div>
-          ) : (
-            <div className="bg-muted rounded-lg p-4 flex flex-col items-center gap-2">
+          : <div className="bg-muted rounded-lg p-4 flex flex-col items-center gap-2">
               <LocateFixed
                 className="text-muted-foreground opacity-50"
                 size={40}
@@ -170,7 +186,7 @@ const ShareDialog = ({ children }: { children: React.ReactNode }) => {
                 </p>
               </div>
             </div>
-          )}
+          }
           <div className="flex items-center gap-2">
             <Switch
               checked={shouldShareOtherConfigs}
@@ -191,12 +207,22 @@ const ShareDialog = ({ children }: { children: React.ReactNode }) => {
               copy(generateShareUrl());
             }}
           >
-            {isCopied ? <Check /> : <Copy />}
+            {isCopied ?
+              <Check />
+            : <Copy />}
             {isCopied ? "Copied" : "Copy URL"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const ShareDialog = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <Suspense>
+      <ShareDialogWithoutSuspense>{children}</ShareDialogWithoutSuspense>
+    </Suspense>
   );
 };
 

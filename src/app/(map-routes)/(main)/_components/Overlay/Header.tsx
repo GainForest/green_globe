@@ -2,14 +2,9 @@
 
 import React from "react";
 import Image from "next/image";
-
-// const WalletButton = dynamic(() => import("@/app/_components/WalletButton"), {
-//   ssr: false,
-// });
+import AccountButton from "@/app/_components/account-button";
 
 const Header = ({ showBrandName = true }: { showBrandName?: boolean }) => {
-  // const { address } = useAppKitAccount();
-  // const { open } = useAppKit();
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -22,20 +17,9 @@ const Header = ({ showBrandName = true }: { showBrandName?: boolean }) => {
         />
         {showBrandName && <span className="font-bold text-lg">GainForest</span>}
       </div>
-
-      {/* Commenting this code to temporarily remove it */}
-      {/* {address ? (
-        <div className="flex items-center gap-2">
-          <Link href="/my-projects">
-            <Button variant={"ghost"}>My Projects</Button>
-          </Link>
-          <Button variant={"outline"} size={"icon"} onClick={() => open()}>
-            <User2 />
-          </Button>
-        </div>
-      ) : (
-        <WalletButton />
-      )} */}
+      <div className="flex items-center gap-2">
+        <AccountButton />
+      </div>
     </div>
   );
 };

@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import useMapStore from "../store";
 import { GeoJSONSource } from "mapbox-gl";
+import { GeoJsonObject } from "geojson";
+import { AllGeoJSON } from "@turf/turf";
 
 /**
  * When the active project polygon changes, fit the map to the polygon and update the highlighted site source
@@ -15,7 +17,7 @@ const useHighlightedPolygon = () => {
     if (!map || !highlightedPolygon) return;
 
     (map.getSource("highlightedSite") as GeoJSONSource | undefined)?.setData(
-      highlightedPolygon
+      highlightedPolygon satisfies GeoJsonObject as AllGeoJSON
     );
   }, [mapRef, highlightedPolygon]);
 };

@@ -7,11 +7,11 @@ export type Feature = {
   properties: {
     country: string;
     name: string;
-    projectId: string;
+    did: string;
   };
 };
 
-export type ProjectSitePoints = {
+export type OrganizationPoints = {
   type: "FeatureCollection";
   features: Array<Feature>;
 };
