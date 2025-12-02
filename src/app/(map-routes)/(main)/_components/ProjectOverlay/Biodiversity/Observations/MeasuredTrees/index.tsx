@@ -3,11 +3,19 @@ import React, { useState, useMemo } from "react";
 import useProjectOverlayStore from "../../../store";
 import ErrorMessage from "../../../ErrorMessage";
 import { Combobox } from "@/components/ui/combobox";
-import { NormalizedTreeProperties } from "../../../store/types";
+import {
+  MeasuredTreesGeoJSON,
+  NormalizedTreeProperties,
+} from "../../../store/types";
 import ExportDialog from "./ExportDialog";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import LoadingSkeleton from "./loading";
+import { Agent, BlobRef } from "@atproto/api";
+import { useQuery } from "@tanstack/react-query";
+import { getBlobUrl, parseAtUri } from "climateai-sdk/utilities";
+import { trpcApi } from "@/components/providers/TRPCProvider";
+import { allowedPDSDomains } from "@/config/climateai-sdk";
 
 const NoDataMessage = () => {
   return <ErrorMessage message="No measured trees found for this project." />;
@@ -85,8 +93,53 @@ const heightRanges = [
 
 const MeasuredTrees = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
-  const treesAsync = useProjectOverlayStore((state) => state.treesAsync);
-  const { _status, data } = treesAsync ?? { _status: "loading", data: null };
+  const { data: measuredTreesResponse } =
+    trpcApi.gainforest.organization.measuredTrees.get.useQuery({
+      did: projectId ?? "",
+      pdsDomain: allowedPDSDomains[0],
+    });
+  const shapefileUri = measuredTreesResponse?.value.shapefile;
+
+  const { data, error, isPlaceholderData } = useQuery({
+    queryKey: ["measured-trees", shapefileUri],
+    queryFn: async () => {
+      if (!shapefileUri) throw new Error("No measured trees found");
+
+      // If the shapefile URI is an AT URI, try to fetch the blob from the PDS
+      if (shapefileUri?.startsWith("at://")) {
+        const { did, collection, rkey } = parseAtUri(shapefileUri);
+        const agent = new Agent({ service: allowedPDSDomains[0] });
+        const recordResponse = await agent.com.atproto.repo.getRecord({
+          repo: did,
+          collection: collection,
+          rkey: rkey,
+        });
+        if (recordResponse.success) {
+          const recordData = recordResponse.data.value;
+          if ("shapefile" in recordData) {
+            if (recordData.shapefile instanceof BlobRef) {
+              const blobUrl = getBlobUrl(
+                did,
+                recordData.shapefile,
+                allowedPDSDomains[0]
+              );
+              const response = await fetch(blobUrl);
+              const data = await response.json();
+              return data as MeasuredTreesGeoJSON;
+            }
+            return recordData.shapefile as MeasuredTreesGeoJSON;
+          }
+        }
+        throw new Error("Failed to fetch measured trees");
+      } else {
+        const response = await fetch(shapefileUri);
+        const data = await response.json();
+        return data as MeasuredTreesGeoJSON;
+      }
+    },
+    enabled: !!shapefileUri,
+  });
+
   const [selectedFilter, setSelectedFilter] = useState("species");
 
   const projectTrees: NormalizedTreeProperties[] =
@@ -135,14 +188,11 @@ const MeasuredTrees = () => {
   ) {
     return <NoDataMessage />;
   }
-  if (treesAsync === null) {
+  if (data === undefined || isPlaceholderData) {
     return <LoadingSkeleton />;
   }
 
-  if (_status === "loading") {
-    return <LoadingSkeleton />;
-  }
-  if (_status === "error") {
+  if (error) {
     return <ErrorMessage />;
   }
 
@@ -174,7 +224,7 @@ const MeasuredTrees = () => {
       </div>
 
       <div className="mt-4">
-        {selectedFilter === "species" ? (
+        {selectedFilter === "species" ?
           <div className="grid rounded-lg border border-border divide-y overflow-hidden">
             {speciesGroups.map((group) => (
               <DataItem
@@ -186,8 +236,7 @@ const MeasuredTrees = () => {
               />
             ))}
           </div>
-        ) : (
-          <div className="grid rounded-lg border border-border divide-y overflow-hidden">
+        : <div className="grid rounded-lg border border-border divide-y overflow-hidden">
             {heightGroups.map((group) => (
               <DataItem
                 key={group.label}
@@ -198,7 +247,7 @@ const MeasuredTrees = () => {
               />
             ))}
           </div>
-        )}
+        }
       </div>
     </div>
   );

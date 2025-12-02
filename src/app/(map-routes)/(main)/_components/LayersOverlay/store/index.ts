@@ -117,8 +117,9 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
           });
         } else if (layerName === "historicalSatellite") {
           navigate?.((draft) => {
-            draft.layers["historical-satellite"] = value
-              ? {
+            draft.layers["historical-satellite"] =
+              value ?
+                {
                   date: get().historicalSatelliteState.formattedCurrentDate,
                 }
               : null;
@@ -132,8 +133,8 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
         }));
       },
       fetchProjectSpecificLayers: async () => {
-        const projectData = useProjectOverlayStore.getState().projectData;
-        if (!projectData) {
+        const projectId = useProjectOverlayStore.getState().projectId;
+        if (!projectId) {
           set({
             projectSpecificLayers: {
               projectId: null,
@@ -143,20 +144,21 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
           });
           return;
         }
-        if (projectData.id === get().projectSpecificLayers.projectId) {
+        if (projectId === get().projectSpecificLayers.projectId) {
           return;
         }
         set({
           projectSpecificLayers: {
-            projectId: projectData.id,
+            projectId: projectId,
             status: "loading",
             layers: null,
           },
         });
-        const layers = await fetchProjectSpecificLayers(projectData.name);
+        // TODO: Update to use the project name
+        const layers = await fetchProjectSpecificLayers("Oceanus Conservation");
         set({
           projectSpecificLayers: {
-            projectId: projectData.id,
+            projectId: projectId,
             status: "success",
             layers: (layers ?? []).map((layer) => ({
               ...layer,

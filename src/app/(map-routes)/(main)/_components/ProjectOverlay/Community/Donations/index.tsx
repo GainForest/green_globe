@@ -5,13 +5,16 @@ import {
   ExternalLink,
   User2,
 } from "lucide-react";
-import React, { useEffect } from "react";
+import React from "react";
 import useProjectOverlayStore from "../../store";
 import dayjs from "dayjs";
 import Loading from "../../loading";
 import ErrorMessage from "../../ErrorMessage";
-import useDonationsStore from "./store";
-import { FiatPayment, Payment } from "./store/types";
+import { FiatPayment, Payment } from "./types";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCryptoPayments, fetchFiatPayments } from "./utils";
+import { allowedPDSDomains } from "@/config/climateai-sdk";
+import { trpcApi } from "@/components/providers/TRPCProvider";
 const NetworkBadge = ({
   network,
   attestationUid,
@@ -90,14 +93,13 @@ const DonationCard = ({ payment }: { payment: FiatPayment | Payment }) => {
           </div>
           <p className="text-sm text-muted-foreground">
             To:{" "}
-            {payment.blockchain === "FIAT" ? (
+            {payment.blockchain === "FIAT" ?
               fullName || payment.to
-            ) : (
-              <a
+            : <a
                 href={
-                  payment.blockchain?.toLowerCase() === "celo"
-                    ? `https://celo.blockscout.com//tx/${payment.hash}`
-                    : `https://explorer.solana.com/tx/${payment.hash}`
+                  payment.blockchain?.toLowerCase() === "celo" ?
+                    `https://celo.blockscout.com//tx/${payment.hash}`
+                  : `https://explorer.solana.com/tx/${payment.hash}`
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -105,7 +107,7 @@ const DonationCard = ({ payment }: { payment: FiatPayment | Payment }) => {
               >
                 {fullName || payment.to}
               </a>
-            )}
+            }
           </p>
           {payment.motive && <p className="text-sm">For: {payment.motive}</p>}
           <NetworkBadge
@@ -120,24 +122,41 @@ const DonationCard = ({ payment }: { payment: FiatPayment | Payment }) => {
 
 const Donations = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
-  const { data, dataStatus, fetchData } = useDonationsStore();
+  const { data: organizationInfoResponse } =
+    trpcApi.gainforest.organization.info.get.useQuery({
+      did: projectId ?? "",
+      pdsDomain: allowedPDSDomains[0],
+    });
+  const organizationInfo = organizationInfoResponse?.value;
+  const { data, status } = useQuery({
+    queryKey: [projectId, "donations"],
+    queryFn: async () => {
+      if (!organizationInfo) throw new Error("Organization not loaded yet.");
+      const [cryptoPayments, fiatPayments] = await Promise.all([
+        fetchCryptoPayments([]),
+        fetchFiatPayments(organizationInfo.displayName, []),
+      ]);
+      const data = [...cryptoPayments, ...fiatPayments].sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return data;
+    },
+    enabled: !!projectId && !!organizationInfo,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [projectId, fetchData]);
-
-  if (dataStatus === "loading") return <Loading />;
-  if (dataStatus === "error") return <ErrorMessage />;
+  if (status === "pending" || organizationInfo === undefined)
+    return <Loading />;
+  if (status === "error") return <ErrorMessage />;
 
   return (
     <div>
-      {data.length === 0 ? (
+      {data.length === 0 ?
         <p className="bg-foreground/10 text-muted-foreground rounded-lg p-4 flex items-center gap-4">
           <CircleAlert size={32} className="shrink-0 opacity-50" />
           <span>No transactions found for this project.</span>
         </p>
-      ) : (
-        <>
+      : <>
           <p className="bg-foreground/10 text-muted-foreground rounded-lg p-4 flex items-center gap-4">
             <BadgeDollarSign size={32} className="shrink-0 opacity-50" />
             <span>
@@ -153,7 +172,7 @@ const Donations = () => {
             ))}
           </div>
         </>
-      )}
+      }
     </div>
   );
 };

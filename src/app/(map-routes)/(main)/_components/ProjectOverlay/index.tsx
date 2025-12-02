@@ -14,15 +14,11 @@ import { allowedPDSDomains } from "@/config/climateai-sdk";
 const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
 
-  const {
-    data: info,
-    isPending,
-    error,
-    isPlaceholderData,
-  } = trpcApi.gainforest.organization.info.get.useQuery({
-    did: organizationDid ?? "",
-    pdsDomain: allowedPDSDomains[0],
-  });
+  const { data: info, error } =
+    trpcApi.gainforest.organization.info.get.useQuery({
+      did: organizationDid ?? "",
+      pdsDomain: allowedPDSDomains[0],
+    });
 
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
@@ -42,9 +38,9 @@ const ProjectOverlay = () => {
       className="relative h-full w-full"
     >
       <div className="absolute inset-0 scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 flex flex-col">
-        {isPending || isPlaceholderData ?
+        {info === undefined ?
           <Loading />
-        : error || !info ?
+        : error ?
           <div className="p-4">
             <ErrorMessage
               message={

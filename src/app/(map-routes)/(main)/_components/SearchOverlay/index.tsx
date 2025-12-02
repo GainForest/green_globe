@@ -12,6 +12,8 @@ import useOverlayTabsStore from "../Overlay/OverlayTabs/store";
 import { cn } from "@/lib/utils";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
 import useIndexedOrganizations from "../../_hooks/useIndexedOrganizations";
+import { allowedPDSDomains } from "@/config/climateai-sdk";
+import { trpcApi } from "@/components/providers/TRPCProvider";
 
 const SearchOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
@@ -25,10 +27,11 @@ const SearchOverlay = () => {
 
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const setProjectId = useProjectOverlayStore((state) => state.setProjectId);
-
-  const projectDataStatus = useProjectOverlayStore(
-    (state) => state.projectDataStatus
-  );
+  const { isPending: isOrganizationInfoPending, error: organizationInfoError } =
+    trpcApi.gainforest.organization.info.get.useQuery({
+      did: projectId ?? "",
+      pdsDomain: allowedPDSDomains[0],
+    });
 
   const searchQuery = useSearchOverlayStore((state) => state.searchQuery);
   const setSearchQuery = useSearchOverlayStore((state) => state.setSearchQuery);
@@ -152,16 +155,14 @@ const SearchOverlay = () => {
                         variant={"outline"}
                         size={"icon"}
                         onClick={() => setActiveTab("project", navigate)}
-                        disabled={projectDataStatus !== "success"}
+                        disabled={isOrganizationInfoPending}
                         className="text-muted-foreground"
                       >
-                        {projectDataStatus === "loading" ?
+                        {isOrganizationInfoPending ?
                           <Loader2 className="animate-spin" />
-                        : projectDataStatus === "error" ?
+                        : organizationInfoError ?
                           <CircleAlert />
-                        : projectDataStatus === "success" ?
-                          <ChevronRight />
-                        : null}
+                        : <ChevronRight />}
                       </Button>
                     </div>
                   )}

@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShareDialog from "../ShareDialog";
+import { trpcApi } from "@/components/providers/TRPCProvider";
+import { allowedPDSDomains } from "@/config/climateai-sdk";
 
 const OVERLAY_WIDTH = 500;
 
@@ -20,7 +22,13 @@ const DesktopOverlay = () => {
   const isOpen = useOverlayStore((state) => state.isOpen);
   const setIsOpen = useOverlayStore((state) => state.setIsOpen);
 
-  const projectData = useProjectOverlayStore((state) => state.projectData);
+  const projectId = useProjectOverlayStore((state) => state.projectId);
+  const { data: projectResponse } =
+    trpcApi.gainforest.organization.info.get.useQuery({
+      did: projectId ?? "",
+      pdsDomain: allowedPDSDomains[0],
+    });
+  const project = projectResponse?.value;
   const isMaximized = useProjectOverlayStore((state) => state.isMaximized);
   const setIsMaximized = useProjectOverlayStore(
     (state) => state.setIsMaximized
@@ -28,9 +36,9 @@ const DesktopOverlay = () => {
 
   const activeOverlayTab = useOverlayTabsStore((state) => state.activeTab);
   const computedSidebarWidth =
-    isMaximized && activeOverlayTab === "project"
-      ? "50vw"
-      : `${OVERLAY_WIDTH}px`;
+    isMaximized && activeOverlayTab === "project" ?
+      "50vw"
+    : `${OVERLAY_WIDTH}px`;
   return (
     <motion.div
       className="fixed top-2 left-2 bottom-2 flex items-start gap-2"
@@ -67,13 +75,15 @@ const DesktopOverlay = () => {
             )}
           />
         </Button>
-        {isOpen && activeOverlayTab === "project" && projectData && (
+        {isOpen && activeOverlayTab === "project" && project && (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsMaximized(!isMaximized)}
           >
-            {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            {isMaximized ?
+              <Minimize2 size={16} />
+            : <Maximize2 size={16} />}
           </Button>
         )}
         <div className="flex items-center justify-center">

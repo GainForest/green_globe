@@ -37,9 +37,8 @@ const isFeatureCollection = (
 const isFeature = (value: GeoJsonObject): value is Feature =>
   value.type === "Feature";
 
-const isGeometryCollection = (
-  value: Geometry
-): value is GeometryCollection => value.type === "GeometryCollection";
+const isGeometryCollection = (value: Geometry): value is GeometryCollection =>
+  value.type === "GeometryCollection";
 
 const isPolygon = (value: Geometry): value is Polygon =>
   value.type === "Polygon";
@@ -57,9 +56,7 @@ const extractPolygonFeatures = (
   input: GeoJsonObject
 ): Feature<Polygon | MultiPolygon>[] => {
   if (isFeatureCollection(input)) {
-    return input.features.flatMap((feature) =>
-      extractPolygonFeatures(feature)
-    );
+    return input.features.flatMap((feature) => extractPolygonFeatures(feature));
   }
 
   if (isFeature(input)) {
@@ -138,14 +135,15 @@ export const computePolygonMetrics = (
     number,
     number,
     number,
-    number
+    number,
   ];
 
   return {
     areaSqMeters,
     areaHectares: areaSqMeters * HECTARES_PER_SQUARE_METER,
-    centroid: centroidPosition
-      ? { lat: centroidPosition[1], lon: centroidPosition[0] }
+    centroid:
+      centroidPosition ?
+        { lat: centroidPosition[1], lon: centroidPosition[0] }
       : null,
     bbox,
   };
