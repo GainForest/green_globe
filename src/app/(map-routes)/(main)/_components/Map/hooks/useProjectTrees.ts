@@ -15,11 +15,16 @@ const useProjectTrees = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const activeSiteId = useProjectOverlayStore((state) => state.activeSiteAtUri);
   const { data: siteResponse } =
-    trpcApi.gainforest.organization.site.get.useQuery({
-      did: projectId ?? "",
-      rkey: activeSiteId ?? "",
-      pdsDomain: allowedPDSDomains[0],
-    });
+    trpcApi.gainforest.organization.site.get.useQuery(
+      {
+        did: projectId ?? "",
+        rkey: activeSiteId ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!projectId && !!activeSiteId,
+      }
+    );
   const site = siteResponse?.value;
   const treesBlobRef = site?.trees as BlobRef | undefined;
   const treesBlobCid = treesBlobRef?.ref;

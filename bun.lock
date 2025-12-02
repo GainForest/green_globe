@@ -1385,7 +1385,7 @@
 
     "client-only": ["client-only@0.0.1", "", {}, "sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA=="],
 
-    "climateai-sdk": ["climateai-sdk@github:GainForest/climateai-sdk#6eadbf5", { "dependencies": { "@atproto/api": "^0.18.1", "@atproto/lexicon": "^0.5.1", "@atproto/oauth-client-node": "^0.3.10", "@trpc/client": "^11.7.2", "@trpc/react-query": "^11.7.2", "@trpc/server": "^11.7.2", "@turf/turf": "^7.3.0", "cid": "multiformats/cid", "geojson": "^0.5.0", "jose": "^6.1.2", "multiformats": "^13.4.1", "next": "^16.0.3", "superjson": "^2.2.5", "zod": "^4.1.13" }, "peerDependencies": { "typescript": "^5.9.3" } }, "GainForest-climateai-sdk-6eadbf5"],
+    "climateai-sdk": ["climateai-sdk@github:GainForest/climateai-sdk#3d4bf7d", { "dependencies": { "@atproto/api": "^0.18.1", "@atproto/lexicon": "^0.5.1", "@atproto/oauth-client-node": "^0.3.10", "@trpc/client": "^11.7.2", "@trpc/react-query": "^11.7.2", "@trpc/server": "^11.7.2", "@turf/turf": "^7.3.0", "cid": "multiformats/cid", "geojson": "^0.5.0", "jose": "^6.1.2", "multiformats": "^13.4.1", "next": "^16.0.3", "superjson": "^2.2.5", "zod": "^4.1.13" }, "peerDependencies": { "typescript": "^5.9.3" } }, "GainForest-climateai-sdk-3d4bf7d"],
 
     "clipboardy": ["clipboardy@4.0.0", "", { "dependencies": { "execa": "^8.0.1", "is-wsl": "^3.1.0", "is64bit": "^2.0.0" } }, "sha512-5mOlNS0mhX0707P2I0aZ2V/cmHUEO/fL7VFLqszkhUsxt7RwnmrInf/eEQKlf5GzvYeHIjT+Ov1HRfNmymlG0w=="],
 

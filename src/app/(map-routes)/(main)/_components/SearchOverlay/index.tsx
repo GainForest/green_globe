@@ -28,10 +28,15 @@ const SearchOverlay = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const setProjectId = useProjectOverlayStore((state) => state.setProjectId);
   const { isPending: isOrganizationInfoPending, error: organizationInfoError } =
-    trpcApi.gainforest.organization.info.get.useQuery({
-      did: projectId ?? "",
-      pdsDomain: allowedPDSDomains[0],
-    });
+    trpcApi.gainforest.organization.info.get.useQuery(
+      {
+        did: projectId ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!projectId,
+      }
+    );
 
   const searchQuery = useSearchOverlayStore((state) => state.searchQuery);
   const setSearchQuery = useSearchOverlayStore((state) => state.setSearchQuery);

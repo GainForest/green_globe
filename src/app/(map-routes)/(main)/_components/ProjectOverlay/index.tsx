@@ -15,10 +15,15 @@ const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
 
   const { data: info, error } =
-    trpcApi.gainforest.organization.info.get.useQuery({
-      did: organizationDid ?? "",
-      pdsDomain: allowedPDSDomains[0],
-    });
+    trpcApi.gainforest.organization.info.get.useQuery(
+      {
+        did: organizationDid ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!organizationDid,
+      }
+    );
 
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },

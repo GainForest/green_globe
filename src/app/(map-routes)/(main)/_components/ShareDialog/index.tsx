@@ -65,10 +65,15 @@ const ShareDialogWithoutSuspense = ({
   const searchParams = useSearchParams();
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const { data: projectResponse } =
-    trpcApi.gainforest.organization.info.get.useQuery({
-      did: projectId ?? "",
-      pdsDomain: allowedPDSDomains[0],
-    });
+    trpcApi.gainforest.organization.info.get.useQuery(
+      {
+        did: projectId ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!projectId,
+      }
+    );
   const project = projectResponse?.value;
   const getMapBounds = useMapStore((state) => state.getMapBounds);
 

@@ -123,10 +123,15 @@ const DonationCard = ({ payment }: { payment: FiatPayment | Payment }) => {
 const Donations = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const { data: organizationInfoResponse } =
-    trpcApi.gainforest.organization.info.get.useQuery({
-      did: projectId ?? "",
-      pdsDomain: allowedPDSDomains[0],
-    });
+    trpcApi.gainforest.organization.info.get.useQuery(
+      {
+        did: projectId ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!projectId,
+      }
+    );
   const organizationInfo = organizationInfoResponse?.value;
   const { data, status } = useQuery({
     queryKey: [projectId, "donations"],

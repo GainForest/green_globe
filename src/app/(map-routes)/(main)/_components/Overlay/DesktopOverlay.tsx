@@ -24,10 +24,15 @@ const DesktopOverlay = () => {
 
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const { data: projectResponse } =
-    trpcApi.gainforest.organization.info.get.useQuery({
-      did: projectId ?? "",
-      pdsDomain: allowedPDSDomains[0],
-    });
+    trpcApi.gainforest.organization.info.get.useQuery(
+      {
+        did: projectId ?? "",
+        pdsDomain: allowedPDSDomains[0],
+      },
+      {
+        enabled: !!projectId,
+      }
+    );
   const project = projectResponse?.value;
   const isMaximized = useProjectOverlayStore((state) => state.isMaximized);
   const setIsMaximized = useProjectOverlayStore(
