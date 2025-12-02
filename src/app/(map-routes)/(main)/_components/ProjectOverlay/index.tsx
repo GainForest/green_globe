@@ -8,34 +8,20 @@ import TabMapper from "./TabMapper";
 import useProjectOverlayStore from "./store";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import ErrorMessage from "./ErrorMessage";
-import { useQuery } from "@tanstack/react-query";
-import getRecord from "@/lib/atproto/getRecord";
-import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
-import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
-import { PDS_ENDPOINT } from "@/config/atproto";
-import { BlobRef } from "@atproto/api";
+import { trpcApi } from "@/components/providers/TRPCProvider";
+import { allowedPDSDomains } from "@/config/climateai-sdk";
 
 const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
 
-  const queryKey = ["app.gainforest.organization.info", organizationDid];
   const {
     data: info,
     isPending,
     error,
     isPlaceholderData,
-  } = useQuery({
-    queryKey: queryKey,
-    queryFn: async () => {
-      const data = await getRecord(
-        organizationDid ?? "",
-        "app.gainforest.organization.info",
-        "self",
-        validateRecord
-      );
-      return data as AppGainforestOrganizationInfo.Record;
-    },
-    enabled: !!organizationDid,
+  } = trpcApi.gainforest.organization.info.get.useQuery({
+    did: organizationDid ?? "",
+    pdsDomain: allowedPDSDomains[0],
   });
 
   const { animate, onAnimationComplete } = useBlurAnimate(
@@ -43,12 +29,8 @@ const ProjectOverlay = () => {
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const coverImage = info?.coverImage;
-  const coverImageCID = coverImage ? (coverImage as BlobRef).ref : null;
-  const coverImageUrl =
-    coverImageCID ?
-      `${PDS_ENDPOINT}/xrpc/com.atProto.sync.getBlob?did=${organizationDid}&cid=${coverImageCID}`
-    : "/assets/placeholders/cover-image.png";
+  // This should never happen
+  if (!organizationDid) return null;
 
   return (
     <motion.div
@@ -76,10 +58,14 @@ const ProjectOverlay = () => {
             />
           </div>
         : <div className="w-full relative flex flex-col flex-1">
-            <CoverImage imageURL={coverImageUrl} projectDetails={info} />
-            <Header organization={info} />
+            <CoverImage
+              organization={info.value}
+              did={organizationDid}
+              pdsDomain={allowedPDSDomains[0]}
+            />
+            <Header organization={info.value} />
             <div className="flex flex-col gap-2 p-4 -translate-y-20 flex-1 -mb-20">
-              <TabMapper organization={info} />
+              <TabMapper organization={info.value} />
             </div>
           </div>
         }

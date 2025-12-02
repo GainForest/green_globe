@@ -6,7 +6,8 @@ import QuickTooltip from "@/components/ui/quick-tooltip";
 import { cn } from "@/lib/utils";
 import useProjectOverlayStore, { ProjectOverlayState } from "./store";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
-import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { AppGainforestOrganizationInfo } from "climateai-sdk/lex-api";
+
 const TabButton = ({
   children,
   label,

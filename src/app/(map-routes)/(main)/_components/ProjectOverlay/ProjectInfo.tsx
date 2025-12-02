@@ -3,7 +3,7 @@ import React from "react";
 import { Combobox } from "@/components/ui/combobox";
 import useProjectOverlayStore from "./store";
 import useNavigation from "../../_features/navigation/use-navigation";
-import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { AppGainforestOrganizationInfo } from "climateai-sdk/lex-api";
 
 const ProjectSitesSection = () => {
   const projectSitesOptions = useProjectOverlayStore(

@@ -5,7 +5,7 @@ import ProjectInfo from "./ProjectInfo";
 import AIAssistant from "./AIAssistant";
 import Biodiversity from "./Biodiversity";
 import Community from "./Community";
-import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { AppGainforestOrganizationInfo } from "climateai-sdk/lex-api";
 const TabMapper = ({
   organization,
 }: {
