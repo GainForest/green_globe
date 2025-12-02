@@ -95,6 +95,101 @@ export const fetchProjectData = async (projectId: string) => {
         }
       } catch {}
 
+      // SORALO HARDCODED DATA:
+      if (
+        project.id ===
+        "9744630d6b4cdfdaf687bf289de011c04272d63ecb486ffc91bacde385740208"
+      ) {
+        const projectClone = structuredClone(project);
+        // Remove the shapefiles from the project
+        const newAssets = projectClone.assets.filter(
+          (asset) => asset.classification !== "Shapefiles"
+        );
+        // Add the new assets to the project
+        newAssets.push(
+          {
+            id: "shapefile-00001",
+            name: "Elangata",
+            classification: "Shapefiles",
+            awsCID: "shapefiles/soralo-hardcoded-sites/Elangata.geojson",
+            shapefile: {
+              default: true,
+              isReference: false,
+              shortName: "Elangata",
+            },
+          },
+          {
+            id: "shapefile-00002",
+            name: "Enkong u enkare",
+            classification: "Shapefiles",
+            awsCID: "shapefiles/soralo-hardcoded-sites/Enkong u enkare.geojson",
+            shapefile: {
+              default: false,
+              isReference: false,
+              shortName: "Enkong u enkare",
+            },
+          },
+          {
+            id: "shapefile-00003",
+            name: "Enkuto",
+            classification: "Shapefiles",
+            awsCID: "shapefiles/soralo-hardcoded-sites/Enkuto.geojson",
+            shapefile: {
+              default: false,
+              isReference: false,
+              shortName: "Enkuto",
+            },
+          },
+          {
+            id: "shapefile-00004",
+            name: "Motorok Spring",
+            classification: "Shapefiles",
+            awsCID: "shapefiles/soralo-hardcoded-sites/Motorok Spring.geojson",
+            shapefile: {
+              default: false,
+              isReference: false,
+              shortName: "Motorok Spring",
+            },
+          },
+          {
+            id: "shapefile-00005",
+            name: "Ngurman",
+            classification: "Shapefiles",
+            awsCID: "shapefiles/soralo-hardcoded-sites/Ngurman.geojson",
+            shapefile: {
+              default: false,
+              isReference: false,
+              shortName: "Ngurman",
+            },
+          },
+          {
+            id: "shapefile-00006",
+            name: "Olorte",
+            classification: "Shapefiles",
+            awsCID: "shapefiles/soralo-hardcoded-sites/Olorte.geojson",
+            shapefile: {
+              default: false,
+              isReference: false,
+              shortName: "Olorte",
+            },
+          },
+          {
+            id: "shapefile-00007",
+            name: "Pakase",
+            classification: "Shapefiles",
+            awsCID: "shapefiles/soralo-hardcoded-sites/Pakase.geojson",
+            shapefile: {
+              default: false,
+              isReference: false,
+              shortName: "Pakase",
+            },
+          }
+        );
+        projectClone.assets = newAssets;
+        return projectClone;
+      }
+      // END SORALO HARDCODED DATA:
+
       return project;
     } else {
       return null;

@@ -64,7 +64,12 @@ const HoveredTreeOverlay = () => {
                       : "Species"}
                   </span>
                 </span>
-                <h1 className="text-xl font-bold">
+                <h1
+                  className={cn(
+                    "text-xl font-bold",
+                    hoveredTree.treeSpecies && "italic"
+                  )}
+                >
                   {hoveredTree.treeSpecies ??
                     hoveredTree.treeCommonName ??
                     "Unknown"}
@@ -83,7 +88,7 @@ const HoveredTreeOverlay = () => {
                 <div className="flex-1 flex flex-col bg-muted rounded-xl p-2 gap-1">
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <MoveHorizontal size={12} />
-                    Width
+                    DBH
                   </span>
                   <span className="font-bold text-lg">
                     {hoveredTree.treeDBH}
@@ -139,7 +144,12 @@ const HoveredTreeOverlay = () => {
                   </div>
                 </div>
               </div>
-              <span className="font-bold text-xs text-center p-1 leading-tight text-balance">
+              <span
+                className={cn(
+                  "font-bold text-xs text-center p-1 leading-tight text-balance",
+                  hoveredTree.treeSpecies && "italic"
+                )}
+              >
                 {hoveredTree.treeSpecies ??
                   hoveredTree.treeCommonName ??
                   "Unknown"}
