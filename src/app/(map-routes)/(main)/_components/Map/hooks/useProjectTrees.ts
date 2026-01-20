@@ -15,7 +15,7 @@ const useProjectTrees = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const activeSiteId = useProjectOverlayStore((state) => state.activeSiteAtUri);
   const { data: siteResponse } =
-    trpcApi.gainforest.organization.site.get.useQuery(
+    trpcApi.hypercerts.site.get.useQuery(
       {
         did: projectId ?? "",
         rkey: activeSiteId ?? "",

@@ -60,14 +60,14 @@ export async function GET(request: NextRequest) {
     Promise.all(
       organizationDIDs.map(async (did) => {
         const [orgInfo] = await tryCatch(
-          info
-            ? getOrganizationInfo(did)
-            : new Promise<null>((res) => res(null))
+          info ?
+            getOrganizationInfo(did)
+          : new Promise<null>((res) => res(null))
         );
         const [orgMapPoint] = await tryCatch(
-          mapPoint
-            ? getOrganizationCoordinates(did)
-            : new Promise<null>((res) => res(null))
+          mapPoint ?
+            getOrganizationCoordinates(did)
+          : new Promise<null>((res) => res(null))
         );
 
         return {
@@ -95,8 +95,8 @@ async function getOrganizationInfo(did: string) {
     collection: "app.gainforest.organization.info",
     rkey: "self",
   });
-  return data.success
-    ? {
+  return data.success ?
+      {
         name: data.data.value.displayName as string,
         country: data.data.value.country as string,
       }

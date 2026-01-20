@@ -29,9 +29,11 @@ const ProjectSitesSection = () => {
   );
 
   const { data: allSitesData, error: allSitesFetchError } =
-    trpcApi.gainforest.organization.site.getAll.useQuery({
+    trpcApi.hypercerts.site.getAll.useQuery({
       did: projectId ?? "",
       pdsDomain: allowedPDSDomains[0],
+    },{
+      enabled: !!projectId,
     });
 
   const allSiteResponses = allSitesData?.sites;
@@ -62,7 +64,16 @@ const ProjectSitesSection = () => {
 
   // Set the default site id if no site id is set
   useEffect(() => {
-    if (!activeSiteAtUri && defaultSiteResponse) {
+    if (!activeSiteAtUri) {
+
+      if (!defaultSiteResponse) {
+        const firstSiteUri = allSiteResponses?.[0].uri;
+        if (firstSiteUri) {
+          setActiveSiteAtUri(firstSiteUri, navigate);
+        }
+        return;
+      }
+
       // Check if the default site is in the site records list or not, to prevent re-renders
       if (allSiteResponses) {
         const siteToSet = allSiteResponses.find(
@@ -83,9 +94,9 @@ const ProjectSitesSection = () => {
     isPending: isShapefilePending,
     isPlaceholderData: isPlaceholderShapefileData,
   } = useQuery({
-    queryKey: ["site-shapefile", activeSiteRecord?.shapefile],
+    queryKey: ["site-shapefile", activeSiteRecord?.location],
     queryFn: async () => {
-      const shapefile = activeSiteRecord?.shapefile;
+      const shapefile = activeSiteRecord?.location;
       const did = projectId ?? "";
       if (!did) throw new Error("Something went wrong.");
       if (shapefile === undefined) throw new Error("Site not found.");
@@ -102,7 +113,7 @@ const ProjectSitesSection = () => {
       const validatedData = validateGeojsonOrThrow(data);
       return validatedData;
     },
-    enabled: !!activeSiteRecord?.shapefile,
+    enabled: !!activeSiteRecord?.location,
   });
 
   useEffect(() => {
@@ -147,12 +158,12 @@ const ProjectSitesSection = () => {
           {allSiteResponses[0]?.value.name ?? "Loading..."}
         </span>
       }
-      {isShapefilePending ||
-        (isPlaceholderShapefileData && (
+      {activeSiteRecord?.location && (isShapefilePending ||
+        isPlaceholderShapefileData) && (
           <span className="text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
           </span>
-        ))}
+        )}
       {shapefileError && (
         <span className="text-muted-foreground">
           <AlertCircle className="size-4" />

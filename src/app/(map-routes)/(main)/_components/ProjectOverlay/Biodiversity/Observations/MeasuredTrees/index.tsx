@@ -14,7 +14,6 @@ import LoadingSkeleton from "./loading";
 import { Agent, BlobRef } from "@atproto/api";
 import { useQuery } from "@tanstack/react-query";
 import { getBlobUrl, parseAtUri } from "climateai-sdk/utilities";
-import { trpcApi } from "@/components/providers/TRPCProvider";
 import { allowedPDSDomains } from "@/config/climateai-sdk";
 
 const NoDataMessage = () => {
@@ -93,12 +92,14 @@ const heightRanges = [
 
 const MeasuredTrees = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
-  const { data: measuredTreesResponse } =
-    trpcApi.gainforest.organization.measuredTrees.get.useQuery({
-      did: projectId ?? "",
-      pdsDomain: allowedPDSDomains[0],
-    });
-  const shapefileUri = measuredTreesResponse?.value.shapefile;
+  // const { data: measuredTreesResponse } : {
+  //   data: {
+  //     value: {
+  //       shapefile: string;
+  //     };
+  //   } | undefined;
+  // } = {data: undefined}
+  const shapefileUri = undefined;
 
   const { data, error, isPlaceholderData } = useQuery({
     queryKey: ["measured-trees", shapefileUri],
@@ -106,7 +107,7 @@ const MeasuredTrees = () => {
       if (!shapefileUri) throw new Error("No measured trees found");
 
       // If the shapefile URI is an AT URI, try to fetch the blob from the PDS
-      if (shapefileUri?.startsWith("at://")) {
+      if ((shapefileUri as string | undefined)?.startsWith("at://")) {
         const { did, collection, rkey } = parseAtUri(shapefileUri);
         const agent = new Agent({ service: allowedPDSDomains[0] });
         const recordResponse = await agent.com.atproto.repo.getRecord({

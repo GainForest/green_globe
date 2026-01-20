@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, loggerLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import type { AppRouter } from "climateai-sdk";
-import { customTransformer } from "climateai-sdk/utilities/transformer";
+import { customTransformer } from "climateai-sdk/utilities/transform";
 import type { AllowedPDSDomain } from "@/config/climateai-sdk";
 
 export const trpcApi = createTRPCReact<AppRouter<AllowedPDSDomain>>();
