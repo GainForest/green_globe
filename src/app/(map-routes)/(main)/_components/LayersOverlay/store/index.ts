@@ -1,9 +1,8 @@
 import { create } from "zustand";
 import dayjs from "dayjs";
-import { fetchLayers, fetchProjectSpecificLayers } from "./utils";
-import { DynamicLayer } from "./types";
+import { fetchLayers } from "./utils";
+import { DynamicLayer, Layer } from "./types";
 import { groupBy } from "@/lib/utils";
-import useProjectOverlayStore from "../../ProjectOverlay/store";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
 export type LayersOverlayState = {
   toggledOnLayerIds: Set<string>;
@@ -41,8 +40,10 @@ export type LayersOverlayActions = {
     value: boolean,
     navigate?: ReturnType<typeof useNavigation>
   ) => void;
+  setProjectSpecificLayersLoading: (projectId: string) => void;
+  setProjectSpecificLayers: (projectId: string, layers: Layer[]) => void;
+  clearProjectSpecificLayers: () => void;
   fetchCategorizedDynamicLayers: () => Promise<void>;
-  fetchProjectSpecificLayers: () => Promise<void>;
 };
 
 const initialState: LayersOverlayState = {
@@ -54,7 +55,7 @@ const initialState: LayersOverlayState = {
   categorizedDynamicLayers: [],
   projectSpecificLayers: {
     projectId: null,
-    status: "loading",
+    status: "success",
     layers: null,
   },
   historicalSatelliteState: {
@@ -132,38 +133,33 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
           },
         }));
       },
-      fetchProjectSpecificLayers: async () => {
-        const projectId = useProjectOverlayStore.getState().projectId;
-        if (!projectId) {
-          set({
-            projectSpecificLayers: {
-              projectId: null,
-              status: "success",
-              layers: null,
-            },
-          });
-          return;
-        }
-        if (projectId === get().projectSpecificLayers.projectId) {
-          return;
-        }
+      setProjectSpecificLayersLoading: (projectId) => {
         set({
           projectSpecificLayers: {
-            projectId: projectId,
+            projectId,
             status: "loading",
             layers: null,
           },
         });
-        // TODO: Update to use the project name
-        const layers = await fetchProjectSpecificLayers("Oceanus Conservation");
+      },
+      setProjectSpecificLayers: (projectId, layers) => {
+        set((state) => ({
+          projectSpecificLayers: {
+            projectId,
+            status: "success",
+            layers: layers.map((layer) => ({
+              ...layer,
+              visible: state.toggledOnLayerIds.has(layer.name),
+            })),
+          },
+        }));
+      },
+      clearProjectSpecificLayers: () => {
         set({
           projectSpecificLayers: {
-            projectId: projectId,
+            projectId: null,
             status: "success",
-            layers: (layers ?? []).map((layer) => ({
-              ...layer,
-              visible: get().toggledOnLayerIds.has(layer.name),
-            })),
+            layers: null,
           },
         });
       },

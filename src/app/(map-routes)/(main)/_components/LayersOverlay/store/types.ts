@@ -8,9 +8,9 @@ export type Layer = {
     | "choropleth_shannon"
     | "raster_tif"
     | "tms_tile";
-  endpoint: string;
-  description: string;
-  category: string;
+  endpoint?: string;
+  description?: string;
+  category?: string;
   legend?: string;
   tilePattern?: string;
   tileRange?: {

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import HistoricalSatelliteControls from "./HistoricalSatelliteControls";
 import useLayersOverlayStore from "./store";
+import { DynamicLayer } from "./store/types";
 import useProjectOverlayStore from "../ProjectOverlay/store";
 import { toKebabCase } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import LandcoverControls from "./LandcoverControls";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
 import { trpcApi } from "@/components/providers/TRPCProvider";
 import { allowedPDSDomains } from "@/config/climateai-sdk";
+import { cleanEndpoint } from "./store/utils";
 
 const LayersOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
@@ -23,8 +25,8 @@ const LayersOverlay = () => {
   );
 
   const projectId = useProjectOverlayStore((state) => state.projectId);
-  const { data: projectResponse } =
-    trpcApi.gainforest.organization.info.get.useQuery(
+  const { data: projectLayersResponse } =
+    trpcApi.gainforest.organization.layer.getAll.useQuery(
       {
         did: projectId ?? "",
         pdsDomain: allowedPDSDomains[0],
@@ -33,7 +35,6 @@ const LayersOverlay = () => {
         enabled: !!projectId,
       }
     );
-  const project = projectResponse?.value;
   const toggledOnLayerIds = useLayersOverlayStore(
     (state) => state.toggledOnLayerIds
   );
@@ -65,8 +66,14 @@ const LayersOverlay = () => {
   const projectSpecificLayers = useLayersOverlayStore(
     (state) => state.projectSpecificLayers
   );
-  const fetchProjectSpecificLayers = useLayersOverlayStore(
-    (actions) => actions.fetchProjectSpecificLayers
+  const setProjectSpecificLayersLoading = useLayersOverlayStore(
+    (actions) => actions.setProjectSpecificLayersLoading
+  );
+  const setProjectSpecificLayers = useLayersOverlayStore(
+    (actions) => actions.setProjectSpecificLayers
+  );
+  const clearProjectSpecificLayers = useLayersOverlayStore(
+    (actions) => actions.clearProjectSpecificLayers
   );
 
   const setMapView = useMapStore((actions) => actions.setCurrentView);
@@ -79,14 +86,69 @@ const LayersOverlay = () => {
   }, [categorizedDynamicLayers]);
 
   useEffect(() => {
-    fetchProjectSpecificLayers();
-  }, [project]);
+    if (!projectId) {
+      clearProjectSpecificLayers();
+      return;
+    }
+    setProjectSpecificLayersLoading(projectId);
+  }, [projectId, clearProjectSpecificLayers, setProjectSpecificLayersLoading]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    if (!projectLayersResponse) return;
+
+    const layers: DynamicLayer[] =
+      Array.isArray(projectLayersResponse) ?
+        projectLayersResponse
+          .map((record) => ("value" in record ? record.value : record))
+          .map((layer) => {
+            if (!layer) return null;
+            // Extract endpoint from a few possible fields and clean out env placeholders
+            const endpointCandidate =
+              ("endpoint" in layer ? layer.endpoint : undefined) ??
+              ("url" in layer ? layer.url : undefined) ??
+              ("uri" in layer ? layer.uri : undefined) ??
+              ("path" in layer ? layer.path : undefined) ??
+              ("tileUrl" in layer ? layer.tileUrl : undefined) ??
+              ("cogUrl" in layer ? layer.cogUrl : undefined) ??
+              ("dataUrl" in layer ? layer.dataUrl : undefined) ??
+              ("file" in layer ? layer.file : undefined) ??
+              "";
+            const endpoint =
+              typeof endpointCandidate === "string"
+                ? cleanEndpoint(endpointCandidate)
+                : "";
+
+            const category =
+              "category" in layer && typeof layer.category === "string"
+                ? layer.category
+                : "project";
+
+            return {
+              ...layer,
+              endpoint,
+              category,
+              description: layer.description ?? "",
+              // visibility is applied when hydrating into the store
+            } as Omit<DynamicLayer, "visible">;
+          })
+          .filter(
+            (layer): layer is DynamicLayer =>
+              layer !== null &&
+              !layer.name.includes("DNA") &&
+              !layer.name.includes("Raft Deployment")
+          )
+      : [];
+
+    setProjectSpecificLayers(projectId, layers);
+  }, [projectId, projectLayersResponse, setProjectSpecificLayers]);
 
   const handleZoomToProjectSpecificLayer = useCallback(
     (layerEndpoint: string) => {
+      if (!layerEndpoint) return;
       setMapView("project");
       fetch(
-        `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${process.env.NEXT_PUBLIC_AWS_STORAGE}/${layerEndpoint}`
+        `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${encodeURIComponent(layerEndpoint)}`
       )
         .then((response) => {
           return response.json();
