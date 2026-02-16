@@ -1,3 +1,4 @@
+import GlobeAuthButton from "./_components/GlobeAuthButton";
 import HoveredTreeOverlay from "./_components/HoveredTreeOverlay";
 import Map from "./_components/Map";
 import Sidebar from "./_components/Overlay";
@@ -8,6 +9,7 @@ export default function MapLayout({ children }: { children: React.ReactNode }) {
       <Map />
       <Sidebar />
       <HoveredTreeOverlay />
+      <GlobeAuthButton />
       {children}
     </div>
   );
