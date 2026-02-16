@@ -88,7 +88,7 @@ export default function AtprotoProvider({
         // Check if we're in production or development
         const isProduction = process.env.NODE_ENV === 'production';
         const baseUrl = isProduction
-          ? 'https://gainforest.app' // Replace with your actual production domain
+          ? (process.env.NEXT_PUBLIC_APP_ORIGIN || 'https://gainforest.app')
           : 'http://127.0.0.1:8910';
 
         // Check if this looks like an OAuth callback by examining URL parameters
@@ -138,7 +138,7 @@ export default function AtprotoProvider({
             };
 
         const oauthClient = new BrowserOAuthClient({
-          handleResolver: 'https://bsky.social',
+          handleResolver: process.env.NEXT_PUBLIC_ATPROTO_HANDLE_RESOLVER || 'https://bsky.social',
           clientMetadata,
         });
 
