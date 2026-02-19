@@ -1,0 +1,203 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.organization.recordings.audio",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A declaration of an audio recording",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "name",
+          "blob",
+          "metadata",
+          "createdAt"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A short name for the audio recording"
+          },
+          "description": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#richtext",
+            "description": "A description of the audio recording"
+          },
+          "blob": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#audio",
+            "description": "The blob of the audio recording"
+          },
+          "metadata": {
+            "type": "ref",
+            "ref": "#metadata",
+            "description": "The metadata of the audio recording"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time of the creation of the record",
+            "format": "datetime"
+          },
+          "spectrogram": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#spectrogram",
+            "description": "Spectrogram image of the recording"
+          },
+          "thumbnail": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#imageThumbnail",
+            "description": "Thumbnail image for display"
+          },
+          "license": {
+            "type": "string",
+            "maxGraphemes": 256,
+            "description": "License for the recording (e.g., CC-BY-4.0)"
+          },
+          "recordedBy": {
+            "type": "string",
+            "maxGraphemes": 512,
+            "description": "Person(s) who made the recording"
+          },
+          "tags": {
+            "type": "array",
+            "maxLength": 20,
+            "items": {
+              "type": "string",
+              "maxGraphemes": 64
+            },
+            "description": "Freeform tags for the recording (e.g., 'dawn-chorus', 'rain', 'chainsaw')"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "codec",
+        "channels",
+        "duration",
+        "recordedAt",
+        "sampleRate"
+      ],
+      "properties": {
+        "codec": {
+          "type": "string",
+          "description": "The codec of the audio recording"
+        },
+        "channels": {
+          "type": "integer",
+          "description": "The number of channels of the audio recording"
+        },
+        "duration": {
+          "type": "string",
+          "description": "The duration of the audio recording in seconds"
+        },
+        "recordedAt": {
+          "type": "string",
+          "description": "The date and time of the recording",
+          "format": "datetime"
+        },
+        "sampleRate": {
+          "type": "integer",
+          "description": "The sample rate of the audio recording"
+        },
+        "coordinates": {
+          "type": "string",
+          "description": "Deprecated: prefer decimalLatitude and decimalLongitude fields. The coordinates at which the audio was recorded in the format 'latitude,longitude' OR 'latitude,longitude,altitude'"
+        },
+        "deviceModel": {
+          "type": "string",
+          "maxGraphemes": 128,
+          "description": "Recording device model (e.g., 'AudioMoth 1.2.0', 'Song Meter SM4')"
+        },
+        "deviceSerialNumber": {
+          "type": "string",
+          "maxGraphemes": 64,
+          "description": "Device serial number for tracking"
+        },
+        "gain": {
+          "type": "string",
+          "maxGraphemes": 32,
+          "description": "Gain setting (e.g., 'medium', '36dB')"
+        },
+        "bitDepth": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 64,
+          "description": "Bits per sample (e.g., 16, 24, 32)"
+        },
+        "fileFormat": {
+          "type": "string",
+          "maxGraphemes": 32,
+          "description": "File format (e.g., 'WAV', 'FLAC', 'MP3')"
+        },
+        "fileSizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "File size in bytes"
+        },
+        "decimalLatitude": {
+          "type": "string",
+          "maxGraphemes": 32,
+          "description": "Latitude in decimal degrees (WGS84)"
+        },
+        "decimalLongitude": {
+          "type": "string",
+          "maxGraphemes": 32,
+          "description": "Longitude in decimal degrees (WGS84)"
+        },
+        "altitude": {
+          "type": "string",
+          "maxGraphemes": 32,
+          "description": "Altitude in meters"
+        },
+        "habitat": {
+          "type": "string",
+          "maxGraphemes": 512,
+          "description": "Habitat description"
+        },
+        "siteRef": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "AT-URI reference to the organization site record"
+        },
+        "minFrequencyHz": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum frequency in recording (Hz)"
+        },
+        "maxFrequencyHz": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum frequency in recording (Hz)"
+        },
+        "signalToNoiseRatio": {
+          "type": "string",
+          "maxGraphemes": 32,
+          "description": "Signal-to-noise ratio in dB"
+        },
+        "weatherConditions": {
+          "type": "string",
+          "maxGraphemes": 256,
+          "description": "Weather conditions during recording"
+        },
+        "temperature": {
+          "type": "string",
+          "maxGraphemes": 16,
+          "description": "Temperature in Celsius during recording"
+        },
+        "humidity": {
+          "type": "string",
+          "maxGraphemes": 16,
+          "description": "Relative humidity percentage during recording"
+        },
+        "windSpeed": {
+          "type": "string",
+          "maxGraphemes": 16,
+          "description": "Wind speed during recording"
+        }
+      }
+    }
+  }
+}
