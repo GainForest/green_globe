@@ -17,6 +17,7 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxGraphemes": 256,
             "description": "A short name for the audio recording"
           },
           "description": {
@@ -83,14 +84,17 @@
       "properties": {
         "codec": {
           "type": "string",
+          "maxGraphemes": 32,
           "description": "The codec of the audio recording"
         },
         "channels": {
           "type": "integer",
+          "minimum": 1,
           "description": "The number of channels of the audio recording"
         },
         "duration": {
           "type": "string",
+          "maxGraphemes": 32,
           "description": "The duration of the audio recording in seconds"
         },
         "recordedAt": {
@@ -100,10 +104,12 @@
         },
         "sampleRate": {
           "type": "integer",
+          "minimum": 1,
           "description": "The sample rate of the audio recording"
         },
         "coordinates": {
           "type": "string",
+          "maxGraphemes": 64,
           "description": "Deprecated: prefer decimalLatitude and decimalLongitude fields. The coordinates at which the audio was recorded in the format 'latitude,longitude' OR 'latitude,longitude,altitude'"
         },
         "deviceModel": {
