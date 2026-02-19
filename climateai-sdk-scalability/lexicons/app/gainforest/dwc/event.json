@@ -1,0 +1,258 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.dwc.event",
+  "description": "A sampling event record aligned with Darwin Core Event class. Enables star-schema pattern where multiple occurrences reference a shared event context (location, protocol, effort).",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A sampling or collecting event. Multiple dwc.occurrence records can reference the same event via eventRef, sharing location and protocol metadata.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["eventID", "eventDate", "createdAt"],
+        "properties": {
+          "eventID": {
+            "type": "string",
+            "description": "An identifier for the event. Should be globally unique or unique within the dataset.",
+            "maxGraphemes": 256
+          },
+          "parentEventID": {
+            "type": "string",
+            "description": "An identifier for the broader event that this event is part of (e.g., a survey campaign that contains multiple transects).",
+            "maxGraphemes": 256
+          },
+          "parentEventRef": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI reference to the parent app.gainforest.dwc.event record."
+          },
+          "eventDate": {
+            "type": "string",
+            "description": "The date or date range during which the event occurred. ISO 8601 format (e.g., '2024-03-15', '2024-03-15/2024-03-17').",
+            "maxGraphemes": 64
+          },
+          "eventTime": {
+            "type": "string",
+            "description": "The time or time range during which the event occurred. ISO 8601 format (e.g., '06:30:00', '06:30:00/09:00:00').",
+            "maxGraphemes": 64
+          },
+          "habitat": {
+            "type": "string",
+            "description": "A category or description of the habitat in which the event occurred (e.g., 'primary tropical rainforest', 'degraded pasture', 'riparian zone').",
+            "maxGraphemes": 512
+          },
+          "samplingProtocol": {
+            "type": "string",
+            "description": "The names of, references to, or descriptions of the methods used during the event (e.g., 'camera trap array', 'line transect distance sampling', 'audio point count 10-min').",
+            "maxGraphemes": 1024
+          },
+          "sampleSizeValue": {
+            "type": "string",
+            "description": "A numeric value for a measurement of the size of a sample in the event (e.g., '20', '0.25').",
+            "maxGraphemes": 64
+          },
+          "sampleSizeUnit": {
+            "type": "string",
+            "description": "The unit of measurement for the sampleSizeValue (e.g., 'square meters', 'hectares', 'trap-nights').",
+            "maxGraphemes": 128
+          },
+          "samplingEffort": {
+            "type": "string",
+            "description": "The amount of effort expended during the event (e.g., '3 person-hours', '14 trap-nights', '2 km transect walked').",
+            "maxGraphemes": 256
+          },
+          "fieldNotes": {
+            "type": "string",
+            "description": "Notes or a reference to notes taken in the field about the event.",
+            "maxGraphemes": 10000
+          },
+          "eventRemarks": {
+            "type": "string",
+            "description": "Comments or notes about the event.",
+            "maxGraphemes": 5000
+          },
+
+          "locationID": {
+            "type": "string",
+            "description": "Identifier for the location where the event occurred.",
+            "maxGraphemes": 256
+          },
+          "decimalLatitude": {
+            "type": "string",
+            "description": "Geographic latitude in decimal degrees (WGS84). Range: -90 to 90.",
+            "maxGraphemes": 32
+          },
+          "decimalLongitude": {
+            "type": "string",
+            "description": "Geographic longitude in decimal degrees (WGS84). Range: -180 to 180.",
+            "maxGraphemes": 32
+          },
+          "geodeticDatum": {
+            "type": "string",
+            "description": "The spatial reference system. Recommended: 'EPSG:4326'.",
+            "maxGraphemes": 64
+          },
+          "coordinateUncertaintyInMeters": {
+            "type": "integer",
+            "description": "Uncertainty radius in meters around the coordinates.",
+            "minimum": 1
+          },
+          "country": {
+            "type": "string",
+            "description": "The name of the country.",
+            "maxGraphemes": 128
+          },
+          "countryCode": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 country code.",
+            "minLength": 2,
+            "maxLength": 2
+          },
+          "stateProvince": {
+            "type": "string",
+            "description": "First-level administrative division.",
+            "maxGraphemes": 256
+          },
+          "county": {
+            "type": "string",
+            "description": "Second-level administrative division.",
+            "maxGraphemes": 256
+          },
+          "municipality": {
+            "type": "string",
+            "description": "Third-level administrative division.",
+            "maxGraphemes": 256
+          },
+          "locality": {
+            "type": "string",
+            "description": "Specific locality description.",
+            "maxGraphemes": 1024
+          },
+          "minimumElevationInMeters": {
+            "type": "integer",
+            "description": "Lower limit of elevation range in meters above sea level."
+          },
+          "maximumElevationInMeters": {
+            "type": "integer",
+            "description": "Upper limit of elevation range in meters above sea level."
+          },
+          "locationRemarks": {
+            "type": "string",
+            "description": "Comments about the location.",
+            "maxGraphemes": 2048
+          },
+
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp of record creation in the ATProto PDS."
+          },
+
+          "projectRef": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI reference to the organization info record."
+          },
+          "siteRef": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI reference to the organization site record."
+          },
+          "monitoringProgramme": {
+            "type": "string",
+            "description": "Name of the monitoring programme (e.g., 'Annual Biodiversity Survey 2025').",
+            "maxGraphemes": 256
+          },
+          "monitoringFrequency": {
+            "type": "string",
+            "description": "How often this type of event recurs (e.g., 'monthly', 'quarterly', 'annual', 'one-time').",
+            "maxGraphemes": 64
+          },
+
+          "temperature": {
+            "type": "string",
+            "description": "Temperature in Celsius during event.",
+            "maxGraphemes": 16
+          },
+          "humidity": {
+            "type": "string",
+            "description": "Relative humidity percentage.",
+            "maxGraphemes": 16
+          },
+          "windSpeed": {
+            "type": "string",
+            "description": "Wind speed during event.",
+            "maxGraphemes": 16
+          },
+          "cloudCover": {
+            "type": "string",
+            "description": "Cloud cover percentage.",
+            "maxGraphemes": 16
+          },
+          "precipitation": {
+            "type": "string",
+            "description": "Precipitation description (e.g., 'none', 'light rain', '5mm').",
+            "maxGraphemes": 32
+          },
+          "weatherRemarks": {
+            "type": "string",
+            "description": "General weather description.",
+            "maxGraphemes": 512
+          },
+          "moonPhase": {
+            "type": "string",
+            "description": "Moon phase (relevant for nocturnal surveys).",
+            "maxGraphemes": 32
+          },
+          "waterLevel": {
+            "type": "string",
+            "description": "Water level if aquatic survey (e.g., 'low', '2.3m').",
+            "maxGraphemes": 32
+          },
+          "waterTemperature": {
+            "type": "string",
+            "description": "Water temperature in Celsius.",
+            "maxGraphemes": 16
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Visibility conditions (e.g., 'clear', 'foggy', '10m underwater').",
+            "maxGraphemes": 32
+          },
+
+          "teamSize": {
+            "type": "integer",
+            "description": "Number of people involved in the event.",
+            "minimum": 1
+          },
+          "recordedBy": {
+            "type": "string",
+            "description": "Person(s) who conducted the event. Pipe-delimited for multiple people (e.g., 'Jane Smith | John Doe').",
+            "maxGraphemes": 512
+          },
+          "recordedByID": {
+            "type": "string",
+            "description": "ORCID or other persistent identifiers for the recorder(s). Pipe-delimited for multiple IDs.",
+            "maxGraphemes": 512
+          },
+          "equipmentUsed": {
+            "type": "string",
+            "description": "Description of equipment used during the event.",
+            "maxGraphemes": 1024
+          },
+
+          "qualityControlNotes": {
+            "type": "string",
+            "description": "Notes on data quality issues encountered during or after the event.",
+            "maxGraphemes": 2048
+          },
+          "completeness": {
+            "type": "string",
+            "description": "Assessment of survey completeness (e.g., 'complete', 'partial - rain stopped survey', 'incomplete').",
+            "maxGraphemes": 64
+          }
+        }
+      }
+    }
+  }
+}
