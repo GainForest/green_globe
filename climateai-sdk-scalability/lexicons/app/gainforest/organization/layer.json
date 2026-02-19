@@ -12,6 +12,7 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxGraphemes": 256,
             "description": "The name of the site"
           },
           "type": {
@@ -37,6 +38,7 @@
           },
           "description": {
             "type": "string",
+            "maxGraphemes": 2048,
             "description": "The description of the layer"
           },
           "createdAt": {
