@@ -2,6 +2,36 @@
   "lexicon": 1,
   "id": "app.gainforest.organization.info",
   "defs": {
+    "socialLink": {
+      "type": "object",
+      "description": "A social media or external link for the organization",
+      "required": ["platform", "url"],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "description": "The social media platform or service",
+          "maxGraphemes": 64,
+          "knownValues": [
+            "twitter",
+            "instagram",
+            "facebook",
+            "linkedin",
+            "youtube",
+            "tiktok",
+            "github",
+            "discord",
+            "telegram",
+            "other"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "description": "The URL of the social media profile or page",
+          "format": "uri",
+          "maxGraphemes": 512
+        }
+      }
+    },
     "main": {
       "type": "record",
       "description": "A declaration of an organization or project",
@@ -13,7 +43,6 @@
           "shortDescription",
           "longDescription",
           "objectives",
-          "startDate",
           "country",
           "visibility"
         ],
@@ -37,9 +66,14 @@
             "maxLength": 5000
           },
           "coverImage": {
-            "type": "blob",
-            "description": "The cover image of the organization or project",
-            "accept": ["image/*"]
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#smallImage",
+            "description": "Cover image for the organization"
+          },
+          "logo": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#smallImage",
+            "description": "Logo for the organization"
           },
           "objectives": {
             "type": "array",
@@ -71,20 +105,120 @@
           },
           "visibility": {
             "type": "string",
-            "description": "The visibility of the organization or project",
-            "enum": ["Public", "Private"]
+            "description": "The visibility of the organization or project in the Green Globe",
+            "enum": ["Public", "Hidden"]
           },
-          "coverImage": {
-            "type": "blob",
-            "accept": ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-            "maxSize": 5242880,
-            "description": "Cover image blob for the organization (max 5MB)"
+          "email": {
+            "type": "string",
+            "description": "Contact email for the organization",
+            "format": "uri",
+            "maxGraphemes": 256
           },
-          "logo": {
-            "type": "blob",
-            "accept": ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-            "maxSize": 5242880,
-            "description": "Logo blob for the organization (max 5MB)"
+          "socialLinks": {
+            "type": "array",
+            "description": "Social media and external links for the organization",
+            "maxLength": 10,
+            "items": {
+              "type": "ref",
+              "ref": "#socialLink"
+            }
+          },
+          "discordId": {
+            "type": "string",
+            "description": "Discord server ID for the organization",
+            "maxGraphemes": 64
+          },
+          "stripeUrl": {
+            "type": "string",
+            "description": "Donation link for the organization (e.g., Stripe payment page)",
+            "format": "uri",
+            "maxGraphemes": 512
+          },
+          "teamSize": {
+            "type": "integer",
+            "description": "Number of team members in the organization",
+            "minimum": 1
+          },
+          "foundedYear": {
+            "type": "integer",
+            "description": "Year the organization was founded",
+            "minimum": 1900,
+            "maximum": 2100
+          },
+          "ecosystemTypes": {
+            "type": "array",
+            "description": "Types of ecosystems the organization works in",
+            "maxLength": 10,
+            "items": {
+              "type": "string",
+              "knownValues": [
+                "tropical-rainforest",
+                "temperate-forest",
+                "boreal-forest",
+                "mangrove",
+                "coral-reef",
+                "savanna",
+                "grassland",
+                "wetland",
+                "desert",
+                "alpine",
+                "marine",
+                "freshwater",
+                "urban",
+                "agroforestry",
+                "other"
+              ]
+            }
+          },
+          "focusSpeciesGroups": {
+            "type": "array",
+            "description": "Taxonomic groups the organization focuses on",
+            "maxLength": 20,
+            "items": {
+              "type": "string",
+              "knownValues": [
+                "mammals",
+                "birds",
+                "reptiles",
+                "amphibians",
+                "fish",
+                "insects",
+                "arachnids",
+                "mollusks",
+                "crustaceans",
+                "trees",
+                "shrubs",
+                "herbs",
+                "grasses",
+                "ferns",
+                "mosses",
+                "fungi",
+                "algae",
+                "coral",
+                "other"
+              ]
+            }
+          },
+          "dataLicense": {
+            "type": "string",
+            "description": "Default license for data published by the organization (e.g., CC-BY-4.0)",
+            "maxGraphemes": 256
+          },
+          "dataDownloadUrl": {
+            "type": "string",
+            "description": "URL to download the organization's data",
+            "format": "uri",
+            "maxGraphemes": 512
+          },
+          "dataDownloadInfo": {
+            "type": "string",
+            "description": "Description of available data downloads from the organization",
+            "maxGraphemes": 1024
+          },
+          "fundingSourcesDescription": {
+            "type": "string",
+            "description": "Description of the organization's funding sources",
+            "maxGraphemes": 2048
           }
         }
       }
