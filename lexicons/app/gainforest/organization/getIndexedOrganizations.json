@@ -9,7 +9,6 @@
         "type": "params",
         "properties": {}
       },
-
       "output": {
         "encoding": "application/json",
         "schema": {
@@ -20,7 +19,7 @@
               "type": "array",
               "items": {
                 "type": "ref",
-                "ref": "app.gainforest.organization.defs#indexedOrganization"
+                "ref": "app.gainforest.common.defs#indexedOrganization"
               }
             }
           }

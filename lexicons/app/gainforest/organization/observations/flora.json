@@ -1,0 +1,30 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.organization.observations.flora",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "DEPRECATED: Use app.gainforest.dwc.occurrence instead. A declaration of a flora observation for an organization.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["gbifTaxonKeys", "createdAt"],
+        "properties": {
+          "gbifTaxonKeys": {
+            "type": "array",
+            "description": "An array of GBIF taxon keys for each flora observation",
+            "items": {
+              "type": "string",
+              "description": "The GBIF taxon key of the flora observation"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time of the creation of the record",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

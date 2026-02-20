@@ -1,0 +1,342 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.dwc.defs",
+  "description": "Shared type definitions for Darwin Core aligned biodiversity records",
+  "defs": {
+    "geolocation": {
+      "type": "object",
+      "description": "A geographic point with uncertainty, following Darwin Core Location class",
+      "required": ["decimalLatitude", "decimalLongitude"],
+      "properties": {
+        "decimalLatitude": {
+          "type": "string",
+          "description": "Geographic latitude in decimal degrees (WGS84). Positive values north of the Equator, negative south. Range: -90 to 90.",
+          "maxGraphemes": 32
+        },
+        "decimalLongitude": {
+          "type": "string",
+          "description": "Geographic longitude in decimal degrees (WGS84). Positive values east of the Greenwich Meridian, negative west. Range: -180 to 180.",
+          "maxGraphemes": 32
+        },
+        "coordinateUncertaintyInMeters": {
+          "type": "integer",
+          "description": "Horizontal distance from the coordinates describing the smallest circle containing the whole location. Zero is not valid.",
+          "minimum": 1
+        },
+        "geodeticDatum": {
+          "type": "string",
+          "description": "The ellipsoid, geodetic datum, or spatial reference system. Recommended: 'EPSG:4326' (WGS84)",
+          "maxGraphemes": 64
+        }
+      }
+    },
+    "taxonIdentification": {
+      "type": "object",
+      "description": "A taxonomic identification with provenance metadata",
+      "required": ["scientificName"],
+      "properties": {
+        "scientificName": {
+          "type": "string",
+          "description": "The full scientific name including authorship and date",
+          "maxGraphemes": 512
+        },
+        "gbifTaxonKey": {
+          "type": "string",
+          "description": "GBIF backbone taxonomy key for the identified taxon",
+          "maxGraphemes": 64
+        },
+        "identifiedBy": {
+          "type": "string",
+          "description": "Person(s) who made the identification (pipe-delimited for multiple)",
+          "maxGraphemes": 512
+        },
+        "identifiedByID": {
+          "type": "string",
+          "description": "ORCID or other persistent identifier for the person(s) who identified (pipe-delimited)",
+          "maxGraphemes": 512
+        },
+        "dateIdentified": {
+          "type": "string",
+          "description": "Date the identification was made (ISO 8601)",
+          "maxGraphemes": 64
+        },
+        "identificationQualifier": {
+          "type": "string",
+          "description": "Uncertainty qualifier applied to the taxon name (e.g., 'cf. agrestis', 'aff. agrestis')",
+          "maxGraphemes": 256
+        },
+        "identificationRemarks": {
+          "type": "string",
+          "description": "Notes or comments about the identification",
+          "maxGraphemes": 2048
+        }
+      }
+    },
+    "basisOfRecordEnum": {
+      "type": "string",
+      "description": "The specific nature of the data record. Controlled vocabulary per Darwin Core.",
+      "maxGraphemes": 64,
+      "knownValues": [
+        "HumanObservation",
+        "MachineObservation",
+        "PreservedSpecimen",
+        "LivingSpecimen",
+        "FossilSpecimen",
+        "MaterialSample",
+        "MaterialEntity",
+        "MaterialCitation"
+      ]
+    },
+    "occurrenceStatusEnum": {
+      "type": "string",
+      "description": "Statement about the presence or absence of a taxon at a location.",
+      "maxGraphemes": 64,
+      "knownValues": [
+        "present",
+        "absent"
+      ]
+    },
+    "dublinCoreTypeEnum": {
+      "type": "string",
+      "description": "Dublin Core type vocabulary for the nature of the resource.",
+      "maxGraphemes": 64,
+      "knownValues": [
+        "PhysicalObject",
+        "StillImage",
+        "MovingImage",
+        "Sound",
+        "Text",
+        "Event",
+        "Dataset"
+      ]
+    },
+    "nomenclaturalCodeEnum": {
+      "type": "string",
+      "description": "The nomenclatural code under which the scientific name is constructed.",
+      "maxGraphemes": 64,
+      "knownValues": [
+        "ICZN",
+        "ICN",
+        "ICNP",
+        "ICTV",
+        "BioCode"
+      ]
+    },
+    "sexEnum": {
+      "type": "string",
+      "description": "The sex of the biological individual(s) represented in the occurrence.",
+      "maxGraphemes": 64,
+      "knownValues": [
+        "male",
+        "female",
+        "hermaphrodite"
+      ]
+    },
+    "taxonRankEnum": {
+      "type": "string",
+      "description": "The taxonomic rank of the most specific name in the scientificName.",
+      "maxGraphemes": 64,
+      "knownValues": [
+        "kingdom",
+        "phylum",
+        "class",
+        "order",
+        "family",
+        "subfamily",
+        "genus",
+        "subgenus",
+        "species",
+        "subspecies",
+        "variety",
+        "form"
+      ]
+    },
+    "plantTraits": {
+      "type": "object",
+      "description": "Functional plant traits from databases like TRY, Restor",
+      "properties": {
+        "woodDensity": {
+          "type": "string",
+          "description": "Wood density in g/cm³",
+          "maxGraphemes": 32
+        },
+        "maxHeight": {
+          "type": "string",
+          "description": "Maximum height in meters",
+          "maxGraphemes": 32
+        },
+        "stemDiameter": {
+          "type": "string",
+          "description": "Typical stem diameter in cm",
+          "maxGraphemes": 32
+        },
+        "stemConduitDiameter": {
+          "type": "string",
+          "description": "Stem conduit diameter in μm",
+          "maxGraphemes": 32
+        },
+        "barkThickness": {
+          "type": "string",
+          "description": "Bark thickness in mm",
+          "maxGraphemes": 32
+        },
+        "rootDepth": {
+          "type": "string",
+          "description": "Root depth in meters",
+          "maxGraphemes": 32
+        },
+        "leafArea": {
+          "type": "string",
+          "description": "Leaf area in cm²",
+          "maxGraphemes": 32
+        },
+        "specificLeafArea": {
+          "type": "string",
+          "description": "Specific leaf area in mm²/mg",
+          "maxGraphemes": 32
+        },
+        "seedMass": {
+          "type": "string",
+          "description": "Seed mass in mg",
+          "maxGraphemes": 32
+        },
+        "growthForm": {
+          "type": "string",
+          "description": "Growth form of the plant",
+          "maxGraphemes": 64,
+          "knownValues": [
+            "tree",
+            "shrub",
+            "herb",
+            "grass",
+            "vine",
+            "epiphyte",
+            "fern",
+            "palm",
+            "bamboo",
+            "succulent",
+            "other"
+          ]
+        },
+        "leafType": {
+          "type": "string",
+          "description": "Leaf type of the plant",
+          "maxGraphemes": 32,
+          "knownValues": [
+            "broadleaf-deciduous",
+            "broadleaf-evergreen",
+            "needleleaf-deciduous",
+            "needleleaf-evergreen",
+            "other"
+          ]
+        },
+        "dispersalMode": {
+          "type": "string",
+          "description": "Primary seed dispersal mode",
+          "maxGraphemes": 64,
+          "knownValues": [
+            "wind",
+            "water",
+            "animal",
+            "gravity",
+            "ballistic",
+            "other"
+          ]
+        },
+        "pollinationMode": {
+          "type": "string",
+          "description": "Primary pollination mode",
+          "maxGraphemes": 64,
+          "knownValues": [
+            "insect",
+            "wind",
+            "bird",
+            "bat",
+            "water",
+            "self",
+            "other"
+          ]
+        },
+        "edibleParts": {
+          "type": "array",
+          "description": "Edible parts of the plant (e.g., 'fruit', 'leaves', 'seeds')",
+          "maxLength": 10,
+          "items": {
+            "type": "string",
+            "maxGraphemes": 64
+          }
+        },
+        "economicUses": {
+          "type": "array",
+          "description": "Economic uses of the plant (e.g., 'timber', 'medicine')",
+          "maxLength": 10,
+          "items": {
+            "type": "string",
+            "maxGraphemes": 128
+          }
+        },
+        "traitSource": {
+          "type": "string",
+          "description": "Source database for trait data (e.g., 'TRY', 'Restor', 'BIEN')",
+          "maxGraphemes": 256
+        }
+      }
+    },
+    "abundanceEstimate": {
+      "type": "object",
+      "description": "A structured abundance/density estimate",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "string",
+          "description": "Numeric value as string",
+          "maxGraphemes": 64
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of the estimate (e.g., 'individuals/ha', 'stems/ha', '% cover', 'relative abundance')",
+          "maxGraphemes": 64
+        },
+        "method": {
+          "type": "string",
+          "description": "Estimation method",
+          "maxGraphemes": 256
+        },
+        "confidence": {
+          "type": "string",
+          "description": "Confidence interval or qualifier",
+          "maxGraphemes": 64
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of estimate (ISO 8601)",
+          "maxGraphemes": 64
+        }
+      }
+    },
+    "lifeHistoryEnum": {
+      "type": "string",
+      "description": "Life history strategy of the organism",
+      "maxGraphemes": 32,
+      "knownValues": [
+        "annual",
+        "biennial",
+        "perennial",
+        "ephemeral"
+      ]
+    },
+    "establishmentMeansEnum": {
+      "type": "string",
+      "description": "Darwin Core establishment means — the process by which the organism came to be in a given place at a given time",
+      "maxGraphemes": 64,
+      "knownValues": [
+        "native",
+        "introduced",
+        "naturalised",
+        "invasive",
+        "managed",
+        "uncertain"
+      ]
+    }
+  }
+}
