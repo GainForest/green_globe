@@ -4,6 +4,8 @@ import { Combobox } from "@/components/ui/combobox";
 import useProjectOverlayStore from "./store";
 import useNavigation from "../../_features/navigation/use-navigation";
 import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import LinearDocumentRenderer from "@/components/LinearDocumentRenderer";
+import type * as PubLeafletPagesLinearDocument from "@/../lexicon-api/types/pub/leaflet/pages/linearDocument";
 
 const ProjectSitesSection = () => {
   const projectSitesOptions = useProjectOverlayStore(
@@ -70,11 +72,15 @@ const ProjectInfo = ({
       <ProjectSitesSection />
       <section className="flex flex-col gap-0.5">
         <span className="font-bold">Description</span>
-        <p className="leading-snug">
-          {typeof organization.longDescription === "string"
-            ? organization.longDescription
-            : null}
-        </p>
+        {typeof organization.longDescription === "string" ? (
+          <p className="leading-snug">{organization.longDescription}</p>
+        ) : organization.longDescription != null ? (
+          <LinearDocumentRenderer
+            document={
+              organization.longDescription as PubLeafletPagesLinearDocument.Main
+            }
+          />
+        ) : null}
       </section>
       <ProjectObjectivesSection objectives={organization.objectives} />
     </div>
