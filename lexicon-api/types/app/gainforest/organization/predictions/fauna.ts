@@ -12,12 +12,14 @@ import {
 
 const is$typed = _is$typed,
   validate = _validate
-const id = 'app.gainforest.organization.prediction.flora'
+const id = 'app.gainforest.organization.predictions.fauna'
 
 export interface Record {
-  $type: 'app.gainforest.organization.prediction.flora'
-  /** TBD */
-  tbd: string
+  $type: 'app.gainforest.organization.predictions.fauna'
+  /** An array of GBIF taxon keys for each fauna prediction */
+  gbifTaxonKeys: string[]
+  /** The date and time of the creation of the record */
+  createdAt: string
   [k: string]: unknown
 }
 

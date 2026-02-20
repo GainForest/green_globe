@@ -3,21 +3,21 @@
  */
 import { type ValidationResult, BlobRef } from '@atproto/lexicon'
 import { CID } from 'multiformats/cid'
-import { validate as _validate } from '../../../../lexicons'
+import { validate as _validate } from '../../../../../lexicons'
 import {
   type $Typed,
   is$typed as _is$typed,
   type OmitKey,
-} from '../../../../util'
+} from '../../../../../util'
 
 const is$typed = _is$typed,
   validate = _validate
-const id = 'app.gainforest.organization.defaultSite'
+const id = 'app.gainforest.organization.observations.flora'
 
 export interface Record {
-  $type: 'app.gainforest.organization.defaultSite'
-  /** The reference to the default site record in the PDS */
-  site: string
+  $type: 'app.gainforest.organization.observations.flora'
+  /** An array of GBIF taxon keys for each flora observation */
+  gbifTaxonKeys: string[]
   /** The date and time of the creation of the record */
   createdAt: string
   [k: string]: unknown

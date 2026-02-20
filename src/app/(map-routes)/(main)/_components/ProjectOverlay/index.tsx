@@ -13,7 +13,6 @@ import getRecord from "@/lib/atproto/getRecord";
 import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
 import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
 import { PDS_ENDPOINT } from "@/config/atproto";
-import { BlobRef } from "@atproto/api";
 
 const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
@@ -44,7 +43,7 @@ const ProjectOverlay = () => {
   );
 
   const coverImage = info?.coverImage;
-  const coverImageCID = coverImage ? (coverImage as BlobRef).ref : null;
+  const coverImageCID = coverImage ? coverImage.image.ref : null;
   const coverImageUrl =
     coverImageCID ?
       `${PDS_ENDPOINT}/xrpc/com.atProto.sync.getBlob?did=${organizationDid}&cid=${coverImageCID}`

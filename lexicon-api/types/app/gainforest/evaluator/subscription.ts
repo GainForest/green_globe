@@ -12,13 +12,17 @@ import {
 
 const is$typed = _is$typed,
   validate = _validate
-const id = 'app.gainforest.organization.defaultSite'
+const id = 'app.gainforest.evaluator.subscription'
 
 export interface Record {
-  $type: 'app.gainforest.organization.defaultSite'
-  /** The reference to the default site record in the PDS */
-  site: string
-  /** The date and time of the creation of the record */
+  $type: 'app.gainforest.evaluator.subscription'
+  /** DID of the evaluator service to subscribe to. */
+  evaluator: string
+  /** Which of the user's record collections should be evaluated (NSIDs). Must be a subset of the evaluator's subjectCollections. If omitted, all supported collections are evaluated. */
+  collections?: string[]
+  /** Which evaluation types the user wants. If omitted, all types the evaluator supports are applied. */
+  evaluationTypes?: string[]
+  /** Timestamp of when this subscription was created. */
   createdAt: string
   [k: string]: unknown
 }

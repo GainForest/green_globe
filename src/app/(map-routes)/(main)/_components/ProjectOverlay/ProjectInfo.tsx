@@ -70,7 +70,11 @@ const ProjectInfo = ({
       <ProjectSitesSection />
       <section className="flex flex-col gap-0.5">
         <span className="font-bold">Description</span>
-        <p className="leading-snug">{organization.longDescription}</p>
+        <p className="leading-snug">
+          {typeof organization.longDescription === "string"
+            ? organization.longDescription
+            : null}
+        </p>
       </section>
       <ProjectObjectivesSection objectives={organization.objectives} />
     </div>
