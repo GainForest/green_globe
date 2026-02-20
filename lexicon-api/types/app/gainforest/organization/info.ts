@@ -74,29 +74,6 @@ export interface Record {
     | 'other'
     | (string & {})
   )[]
-  /** Species groups the organization focuses on (primary field) */
-  speciesFocus?: (
-    | 'mammals'
-    | 'birds'
-    | 'reptiles'
-    | 'amphibians'
-    | 'fish'
-    | 'insects'
-    | 'arachnids'
-    | 'mollusks'
-    | 'crustaceans'
-    | 'trees'
-    | 'shrubs'
-    | 'herbs'
-    | 'grasses'
-    | 'ferns'
-    | 'mosses'
-    | 'fungi'
-    | 'algae'
-    | 'coral'
-    | 'other'
-    | (string & {})
-  )[]
   /** Species groups the organization focuses on */
   focusSpeciesGroups?: (
     | 'mammals'

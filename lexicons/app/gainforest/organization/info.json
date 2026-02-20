@@ -144,36 +144,6 @@
               ]
             }
           },
-          "speciesFocus": {
-            "type": "array",
-            "description": "Species groups the organization focuses on (primary field)",
-            "maxLength": 20,
-            "items": {
-              "type": "string",
-              "maxGraphemes": 64,
-              "knownValues": [
-                "mammals",
-                "birds",
-                "reptiles",
-                "amphibians",
-                "fish",
-                "insects",
-                "arachnids",
-                "mollusks",
-                "crustaceans",
-                "trees",
-                "shrubs",
-                "herbs",
-                "grasses",
-                "ferns",
-                "mosses",
-                "fungi",
-                "algae",
-                "coral",
-                "other"
-              ]
-            }
-          },
           "focusSpeciesGroups": {
             "type": "array",
             "description": "Species groups the organization focuses on",
