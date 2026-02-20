@@ -8,7 +8,7 @@
       "key": "tid",
       "record": {
         "type": "object",
-        "required": ["displayName", "role", "createdAt"],
+        "required": ["displayName", "role", "did", "createdAt"],
         "properties": {
           "displayName": {
             "type": "string",
