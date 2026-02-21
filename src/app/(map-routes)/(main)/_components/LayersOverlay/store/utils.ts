@@ -88,6 +88,12 @@ export const fetchLayers = async (): Promise<Layer[]> => {
     const globalLayersResponse = await fetch(
       `${process.env.NEXT_PUBLIC_AWS_STORAGE}/layers/global/layerData.json`
     );
+    if (!globalLayersResponse.ok) {
+      console.error(
+        `fetchLayers: global layers fetch failed (${globalLayersResponse.status})`
+      );
+      return [];
+    }
     const globalLayers: LayersAPIResponse = await globalLayersResponse.json();
     layersData = [...globalLayers.layers];
   } catch (error) {
@@ -148,6 +154,9 @@ const fetchLayersFromS3 = async (slug: string): Promise<Layer[] | null> => {
     const projectLayerDataResponse = await fetch(
       `${process.env.NEXT_PUBLIC_AWS_STORAGE}/layers/${kebabCasedSlug}/layerData.json`
     );
+    if (!projectLayerDataResponse.ok) {
+      return null;
+    }
     const projectLayerData: {
       layers: Layer[];
     } | null = await projectLayerDataResponse.json();
