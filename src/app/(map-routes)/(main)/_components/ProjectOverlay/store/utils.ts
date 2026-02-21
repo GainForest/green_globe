@@ -5,7 +5,6 @@ import {
   TreeFeature,
 } from "./types";
 import { getTreeSpeciesName } from "../../Map/sources-and-layers/measured-trees";
-import ClimateAIAgent from "@/lib/atproto/agent";
 import { PDS_ENDPOINT } from "@/config/atproto";
 
 // ---------------------------------------------------------------------------
@@ -29,8 +28,9 @@ const isBlobRef = (value: unknown): value is BlobRef =>
 
 /**
  * Fetches the GeoJSON boundary for a site from either:
- *   1. An ATProto blob ref (via com.atproto.sync.getBlob)
- *   2. An external boundary URL (plain HTTP fetch)
+ *   1. An ATProto blob ref (via com.atproto.sync.getBlob XRPC URL)
+ *   2. An AT-URI string (at://...) — resolved to a record, blob CID extracted, then fetched
+ *   3. An external HTTP(S) boundary URL (plain HTTP fetch)
  *
  * Returns the parsed GeoJSON or null on failure.
  */
@@ -39,19 +39,46 @@ export const fetchSiteShapefile = async (
   shapefile: unknown
 ): Promise<GeoJSON.GeoJsonObject | null> => {
   try {
-    // Case 1: blob ref object with a CID link
+    // Case 1: blob ref object with a CID link — fetch via PDS XRPC URL (browser-safe)
     if (isBlobRef(shapefile) && shapefile.ref?.$link) {
       const cid = shapefile.ref.$link;
-      const response = await ClimateAIAgent.com.atproto.sync.getBlob({
-        did,
-        cid,
-      });
-      const buffer = Buffer.from(response.data as unknown as ArrayBuffer);
-      const text = buffer.toString("utf8");
-      return JSON.parse(text) as GeoJSON.GeoJsonObject;
+      const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(
+          `fetchSiteShapefile: blob fetch failed (${response.status})`
+        );
+        return null;
+      }
+      return (await response.json()) as GeoJSON.GeoJsonObject;
     }
 
-    // Case 2: string boundary URL
+    // Case 2: AT-URI string (at://did/collection/rkey) — must be checked BEFORE
+    // the generic string check so it is not mistakenly fetched as an HTTP URL.
+    // Resolve the record, extract the shapefile blob CID, then fetch the blob.
+    if (typeof shapefile === "string" && shapefile.startsWith("at://")) {
+      const rkey = shapefile.split("/").pop() ?? "";
+      const recordUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.gainforest.organization.site&rkey=${encodeURIComponent(rkey)}`;
+      const recordResponse = await fetch(recordUrl);
+      if (!recordResponse.ok) return null;
+      const record = (await recordResponse.json()) as {
+        value?: { shapefile?: unknown };
+      };
+      const blobRef = record.value?.shapefile;
+      if (!isBlobRef(blobRef) || !blobRef.ref?.$link) return null;
+      const cid = blobRef.ref.$link;
+      const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const blobResponse = await fetch(blobUrl);
+      if (!blobResponse.ok) {
+        console.error(
+          `fetchSiteShapefile: blob fetch failed (${blobResponse.status})`
+        );
+        return null;
+      }
+      return (await blobResponse.json()) as GeoJSON.GeoJsonObject;
+    }
+
+    // Case 3: generic HTTP(S) boundary URL
     if (typeof shapefile === "string" && shapefile.trim().length > 0) {
       const response = await fetch(shapefile.trim(), {
         headers: {
@@ -64,20 +91,6 @@ export const fetchSiteShapefile = async (
         );
         return null;
       }
-      return (await response.json()) as GeoJSON.GeoJsonObject;
-    }
-
-    // Case 3: AT-URI string (at://did/collection/rkey) — resolve via getBlob
-    // by first looking up the record to get the blob CID
-    if (
-      typeof shapefile === "string" &&
-      shapefile.startsWith("at://") &&
-      shapefile.trim().length > 0
-    ) {
-      const response = await fetch(
-        `${PDS_ENDPOINT}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.gainforest.organization.site&rkey=${encodeURIComponent(shapefile.split("/").pop() ?? "")}`
-      );
-      if (!response.ok) return null;
       return (await response.json()) as GeoJSON.GeoJsonObject;
     }
 
