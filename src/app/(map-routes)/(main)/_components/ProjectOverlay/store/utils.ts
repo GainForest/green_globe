@@ -90,15 +90,71 @@ export const fetchSiteShapefile = async (
 };
 
 // ---------------------------------------------------------------------------
-// fetchMeasuredTreesShapefile — fetch tree planting GeoJSON from S3
+// fetchMeasuredTreesShapefile — fetch tree planting GeoJSON from ATProto blob
+// or fall back to S3 if no blob ref is available
 // ---------------------------------------------------------------------------
 
-export const fetchMeasuredTreesShapefile = async (
-  projectName: string
-): Promise<MeasuredTreesGeoJSON | null> => {
-  const kebabCaseProjectName = toKebabCase(projectName);
+/**
+ * Normalizes a raw MeasuredTreesGeoJSON<TreeFeature> into the normalized form.
+ */
+const normalizeMeasuredTreesGeoJSON = (
+  result: MeasuredTreesGeoJSON<TreeFeature>
+): MeasuredTreesGeoJSON => {
+  const normalizedFeatures: NormalizedTreeFeature[] = result.features.map(
+    (feature, index: number) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        species: getTreeSpeciesName(feature.properties)?.trim() ?? "Unknown",
+        type: "measured-tree",
+      },
+      id: index,
+    })
+  );
+  return { ...result, features: normalizedFeatures };
+};
 
-  const endpoint = `shapefiles/${kebabCaseProjectName}-all-tree-plantings.geojson`;
+/**
+ * Fetches the measured trees GeoJSON for a site.
+ *
+ * Priority:
+ *   1. ATProto blob ref on the site record (via com.atproto.sync.getBlob)
+ *   2. S3 fallback using the project slug (backward compatibility)
+ *
+ * @param slug     - Project slug (for S3 fallback path construction)
+ * @param treesRef - Optional blob ref from the ATProto site record
+ * @param did      - Organization DID (required when treesRef is provided)
+ */
+export const fetchMeasuredTreesShapefile = async (
+  slug: string,
+  treesRef?: unknown,
+  did?: string
+): Promise<MeasuredTreesGeoJSON | null> => {
+  // --- Path 1: ATProto blob ---
+  if (isBlobRef(treesRef) && treesRef.ref?.$link && did) {
+    const cid = treesRef.ref.$link;
+    try {
+      const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const result =
+          (await response.json()) as MeasuredTreesGeoJSON<TreeFeature>;
+        return normalizeMeasuredTreesGeoJSON(result);
+      }
+      console.warn(
+        `fetchMeasuredTreesShapefile: blob fetch failed (${response.status}), falling back to S3`
+      );
+    } catch (error) {
+      console.warn(
+        "fetchMeasuredTreesShapefile: blob fetch error, falling back to S3",
+        error
+      );
+    }
+  }
+
+  // --- Path 2: S3 fallback ---
+  const kebabCaseSlug = toKebabCase(slug);
+  const endpoint = `shapefiles/${kebabCaseSlug}-all-tree-plantings.geojson`;
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${endpoint}`
@@ -106,24 +162,7 @@ export const fetchMeasuredTreesShapefile = async (
     if (response.ok) {
       const result =
         (await response.json()) as MeasuredTreesGeoJSON<TreeFeature>;
-
-      const normalizedFeatures: NormalizedTreeFeature[] = result.features.map(
-        (feature, index: number) => ({
-          ...feature,
-          properties: {
-            ...feature.properties,
-            species:
-              getTreeSpeciesName(feature.properties)?.trim() ?? "Unknown",
-            type: "measured-tree",
-          },
-          id: index,
-        })
-      );
-      const normalizedResult: MeasuredTreesGeoJSON = {
-        ...result,
-        features: normalizedFeatures,
-      };
-      return normalizedResult;
+      return normalizeMeasuredTreesGeoJSON(result);
     } else {
       return null;
     }
