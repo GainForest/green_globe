@@ -1,5 +1,3 @@
-import { gainforestSdk } from "@/config/gainforest-sdk.server";
-import { allowedPDSDomains } from "@/config/gainforest-sdk";
 import ClimateAIAgent from "@/lib/atproto/agent";
 
 export type IndexedOrganization = {
@@ -22,8 +20,6 @@ export async function listAllOrganizations(options?: {
   includeInfo?: boolean;
   includeCoordinates?: boolean;
 }): Promise<IndexedOrganization[]> {
-  const pdsDomain = allowedPDSDomains[0]; // 'climateai.org'
-
   // Step 1: List all repos on the PDS with cursor-based pagination
   const repos: { did: string }[] = [];
   let cursor: string | undefined = undefined;
@@ -37,21 +33,26 @@ export async function listAllOrganizations(options?: {
     cursor = reposResponse.data.cursor;
   } while (cursor);
 
-  // Step 2: For each repo, fetch org info and/or coordinates via SDK server caller
-  const apiCaller = gainforestSdk.getServerCaller();
-
+  // Step 2: For each repo, fetch org info and/or coordinates via raw ATProto agent
   const results = await Promise.all(
     repos.map(async (repo): Promise<IndexedOrganization | null> => {
       try {
         const org: IndexedOrganization = { did: repo.did };
 
-        // Always fetch org info to apply the visibility filter — throws if
-        // the record doesn't exist (test accounts, etc.), which is caught below.
-        const infoResponse = await apiCaller.gainforest.organization.info.get({
-          did: repo.did,
-          pdsDomain,
+        // Always fetch org info to apply the visibility filter — returns
+        // success=false if the record doesn't exist (test accounts, etc.).
+        const infoRecord = await ClimateAIAgent.com.atproto.repo.getRecord({
+          repo: repo.did,
+          collection: "app.gainforest.organization.info",
+          rkey: "self",
         });
-        const info = infoResponse.value;
+        if (!infoRecord.success) return null;
+        const info = infoRecord.data.value as {
+          displayName?: string;
+          country?: string;
+          visibility?: string;
+          [key: string]: unknown;
+        };
 
         // Filter: only include Public orgs regardless of what the caller requested
         if (info.visibility !== "Public") return null;
