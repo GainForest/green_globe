@@ -69,8 +69,7 @@ const Members = () => {
                       try {
                         return getBlobUrl(
                           projectId,
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          member.profileImage as any,
+                          member.profileImage,
                           "climateai.org",
                         );
                       } catch {

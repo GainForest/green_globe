@@ -2,6 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import ClimateAIAgent from "@/lib/atproto/agent";
+import {
+  type SmallImage,
+  validateSmallImage,
+} from "../../../../../lexicon-api/types/org/hypercerts/defs";
 
 const MEMBER_COLLECTION = "app.gainforest.organization.member";
 
@@ -13,7 +17,7 @@ export type AtprotoMember = {
   lastName?: string;
   role?: string;
   bio?: string;
-  profileImage?: unknown; // blob ref
+  profileImage?: SmallImage;
   expertise?: string[];
   languages?: string[];
   walletAddresses?: Array<{ chain: string; address: string }>;
@@ -45,6 +49,9 @@ const extractRkey = (uri: string): string => {
   return parts[parts.length - 1] ?? uri;
 };
 
+const isValidSmallImage = (value: unknown): value is SmallImage =>
+  validateSmallImage(value).success;
+
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
 
@@ -73,7 +80,9 @@ const normalizeMemberRecord = (raw: RawMemberRecord): AtprotoMember => ({
     typeof raw.value.lastName === "string" ? raw.value.lastName : undefined,
   role: typeof raw.value.role === "string" ? raw.value.role : undefined,
   bio: typeof raw.value.bio === "string" ? raw.value.bio : undefined,
-  profileImage: raw.value.profileImage ?? undefined,
+  profileImage: isValidSmallImage(raw.value.profileImage)
+    ? raw.value.profileImage
+    : undefined,
   expertise: isStringArray(raw.value.expertise)
     ? raw.value.expertise
     : undefined,
