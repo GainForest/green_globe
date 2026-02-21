@@ -22,6 +22,26 @@ const isBlobRef = (value: unknown): value is BlobRef =>
   value !== null &&
   ("ref" in value || "$type" in value);
 
+/**
+ * Unwrap a SmallBlob / SmallImage wrapper if present.
+ *
+ * ATProto site records wrap BlobRefs in a union object:
+ *   { $type: "org.hypercerts.defs#smallBlob", blob: <BlobRef> }
+ *
+ * If the value has a `blob` property we treat it as a SmallBlob wrapper and
+ * return the inner BlobRef; otherwise the value is returned unchanged.
+ */
+const unwrapSmallBlob = (value: unknown): unknown => {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "blob" in value
+  ) {
+    return (value as Record<string, unknown>).blob;
+  }
+  return value;
+};
+
 // ---------------------------------------------------------------------------
 // fetchSiteShapefile — fetch GeoJSON boundary from ATProto blob or external URI
 // ---------------------------------------------------------------------------
@@ -39,9 +59,13 @@ export const fetchSiteShapefile = async (
   shapefile: unknown
 ): Promise<GeoJSON.GeoJsonObject | null> => {
   try {
+    // Unwrap SmallBlob / SmallImage wrapper if present.
+    // ATProto site records wrap the BlobRef in { $type: '...', blob: <BlobRef> }.
+    const resolvedShapefile = unwrapSmallBlob(shapefile);
+
     // Case 1: blob ref object with a CID link — fetch via PDS XRPC URL (browser-safe)
-    if (isBlobRef(shapefile) && shapefile.ref?.$link) {
-      const cid = shapefile.ref.$link;
+    if (isBlobRef(resolvedShapefile) && resolvedShapefile.ref?.$link) {
+      const cid = resolvedShapefile.ref.$link;
       const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
       const response = await fetch(url);
       if (!response.ok) {
@@ -56,8 +80,8 @@ export const fetchSiteShapefile = async (
     // Case 2: AT-URI string (at://did/collection/rkey) — must be checked BEFORE
     // the generic string check so it is not mistakenly fetched as an HTTP URL.
     // Resolve the record, extract the shapefile blob CID, then fetch the blob.
-    if (typeof shapefile === "string" && shapefile.startsWith("at://")) {
-      const rkey = shapefile.split("/").pop() ?? "";
+    if (typeof resolvedShapefile === "string" && resolvedShapefile.startsWith("at://")) {
+      const rkey = resolvedShapefile.split("/").pop() ?? "";
       const recordUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.gainforest.organization.site&rkey=${encodeURIComponent(rkey)}`;
       const recordResponse = await fetch(recordUrl);
       if (!recordResponse.ok) return null;
@@ -79,8 +103,8 @@ export const fetchSiteShapefile = async (
     }
 
     // Case 3: generic HTTP(S) boundary URL
-    if (typeof shapefile === "string" && shapefile.trim().length > 0) {
-      const response = await fetch(shapefile.trim(), {
+    if (typeof resolvedShapefile === "string" && resolvedShapefile.trim().length > 0) {
+      const response = await fetch(resolvedShapefile.trim(), {
         headers: {
           Accept: "application/geo+json, application/json;q=0.9, */*;q=0.1",
         },
@@ -94,7 +118,7 @@ export const fetchSiteShapefile = async (
       return (await response.json()) as GeoJSON.GeoJsonObject;
     }
 
-    console.warn("fetchSiteShapefile: no usable shapefile source", shapefile);
+    console.warn("fetchSiteShapefile: no usable shapefile source", resolvedShapefile);
     return null;
   } catch (error) {
     console.error("fetchSiteShapefile error:", error);
@@ -144,8 +168,10 @@ export const fetchMeasuredTreesShapefile = async (
   did?: string
 ): Promise<MeasuredTreesGeoJSON | null> => {
   // --- Path 1: ATProto blob ---
-  if (isBlobRef(treesRef) && treesRef.ref?.$link && did) {
-    const cid = treesRef.ref.$link;
+  // Unwrap SmallBlob / SmallImage wrapper if present (same pattern as fetchSiteShapefile).
+  const resolvedTreesRef = unwrapSmallBlob(treesRef);
+  if (isBlobRef(resolvedTreesRef) && resolvedTreesRef.ref?.$link && did) {
+    const cid = resolvedTreesRef.ref.$link;
     try {
       const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
       const response = await fetch(url);
