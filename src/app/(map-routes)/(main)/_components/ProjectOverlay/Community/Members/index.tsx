@@ -1,27 +1,37 @@
 "use client";
-import React, { useEffect } from "react";
+import React from "react";
 import useProjectOverlayStore from "../../store";
-import useCommunityMembersStore from "./store";
+import useOrganizationMembers from "@/app/(map-routes)/(main)/_hooks/use-organization-members";
+import { getBlobUrl } from "@/lib/atproto/sdk-utils";
 import { BadgeDollarSign, CircleAlert, UserCircle2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Loading from "./loading";
 import ErrorMessage from "../../ErrorMessage";
+
 const Members = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
-  const { data, dataStatus, fetchData } = useCommunityMembersStore();
+  const { members, isLoading, error } = useOrganizationMembers(projectId);
 
-  useEffect(() => {
-    fetchData();
-  }, [projectId, fetchData]);
+  if (isLoading) return <Loading />;
+  if (error) return <ErrorMessage />;
 
-  if (dataStatus === "loading") return <Loading />;
-  if (dataStatus === "error") return <ErrorMessage />;
-
-  const { members } = data;
-
-  const sortedMembers = members.sort((a, b) => {
-    return (a.display_order ?? Infinity) - (b.display_order ?? Infinity);
+  // Sort by joinedAt ascending; records without a date go to the end
+  const sortedMembers = [...members].sort((a, b) => {
+    if (!a.joinedAt && !b.joinedAt) return 0;
+    if (!a.joinedAt) return 1;
+    if (!b.joinedAt) return -1;
+    return a.joinedAt.localeCompare(b.joinedAt);
   });
+
+  // Members who receive financial benefits are those with at least one wallet address
+  const financialBeneficiariesCount = sortedMembers.filter(
+    (m) => m.walletAddresses && m.walletAddresses.length > 0,
+  ).length;
+
+  const displayCount =
+    financialBeneficiariesCount > 0
+      ? financialBeneficiariesCount
+      : sortedMembers.length;
 
   return (
     <div>
@@ -38,43 +48,66 @@ const Members = () => {
             <BadgeDollarSign size={32} className="shrink-0 opacity-50" />
             <span>
               <b className="text-foreground">
-                {sortedMembers.length} member
-                {sortedMembers.length === 1 ? "" : "s"}
+                {displayCount} member
+                {displayCount === 1 ? "" : "s"}
               </b>{" "}
               from the local communities{" "}
-              {sortedMembers.length === 1 ? "is" : "are"} registered to receive
+              {displayCount === 1 ? "is" : "are"} registered to receive
               financial benefits from this project.
             </span>
           </p>
           <div className="flex flex-col gap-2 mt-4">
-            {sortedMembers.map((member) => (
-              <div
-                className="flex flex-col divide-y bg-neutral-50 dark:bg-neutral-950 border border-border rounded-xl"
-                key={member.id}
-              >
-                <div className="p-4 flex items-center gap-4">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={member.profile_image_url || ""} />
-                    <AvatarFallback>
-                      <UserCircle2 className="w-10 h-10 opacity-20" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <p className="font-medium">
-                      {member.first_name} {member.last_name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {member.title}
-                    </p>
+            {sortedMembers.map((member) => {
+              const displayName =
+                member.displayName ||
+                [member.firstName, member.lastName].filter(Boolean).join(" ") ||
+                "Unknown Member";
+
+              const avatarUrl =
+                member.profileImage && projectId
+                  ? (() => {
+                      try {
+                        return getBlobUrl(
+                          projectId,
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          member.profileImage as any,
+                          "climateai.org",
+                        );
+                      } catch {
+                        return undefined;
+                      }
+                    })()
+                  : undefined;
+
+              return (
+                <div
+                  className="flex flex-col divide-y bg-neutral-50 dark:bg-neutral-950 border border-border rounded-xl"
+                  key={member.uri}
+                >
+                  <div className="p-4 flex items-center gap-4">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={avatarUrl || ""} />
+                      <AvatarFallback>
+                        <UserCircle2 className="w-10 h-10 opacity-20" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <p className="font-medium">{displayName}</p>
+                      {member.role && (
+                        <p className="text-sm text-muted-foreground">
+                          {member.role}
+                        </p>
+                      )}
+                    </div>
                   </div>
+                  {member.bio && member.bio.trim() !== "" && (
+                    <div className="p-4 text-sm text-muted-foreground">
+                      {member.bio}
+                    </div>
+                  )}
                 </div>
-                {member.bio && member.bio.trim() !== "" && (
-                  <div className="p-4 text-sm text-muted-foreground">
-                    {member.bio}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

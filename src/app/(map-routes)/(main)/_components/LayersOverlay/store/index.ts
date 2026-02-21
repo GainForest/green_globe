@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import dayjs from "dayjs";
 import { fetchLayers, fetchProjectSpecificLayers } from "./utils";
-import { DynamicLayer } from "./types";
+import type { DynamicLayer } from "./types";
 import { groupBy } from "@/lib/utils";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
+
 export type LayersOverlayState = {
   toggledOnLayerIds: Set<string>;
   staticLayersVisibility: {
@@ -132,8 +133,9 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
         }));
       },
       fetchProjectSpecificLayers: async () => {
-        const projectData = useProjectOverlayStore.getState().projectData;
-        if (!projectData) {
+        const overlayState = useProjectOverlayStore.getState();
+        const { projectId: did, projectSlug } = overlayState;
+        if (!did || !projectSlug) {
           set({
             projectSpecificLayers: {
               projectId: null,
@@ -143,20 +145,20 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
           });
           return;
         }
-        if (projectData.id === get().projectSpecificLayers.projectId) {
+        if (did === get().projectSpecificLayers.projectId) {
           return;
         }
         set({
           projectSpecificLayers: {
-            projectId: projectData.id,
+            projectId: did,
             status: "loading",
             layers: null,
           },
         });
-        const layers = await fetchProjectSpecificLayers(projectData.name);
+        const layers = await fetchProjectSpecificLayers(projectSlug);
         set({
           projectSpecificLayers: {
-            projectId: projectData.id,
+            projectId: did,
             status: "success",
             layers: (layers ?? []).map((layer) => ({
               ...layer,
