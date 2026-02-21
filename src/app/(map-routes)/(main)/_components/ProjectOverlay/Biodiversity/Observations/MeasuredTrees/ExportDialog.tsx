@@ -28,7 +28,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   speciesGroups,
   heightGroups,
 }) => {
-  const projectData = useProjectOverlayStore((state) => state.projectData);
+  const projectSlug = useProjectOverlayStore((state) => state.projectSlug);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [exportTab, setExportTab] = useState("complete");
 
@@ -75,7 +75,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
   const handleExport = () => {
     let csvContent = "";
-    let filename = `tree-data-${projectData?.name ?? "untitled"}.csv`;
+    let filename = `tree-data-${projectSlug ?? "untitled"}.csv`;
 
     if (exportTab === "complete") {
       // Export all tree data
@@ -107,9 +107,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
       filename = "complete-tree-data.csv";
     } else {
       // Export filtered data
-      filename = `${selectedFilter}-distribution-${
-        projectData?.name ?? "untitled"
-      }.csv`;
+      filename = `${selectedFilter}-distribution-${projectSlug ?? "untitled"}.csv`;
       if (selectedFilter === "species") {
         // Export species data
         csvContent = "Species,Count\n";
