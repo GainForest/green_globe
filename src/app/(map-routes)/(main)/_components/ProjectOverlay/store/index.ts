@@ -250,7 +250,6 @@ const useProjectOverlayStore = create<
   return {
     ...initialState,
     setProjectId: async (projectId, navigate, zoomToSite) => {
-      console.log("setProjectId", projectId, navigate, zoomToSite);
       // Reset state if no id provided
       if (!projectId) {
         get().resetState();
