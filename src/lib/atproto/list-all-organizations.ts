@@ -45,19 +45,19 @@ export async function listAllOrganizations(options?: {
       try {
         const org: IndexedOrganization = { did: repo.did };
 
+        // Always fetch org info to apply the visibility filter — throws if
+        // the record doesn't exist (test accounts, etc.), which is caught below.
+        const infoResponse = await apiCaller.gainforest.organization.info.get({
+          did: repo.did,
+          pdsDomain,
+        });
+        const info = infoResponse.value;
+
+        // Filter: only include Public orgs regardless of what the caller requested
+        if (info.visibility !== "Public") return null;
+
+        // Only populate info fields when the caller explicitly asked for them
         if (options?.includeInfo) {
-          // Fetch org info via SDK — throws if record doesn't exist
-          const infoResponse = await apiCaller.gainforest.organization.info.get(
-            {
-              did: repo.did,
-              pdsDomain,
-            }
-          );
-          const info = infoResponse.value;
-
-          // Filter: only include Public orgs
-          if (info.visibility !== "Public") return null;
-
           org.name = info.displayName;
           org.country = info.country;
         }
