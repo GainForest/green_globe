@@ -155,7 +155,8 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
             layers: null,
           },
         });
-        const layers = await fetchProjectSpecificLayers(projectSlug);
+        // Try ATProto first (by DID); fall back to S3 (by slug) when no records exist
+        const layers = await fetchProjectSpecificLayers(did, projectSlug);
         set({
           projectSpecificLayers: {
             projectId: did,
