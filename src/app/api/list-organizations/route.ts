@@ -10,17 +10,32 @@ import { listAllOrganizations } from "@/lib/atproto/list-all-organizations";
 import { tryCatch } from "@/lib/tryCatch";
 import { NextRequest, NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
+// Bug fix (green_globe-24): replaced `export const dynamic = "force-dynamic"` with ISR
+// so Next.js caches the response for 5 minutes instead of making ~197 PDS calls per request.
+// Org data changes infrequently (hours/days), so a 5-minute stale window is acceptable.
+export const revalidate = 300; // 5 minutes ISR
 
+/**
+ * Intentional shape change (green_globe-23): the original spec for green_globe-16.5 required
+ * a flat shape `{ did, name?, country?, lat?, lon? }`. The implementation deliberately uses a
+ * nested shape instead — `{ did, info: { name, country } | null, mapPoint: { lat, lon } | null }`
+ * — because it is more expressive and avoids ambiguity between "field not requested" vs
+ * "field missing on the record". The `useIndexedOrganizations` hook has been updated to
+ * consume this nested shape. Any new consumer of GET /api/list-organizations should use
+ * this type (or `StrictIndexedOrganization`) rather than the old flat shape.
+ */
 export type IndexedOrganization = {
+  /** Nested info block; null when the ?info=true query param was not passed or the record has no info. */
   info: {
     name: string;
     country: string;
   } | null;
+  /** Nested map-point block; null when the ?mapPoint=true query param was not passed or the record has no coordinates. */
   mapPoint: { lat: number; lon: number } | null;
   did: string;
 };
 
+/** Variant of {@link IndexedOrganization} where both `info` and `mapPoint` are guaranteed non-null. */
 export type StrictIndexedOrganization = {
   info: {
     name: string;
