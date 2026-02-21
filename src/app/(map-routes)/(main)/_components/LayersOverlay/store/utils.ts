@@ -1,4 +1,4 @@
-import { LayersAPIResponse, Layer } from "./types";
+import { LayersAPIResponse, Layer, LegendEntry } from "./types";
 import { toKebabCase } from "@/lib/utils";
 import ClimateAIAgent from "@/lib/atproto/agent";
 
@@ -12,6 +12,9 @@ const VALID_LAYER_TYPES = new Set([
   "choropleth_shannon",
   "raster_tif",
   "tms_tile",
+  "heatmap",
+  "contour",
+  "satellite_overlay",
 ]);
 
 // RawLayerValue uses unknown fields because ATProto layer records are fetched
@@ -27,7 +30,8 @@ type RawLayerValue = {
   type?: unknown;
   uri?: unknown;
   category?: unknown;
-  visibility?: unknown;
+  /** isDefault (not visibility) is the lexicon field for default visibility */
+  isDefault?: unknown;
   legend?: unknown;
   description?: unknown;
   [k: string]: unknown;
@@ -46,13 +50,27 @@ const normalizeAtprotoLayer = (raw: RawLayerRecord): Layer => {
       ? (v.type as Layer["type"])
       : "geojson_points";
 
+  const legend: LegendEntry[] | undefined = Array.isArray(v.legend)
+    ? (v.legend as { label?: unknown; color?: unknown; value?: unknown }[])
+        .filter(
+          (entry) =>
+            typeof entry.label === "string" && typeof entry.color === "string"
+        )
+        .map((entry) => ({
+          label: entry.label as string,
+          color: entry.color as string,
+          value: typeof entry.value === "string" ? entry.value : undefined,
+        }))
+    : undefined;
+
   return {
     name: typeof v.name === "string" ? v.name : "",
     type,
     endpoint: typeof v.uri === "string" ? v.uri : "",
     category: typeof v.category === "string" ? v.category : "",
     description: typeof v.description === "string" ? v.description : "",
-    legend: typeof v.legend === "string" ? v.legend : undefined,
+    legend,
+    isDefault: typeof v.isDefault === "boolean" ? v.isDefault : undefined,
   };
 };
 
