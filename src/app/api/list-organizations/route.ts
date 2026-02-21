@@ -1,7 +1,16 @@
-import Airtable from "airtable";
+// DEPRECATED: was Airtable + raw PDS calls, now uses SDK via listAllOrganizations
+// import Airtable from "airtable";
+// import { Agent } from "@atproto/api";
+// const apiKey = process.env.AIRTABLE_GREEN_GLOBE_TOKEN;
+// const baseId = process.env.AIRTABLE_GREEN_GLOBE_ORGS_BASE_ID;
+// async function getOrganizationInfo(did: string) { ... }
+// async function getOrganizationCoordinates(did: string) { ... }
+
+import { listAllOrganizations } from "@/lib/atproto/list-all-organizations";
 import { tryCatch } from "@/lib/tryCatch";
-import { NextRequest } from "next/server";
-import { Agent } from "@atproto/api";
+import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 
 export type IndexedOrganization = {
   info: {
@@ -21,108 +30,35 @@ export type StrictIndexedOrganization = {
   did: string;
 };
 
-const apiKey = process.env.AIRTABLE_GREEN_GLOBE_TOKEN;
-const baseId = process.env.AIRTABLE_GREEN_GLOBE_ORGS_BASE_ID;
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const info = searchParams.get("info") === "true";
   const mapPoint = searchParams.get("mapPoint") === "true";
 
-  if (!apiKey || !baseId) {
-    throw new Error("Missing Airtable API key or base ID");
-  }
-
-  const base = new Airtable({ apiKey: apiKey }).base(baseId);
-
-  const [records, recordFetchError] = await tryCatch(
-    base("Organizations")
-      .select({
-        maxRecords: 100,
-        view: "Grid view",
-        fields: ["DID"],
-        filterByFormula: `{Status} = "Approved"`,
-      })
-      .all()
-  );
-
-  if (recordFetchError) {
-    return new Response(JSON.stringify({ error: recordFetchError.message }), {
-      status: 500,
-    });
-  }
-
-  const organizationDIDs = records.map(
-    (record) => record.fields.DID
-  ) as string[];
-
   const [organizations, error] = await tryCatch(
-    Promise.all(
-      organizationDIDs.map(async (did) => {
-        const [orgInfo] = await tryCatch(
-          info
-            ? getOrganizationInfo(did)
-            : new Promise<null>((res) => res(null))
-        );
-        const [orgMapPoint] = await tryCatch(
-          mapPoint
-            ? getOrganizationCoordinates(did)
-            : new Promise<null>((res) => res(null))
-        );
-
-        return {
-          info: orgInfo,
-          mapPoint: orgMapPoint,
-          did: did,
-        };
-      })
-    )
+    listAllOrganizations({
+      includeInfo: info,
+      includeCoordinates: mapPoint,
+    })
   );
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-    });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return new Response(JSON.stringify(organizations), { status: 200 });
-}
+  // Map the IndexedOrganization shape from the utility to the existing
+  // response shape expected by the frontend (IndexedOrganization with info/mapPoint).
+  const response: IndexedOrganization[] = organizations.map((org) => ({
+    did: org.did,
+    info:
+      org.name !== undefined && org.country !== undefined
+        ? { name: org.name, country: org.country }
+        : null,
+    mapPoint:
+      org.lat !== undefined && org.lon !== undefined
+        ? { lat: org.lat, lon: org.lon }
+        : null,
+  }));
 
-async function getOrganizationInfo(did: string) {
-  const agent = new Agent("https://climateai.org");
-  const data = await agent.com.atproto.repo.getRecord({
-    repo: did,
-    collection: "app.gainforest.organization.info",
-    rkey: "self",
-  });
-  return data.success
-    ? {
-        name: data.data.value.displayName as string,
-        country: data.data.value.country as string,
-      }
-    : null;
-}
-
-async function getOrganizationCoordinates(did: string) {
-  const agent = new Agent("https://climateai.org");
-  const data = await agent.com.atproto.repo.getRecord({
-    repo: did,
-    collection: "app.gainforest.organization.defaultSite",
-    rkey: "self",
-  });
-  const siteAtURI = data.success ? (data.data.value.site as string) : null;
-  if (!siteAtURI) return null;
-
-  const siteCollectionId = siteAtURI.split(
-    "app.gainforest.organization.site/"
-  )[1];
-  const siteData = await agent.com.atproto.repo.getRecord({
-    repo: did,
-    collection: "app.gainforest.organization.site",
-    rkey: siteCollectionId,
-  });
-
-  if (!siteData.success) return null;
-  const { lat, lon } = siteData.data.value;
-  return { lat, lon } as { lat: number; lon: number };
+  return NextResponse.json(response, { status: 200 });
 }
