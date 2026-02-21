@@ -14,6 +14,14 @@ const VALID_LAYER_TYPES = new Set([
   "tms_tile",
 ]);
 
+// RawLayerValue uses unknown fields because ATProto layer records are fetched
+// via com.atproto.repo.listRecords which returns untyped JSON. The SDK's
+// AppGainforestOrganizationLayer type (Main$3) is stale and only declares the
+// original five fields; the full field set lives in lexicon-api/types/app/
+// gainforest/organization/layer.ts (regenerated via `bun run codegen:lexicon-api`).
+// Access all extended fields (category, isDefault, legend, opacity, etc.) through
+// the [k: string]: unknown index signature and validate types at runtime.
+// See src/lib/atproto/sdk-utils.ts for the full list of missing SDK fields.
 type RawLayerValue = {
   name?: unknown;
   type?: unknown;
