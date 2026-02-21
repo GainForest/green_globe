@@ -1,11 +1,3 @@
-// DEPRECATED: was Airtable + raw PDS calls, now uses SDK via listAllOrganizations
-// import Airtable from "airtable";
-// import { Agent } from "@atproto/api";
-// const apiKey = process.env.AIRTABLE_GREEN_GLOBE_TOKEN;
-// const baseId = process.env.AIRTABLE_GREEN_GLOBE_ORGS_BASE_ID;
-// async function getOrganizationInfo(did: string) { ... }
-// async function getOrganizationCoordinates(did: string) { ... }
-
 import { listAllOrganizations } from "@/lib/atproto/list-all-organizations";
 import { tryCatch } from "@/lib/tryCatch";
 import { NextRequest, NextResponse } from "next/server";

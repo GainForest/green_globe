@@ -10,11 +10,10 @@ export type IndexedOrganization = {
 
 /**
  * Enumerates all organizations on the climateai.org PDS and fetches their
- * info and/or coordinates via the SDK server caller.
+ * info and/or coordinates via the ATProto agent.
  *
- * Replaces the Airtable-based organization index. Only organizations with
- * visibility 'Public' are returned. Repos that lack an org info record
- * (test accounts, etc.) are silently skipped.
+ * Only organizations with visibility 'Public' are returned. Repos that lack
+ * an org info record (test accounts, etc.) are silently skipped.
  */
 export async function listAllOrganizations(options?: {
   includeInfo?: boolean;
@@ -89,8 +88,7 @@ export async function listAllOrganizations(options?: {
 /**
  * Resolves the default site coordinates for an organization.
  *
- * Replicates the logic from /api/list-organizations/route.ts:
- *   getRecord(defaultSite) → parse AT-URI → getRecord(site) → extract lat/lon
+ * Flow: getRecord(defaultSite) → parse AT-URI → getRecord(site) → extract lat/lon
  *
  * Uses the ClimateAIAgent directly since the SDK's hypercerts.location.*
  * methods target app.certified.location, while the existing PDS data stores
