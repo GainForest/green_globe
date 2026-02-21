@@ -41,9 +41,10 @@ const SearchOverlay = () => {
       const lcSearchQuery = searchQuery.toLowerCase();
       const info = organization.info;
       if (!info) return false;
+      const countryCode = info.country?.toUpperCase();
       const countryDetails =
-        Object.keys(countryToEmoji).includes(info.country) ?
-          countryToEmoji[info.country as keyof typeof countryToEmoji]
+        countryCode && Object.keys(countryToEmoji).includes(countryCode) ?
+          countryToEmoji[countryCode as keyof typeof countryToEmoji]
         : null;
       const countryName = countryDetails?.name;
       return (
@@ -117,9 +118,10 @@ const SearchOverlay = () => {
             {filteredOrganizations.map((organization) => {
               const info = organization.info;
               if (!info) return null;
+              const countryCode = info.country?.toUpperCase();
               const countryDetails =
-                Object.keys(countryToEmoji).includes(info.country) ?
-                  countryToEmoji[info.country as keyof typeof countryToEmoji]
+                countryCode && Object.keys(countryToEmoji).includes(countryCode) ?
+                  countryToEmoji[countryCode as keyof typeof countryToEmoji]
                 : null;
 
               const isCurrentProject = projectId === organization.did;
@@ -137,13 +139,18 @@ const SearchOverlay = () => {
                   >
                     <div className="flex flex-col gap-2 items-start">
                       <span className="font-bold">{info.name}</span>
-                      <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                        <span className="px-2 py-1 bg-foreground/10 backdrop-blur-lg rounded-full text-sm">
-                          {countryDetails?.emoji}
-                          &nbsp;&nbsp;
-                          {countryDetails?.name}
+                      {countryDetails && (
+                        <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                          <span className="px-2 py-1 bg-foreground/10 backdrop-blur-lg rounded-full text-sm inline-flex items-center gap-1">
+                            <img
+                              src={countryDetails.image}
+                              alt={countryDetails.name}
+                              className="h-4 w-4 inline-block"
+                            />
+                            {countryDetails.name}
+                          </span>
                         </span>
-                      </span>
+                      )}
                     </div>
                   </button>
                   {isCurrentProject && (
