@@ -1,9 +1,8 @@
 import { create } from "zustand";
-import { Project, SiteAsset } from "./types";
+import { AtprotoSite, Project } from "./types";
 import {
   fetchMeasuredTreesShapefile,
-  fetchProjectData,
-  fetchProjectPolygon,
+  fetchSiteShapefile,
 } from "./utils";
 import useMapStore from "../../Map/store";
 import bbox from "@turf/bbox";
@@ -14,9 +13,141 @@ import {
   convertFromGFTreeFeatureToNormalizedTreeFeature,
 } from "./ayyoweca-uganda";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
+import ClimateAIAgent from "@/lib/atproto/agent";
+
+// ---------------------------------------------------------------------------
+// ATProto collections
+// ---------------------------------------------------------------------------
+const SITE_COLLECTION = "app.gainforest.organization.site";
+const DEFAULT_SITE_COLLECTION = "app.gainforest.organization.defaultSite";
+const DEFAULT_SITE_RKEY = "self";
+
+// ---------------------------------------------------------------------------
+// Raw PDS record shapes
+// ---------------------------------------------------------------------------
+type RawSiteValue = {
+  name?: unknown;
+  lat?: unknown;
+  lon?: unknown;
+  area?: unknown;
+  shapefile?: unknown;
+  trees?: unknown;
+  createdAt?: unknown;
+  [k: string]: unknown;
+};
+
+type RawSiteRecord = {
+  uri: string;
+  cid: string;
+  value: RawSiteValue;
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const extractRkey = (uri: string): string => {
+  const parts = uri.split("/");
+  return parts[parts.length - 1] ?? uri;
+};
+
+const normalizeAtprotoSite = (raw: RawSiteRecord): AtprotoSite => ({
+  uri: raw.uri,
+  rkey: extractRkey(raw.uri),
+  name: typeof raw.value.name === "string" ? raw.value.name : "",
+  lat: typeof raw.value.lat === "string" ? raw.value.lat : "",
+  lon: typeof raw.value.lon === "string" ? raw.value.lon : "",
+  area: typeof raw.value.area === "string" ? raw.value.area : "",
+  shapefile: raw.value.shapefile ?? null,
+  trees: raw.value.trees,
+  createdAt:
+    typeof raw.value.createdAt === "string" ? raw.value.createdAt : undefined,
+});
+
+const fetchAllAtprotoSites = async (did: string): Promise<AtprotoSite[]> => {
+  const records: AtprotoSite[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
+      repo: did,
+      collection: SITE_COLLECTION,
+      limit: 100,
+      cursor,
+    });
+
+    const page = response.data.records as RawSiteRecord[] | undefined;
+    if (page?.length) {
+      records.push(...page.map(normalizeAtprotoSite));
+    }
+
+    cursor = response.data.cursor ?? undefined;
+  } while (cursor);
+
+  return records;
+};
+
+const fetchDefaultSiteUri = async (did: string): Promise<string | null> => {
+  try {
+    const response = await ClimateAIAgent.com.atproto.repo.getRecord({
+      repo: did,
+      collection: DEFAULT_SITE_COLLECTION,
+      rkey: DEFAULT_SITE_RKEY,
+    });
+    const value = response.data.value as { site?: unknown } | undefined;
+    if (typeof value?.site === "string") {
+      return value.site;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchOrganizationSlug = async (did: string): Promise<string | null> => {
+  try {
+    const response = await ClimateAIAgent.com.atproto.repo.describeRepo({
+      repo: did,
+    });
+    const handle = response.data.handle ?? null;
+    if (!handle) return null;
+    return handle.split(".")[0] ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Build a minimal Project-compatible object from ATProto data so that
+ * downstream stores (BiodiversityPredictions, LayersOverlay) continue to work
+ * until task 17.4 migrates them.
+ *
+ *   project.id   → DID (used as cache key)
+ *   project.name → slug (used for S3 path construction)
+ */
+const buildCompatProject = (did: string, slug: string): Project => ({
+  id: did,
+  name: slug,
+  country: "",
+  dataDownloadUrl: "",
+  dataDownloadInfo: "",
+  description: "",
+  longDescription: "",
+  stripeUrl: "",
+  discordId: null,
+  lat: 0,
+  lon: 0,
+  area: 0,
+  assets: [],
+  communityMembers: [],
+  Wallet: null,
+});
+
+// ---------------------------------------------------------------------------
+// Store types
+// ---------------------------------------------------------------------------
 type ProjectSiteOption = {
-  value: string;
-  label: string;
+  value: string; // site URI (AT-URI)
+  label: string; // site name
 };
 
 type ProjectStateCatalog = {
@@ -27,14 +158,18 @@ type ProjectStateCatalog = {
     siteId: null;
     activeSite: null;
     treesAsync: null;
+    projectSlug: null;
+    atprotoSites: null;
   };
   success: {
     projectData: Project;
     projectDataStatus: "success";
     allSitesOptions: ProjectSiteOption[];
     siteId: string | null;
-    activeSite: SiteAsset | null;
+    activeSite: AtprotoSite | null;
     treesAsync: AsyncData<MeasuredTreesGeoJSON | null>;
+    projectSlug: string;
+    atprotoSites: AtprotoSite[];
   };
   error: {
     projectData: null;
@@ -43,6 +178,8 @@ type ProjectStateCatalog = {
     siteId: null;
     activeSite: null;
     treesAsync: null;
+    projectSlug: null;
+    atprotoSites: null;
   };
 };
 
@@ -94,6 +231,8 @@ const initialProjectState: ProjectState = {
   allSitesOptions: null,
   siteId: null,
   activeSite: null,
+  projectSlug: null,
+  atprotoSites: null,
 };
 
 const initialState: ProjectOverlayState = {
@@ -107,15 +246,6 @@ const useProjectOverlayStore = create<
   ProjectOverlayState & ProjectOverlayActions
 >((set, get) => {
   const isProjectStillActive = (id: string) => get().projectId === id;
-
-  const getAllSiteAssets = (projectData: Project) => {
-    return projectData.assets.filter((asset) => {
-      if (asset.classification !== "Shapefiles") return false;
-      if (asset.shapefile === null) return false;
-      const shapefile = asset.shapefile;
-      return Boolean(shapefile.shortName && !shapefile.isReference);
-    }) as SiteAsset[];
-  };
 
   return {
     ...initialState,
@@ -143,11 +273,20 @@ const useProjectOverlayStore = create<
         },
       });
 
-      const projectData = await fetchProjectData(projectId);
+      // Fetch ATProto data in parallel: sites + default site + handle/slug
+      let sites: AtprotoSite[];
+      let defaultSiteUri: string | null;
+      let slug: string | null;
 
-      if (!isProjectStillActive(projectId)) return;
-
-      if (!projectData) {
+      try {
+        [sites, defaultSiteUri, slug] = await Promise.all([
+          fetchAllAtprotoSites(projectId),
+          fetchDefaultSiteUri(projectId),
+          fetchOrganizationSlug(projectId),
+        ]);
+      } catch (error) {
+        console.error("Error fetching ATProto project data", error);
+        if (!isProjectStillActive(projectId)) return;
         set({
           projectDataStatus: "error",
           projectData: null,
@@ -155,33 +294,52 @@ const useProjectOverlayStore = create<
         return;
       }
 
-      // Compute project site options
-      const projectSites = getAllSiteAssets(projectData);
-      const defaultSite = projectSites.find((site) => site.shapefile.default);
+      if (!isProjectStillActive(projectId)) return;
 
-      const allSitesOptions = projectSites.map((site) => ({
-        value: site.id,
-        label: site.shapefile.shortName,
+      // Require at least a slug to proceed
+      if (!slug) {
+        set({
+          projectDataStatus: "error",
+          projectData: null,
+        });
+        return;
+      }
+
+      // Build site options from ATProto site records
+      const allSitesOptions: ProjectSiteOption[] = sites.map((site) => ({
+        value: site.uri,
+        label: site.name || site.rkey,
       }));
+
+      // Build backward-compat Project object for downstream stores
+      const projectData = buildCompatProject(projectId, slug);
 
       set({
         projectDataStatus: "success",
-        projectData: projectData,
-        allSitesOptions: allSitesOptions,
+        projectData,
+        allSitesOptions,
+        atprotoSites: sites,
+        projectSlug: slug,
         treesAsync: {
           _status: "loading",
           data: null,
         },
       });
 
+      // Determine which site to activate
       if (allSitesOptions.length > 0) {
-        const siteId = get().siteId;
-        if (
-          siteId === null ||
-          allSitesOptions.find((site) => site.value === siteId) === undefined
-        ) {
-          const defaultSiteId = defaultSite?.id;
-          const siteIdToActivate = defaultSiteId ?? allSitesOptions[0].value;
+        const currentSiteId = get().siteId;
+        const siteStillValid =
+          currentSiteId !== null &&
+          allSitesOptions.some((s) => s.value === currentSiteId);
+
+        if (!siteStillValid) {
+          // Prefer the defaultSite record, then fall back to first option
+          const defaultOption = defaultSiteUri
+            ? allSitesOptions.find((s) => s.value === defaultSiteUri)
+            : undefined;
+          const siteIdToActivate =
+            defaultOption?.value ?? allSitesOptions[0].value;
           get().setSiteId(siteIdToActivate, navigate);
         }
       } else {
@@ -189,7 +347,7 @@ const useProjectOverlayStore = create<
       }
       get().activateSite(zoomToSite ?? true, navigate);
 
-      // Then fetch trees data (asynchronous operation)
+      // Fetch measured trees data asynchronously
       try {
         let data: MeasuredTreesGeoJSON | null = null;
         if (
@@ -197,7 +355,7 @@ const useProjectOverlayStore = create<
           "49bbaba0d8980989ce9b3988a45c375a42206239d6bc930c2357035e670838e0"
         ) {
           const gfTreeFeatures = (await fetchMeasuredTreesShapefile(
-            projectData.name
+            slug
           )) as unknown as {
             type: "FeatureCollection";
             features: GFTreeFeature[];
@@ -209,7 +367,7 @@ const useProjectOverlayStore = create<
             ),
           };
         } else {
-          data = await fetchMeasuredTreesShapefile(projectData.name);
+          data = await fetchMeasuredTreesShapefile(slug);
         }
         if (!isProjectStillActive(projectId)) return;
         set({
@@ -247,18 +405,18 @@ const useProjectOverlayStore = create<
       });
     },
     activateSite: (zoomToSite, navigate) => {
-      const projectData = get().projectData;
-      if (!projectData) return;
-      const projectSites = getAllSiteAssets(projectData);
-      const selectedSite = projectSites.find(
-        (site) => site.id === get().siteId
-      );
+      const { atprotoSites, siteId, projectId } = get();
+      if (!atprotoSites || !projectId) return;
+
+      const selectedSite = atprotoSites.find((site) => site.uri === siteId);
       if (!selectedSite) return;
 
       useMapStore.getState().setCurrentView("project");
-      fetchProjectPolygon(selectedSite.awsCID).then((data) => {
+
+      fetchSiteShapefile(projectId, selectedSite.shapefile).then((data) => {
         if (data === null) return;
-        const boundingBox = bbox(data).slice(0, 4) as [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const boundingBox = bbox(data as any).slice(0, 4) as [
           number,
           number,
           number,
@@ -272,7 +430,12 @@ const useProjectOverlayStore = create<
             draft.map.bounds = null;
           }
         });
-        useMapStore.getState().setHighlightedPolygon(data);
+        // Cast to ProjectPolygonAPIResponse for Map store compatibility
+        // (both are GeoJSON FeatureCollections at runtime)
+        useMapStore
+          .getState()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .setHighlightedPolygon(data as any);
       });
 
       set({ activeSite: selectedSite });
