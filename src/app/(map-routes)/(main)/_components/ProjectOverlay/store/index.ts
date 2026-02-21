@@ -320,6 +320,7 @@ const useProjectOverlayStore = create<
         allSitesOptions,
         atprotoSites: sites,
         projectSlug: slug,
+        treesAsync: { _status: "loading", data: null },
       });
 
       // Determine which site to activate
