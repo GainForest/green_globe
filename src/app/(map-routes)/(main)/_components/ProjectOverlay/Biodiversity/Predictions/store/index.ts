@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import useProjectOverlayStore from "../../../store";
-import { fetchPlantsData, fetchAnimalsData } from "./utils";
+import {
+  fetchPlantsData,
+  fetchAnimalsData,
+  fetchPlantsFromATProto,
+  fetchAnimalsFromATProto,
+} from "./utils";
 import { BiodiversityAnimal, BiodiversityPlant } from "./types";
 
 type BiodiversityPredictionsData = {
@@ -63,19 +68,64 @@ const useBiodiversityPredictionsStore = create<
         } else {
           set({ projectId: did, dataStatus: "loading", data: null });
         }
-        const treesData = fetchPlantsData(projectSlug, "Trees");
-        const herbsData = fetchPlantsData(projectSlug, "Herbs");
-        const animalsData = fetchAnimalsData(projectSlug);
-        const allData = await Promise.all([treesData, herbsData, animalsData]);
+
+        // ── Fetch plants: ATProto first, fall back to S3 ──────────────────────
+        const [atprotoPlants, atprotoAnimals] = await Promise.all([
+          fetchPlantsFromATProto(did),
+          fetchAnimalsFromATProto(did),
+        ]);
+
         if (get().projectId !== did) {
           return;
         }
+
+        // Plants: use ATProto if it returned any records, otherwise fall back to S3
+        let treesData: BiodiversityPlant[];
+        let herbsData: BiodiversityPlant[];
+
+        const atprotoHasPlants =
+          atprotoPlants !== null &&
+          (atprotoPlants.trees.length > 0 || atprotoPlants.herbs.length > 0);
+
+        if (atprotoHasPlants && atprotoPlants !== null) {
+          treesData = atprotoPlants.trees;
+          herbsData = atprotoPlants.herbs;
+        } else {
+          // S3 fallback for plants
+          const [s3Trees, s3Herbs] = await Promise.all([
+            fetchPlantsData(projectSlug, "Trees"),
+            fetchPlantsData(projectSlug, "Herbs"),
+          ]);
+          if (get().projectId !== did) {
+            return;
+          }
+          treesData = s3Trees?.items ?? [];
+          herbsData = s3Herbs?.items ?? [];
+        }
+
+        // Animals: use ATProto if it returned any records, otherwise fall back to S3
+        let animalsData: BiodiversityAnimal[];
+
+        const atprotoHasAnimals =
+          atprotoAnimals !== null && atprotoAnimals.length > 0;
+
+        if (atprotoHasAnimals && atprotoAnimals !== null) {
+          animalsData = atprotoAnimals;
+        } else {
+          // S3 fallback for animals
+          const s3Animals = await fetchAnimalsData(projectSlug);
+          if (get().projectId !== did) {
+            return;
+          }
+          animalsData = s3Animals ?? [];
+        }
+
         set({
           dataStatus: "success",
           data: {
-            treesData: allData[0]?.items ?? [],
-            herbsData: allData[1]?.items ?? [],
-            animalsData: allData[2] ?? [],
+            treesData,
+            herbsData,
+            animalsData,
           },
         });
       } catch (error) {
