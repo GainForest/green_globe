@@ -10,6 +10,11 @@
   In dry-run mode (--dry-run) the script outputs a JSON report showing
   per-org member counts and wallet mappings without writing anything to the PDS.
 
+  In live mode the script:
+    - Logs in to each org's PDS account
+    - Downloads profile images from S3 and uploads them as blobs
+    - Creates app.gainforest.organization.member records
+
   Usage:
     node scripts/migrations/migrate-members-to-pds.js \
       [--sql-dump <path>] \
@@ -26,6 +31,15 @@
 const fs = require('fs')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const https = require('https')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { AtpAgent } = require('@atproto/api')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { TID } = require('@atproto/common-web')
+
+const AWS_BASE = 'https://gainforest-transparency-dashboard.s3.amazonaws.com'
+const MEMBER_COLLECTION = 'app.gainforest.organization.member'
 
 // ---------------------------------------------------------------------------
 // Slug helpers (same strategy as upsert-predictions-observations.js)
@@ -205,6 +219,170 @@ function loadInventory(file) {
 }
 
 // ---------------------------------------------------------------------------
+// Credentials helper
+// ---------------------------------------------------------------------------
+
+function loadCredentials(file) {
+  if (!fs.existsSync(file)) {
+    console.warn(`[members] WARNING: Credentials file not found: ${file}. Live writes will be skipped.`)
+    return new Map()
+  }
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return new Map(Object.entries(raw))
+}
+
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Download a URL as a Buffer. Returns null on HTTP 4xx/5xx or network error.
+ * @param {string} url
+ * @returns {Promise<{ buffer: Buffer, mimeType: string } | null>}
+ */
+function fetchBinary(url) {
+  return new Promise((resolve) => {
+    https
+      .get(url, (res) => {
+        if (res.statusCode && res.statusCode >= 400) {
+          res.resume()
+          resolve(null)
+          return
+        }
+        const mimeType = res.headers['content-type'] || 'image/jpeg'
+        const chunks = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => resolve({ buffer: Buffer.concat(chunks), mimeType: mimeType.split(';')[0].trim() }))
+        res.on('error', () => resolve(null))
+      })
+      .on('error', () => resolve(null))
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Profile image upload
+// ---------------------------------------------------------------------------
+
+/**
+ * Download a profile image from S3 and upload it as a PDS blob.
+ * Returns the org.hypercerts.defs#smallImage object or null on failure.
+ *
+ * @param {import('@atproto/api').AtpAgent} agent
+ * @param {string} profileImageUrl  e.g. "community/james-thembo.jpg"
+ * @param {string} handle  For logging
+ * @returns {Promise<{ $type: string, ref: object, mimeType: string, size: number } | null>}
+ */
+async function uploadProfileImage(agent, profileImageUrl, handle) {
+  const url = `${AWS_BASE}/${profileImageUrl}`
+  let result
+  try {
+    result = await fetchBinary(url)
+  } catch (err) {
+    console.warn(`[members] Image download error for ${handle} (${url}): ${err?.message || String(err)}`)
+    return null
+  }
+  if (!result) {
+    console.warn(`[members] Image download failed (non-2xx) for ${handle}: ${url}`)
+    return null
+  }
+  try {
+    const uploadRes = await agent.uploadBlob(result.buffer, { encoding: result.mimeType })
+    const blobRef = uploadRes.data.blob
+    return {
+      $type: 'org.hypercerts.defs#smallImage',
+      ref: blobRef,
+      mimeType: result.mimeType,
+      size: result.buffer.length
+    }
+  } catch (err) {
+    console.warn(`[members] Blob upload failed for ${handle} (${url}): ${err?.message || String(err)}`)
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Member record builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Truncate a string to at most maxGraphemes Unicode grapheme clusters.
+ * Uses a simple code-point count as a conservative approximation.
+ * @param {string|null|undefined} str
+ * @param {number} max
+ * @returns {string}
+ */
+function truncate(str, max) {
+  if (!str) return ''
+  // Spread to code points (handles surrogate pairs)
+  const codePoints = [...str]
+  if (codePoints.length <= max) return str
+  return codePoints.slice(0, max).join('')
+}
+
+/**
+ * Build an app.gainforest.organization.member record from a User row.
+ *
+ * @param {{
+ *   id: string,
+ *   first_name: string|null,
+ *   last_name: string|null,
+ *   title: string|null,
+ *   bio: string|null,
+ *   profile_image_url: string|null,
+ *   display_order: string|null
+ * }} user
+ * @param {{ chain: string, address: string }[]} wallets
+ * @param {string} orgDid
+ * @param {{ $type: string, ref: object, mimeType: string, size: number } | null} profileImage
+ * @returns {object}
+ */
+function buildMemberRecord(user, wallets, orgDid, profileImage) {
+  const firstName = (user.first_name || '').trim()
+  const lastName = (user.last_name || '').trim()
+  const displayName = truncate([firstName, lastName].filter(Boolean).join(' ') || 'Unknown', 256)
+
+  const rawRole = (user.title || '').trim()
+  const role = truncate(rawRole || 'Community Member', 128)
+
+  const record = {
+    $type: MEMBER_COLLECTION,
+    displayName,
+    role,
+    did: orgDid,
+    createdAt: new Date().toISOString(),
+    isPublic: true
+  }
+
+  if (firstName) record.firstName = truncate(firstName, 128)
+  if (lastName) record.lastName = truncate(lastName, 128)
+
+  const bioText = (user.bio || '').trim()
+  if (bioText) {
+    record.bio = { $type: 'app.gainforest.common.defs#richtext', text: bioText }
+  }
+
+  if (profileImage) {
+    record.profileImage = profileImage
+  }
+
+  const displayOrder = user.display_order != null ? parseInt(user.display_order, 10) : NaN
+  if (!Number.isNaN(displayOrder) && displayOrder >= 0) {
+    record.displayOrder = displayOrder
+  }
+
+  // Wallet addresses — cap at 5 per lexicon maxLength
+  if (wallets.length > 0) {
+    record.walletAddresses = wallets.slice(0, 5).map((w) => ({
+      $type: 'app.gainforest.organization.member#walletAddress',
+      chain: truncate(w.chain, 32),
+      address: truncate(w.address, 256)
+    }))
+  }
+
+  return record
+}
+
+// ---------------------------------------------------------------------------
 // Argument parsing
 // ---------------------------------------------------------------------------
 
@@ -237,7 +415,7 @@ function parseArgs(argv) {
 // Main
 // ---------------------------------------------------------------------------
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2))
 
   console.log('[members] Parsed arguments', {
@@ -392,7 +570,7 @@ function main() {
   }
 
   // ------------------------------------------------------------------
-  // 8. Build summary
+  // 8. Build summary (dry-run path exits here)
   // ------------------------------------------------------------------
   const totalMembersInMapping = Object.values(orgMapping).reduce((sum, o) => sum + o.memberCount, 0)
   const orgsWithMembers = Object.values(orgMapping).filter((o) => o.memberCount > 0)
@@ -415,11 +593,161 @@ function main() {
 
   console.log('[members] Summary:', summary)
 
+  if (args.dryRun) {
+    // Dry-run: write the mapping report and exit
+    const output = {
+      summary,
+      orgMapping,
+      unmatchedProjects
+    }
+    fs.mkdirSync(path.dirname(args.out), { recursive: true })
+    fs.writeFileSync(args.out, JSON.stringify(output, null, 2))
+    console.log(`[members] Dry-run complete. Wrote results to ${args.out}`)
+    return
+  }
+
   // ------------------------------------------------------------------
-  // 9. Write output
+  // 9. Live write: login to each org and create member records
   // ------------------------------------------------------------------
+  const credentials = loadCredentials(args.credentials)
+  console.log(`[members] Loaded credentials for ${credentials.size} orgs`)
+
+  const agent = new AtpAgent({ service: args.service })
+
+  /** @type {Array<object>} */
+  const writeResults = []
+
+  for (const [hash, orgData] of Object.entries(orgMapping)) {
+    const { handle, did, projectName, members } = orgData
+
+    if (!members.length) {
+      console.log(`[members] Skipping ${handle}: no members`)
+      writeResults.push({ handle, did, projectName, status: 'skipped', reason: 'no-members' })
+      continue
+    }
+
+    const password = credentials.get(handle)
+    if (!password) {
+      console.log(`[members] Skipping ${handle}: no credentials`)
+      writeResults.push({ handle, did, projectName, status: 'skipped', reason: 'no-credentials', memberCount: members.length })
+      continue
+    }
+
+    // Login
+    try {
+      await agent.login({ identifier: handle, password })
+      console.log(`[members] Logged in as ${handle}`)
+    } catch (err) {
+      console.error(`[members] Login failed for ${handle}: ${err?.message || String(err)}`)
+      writeResults.push({
+        handle,
+        did,
+        projectName,
+        status: 'failed',
+        reason: 'login-failed',
+        error: err?.message || String(err),
+        memberCount: members.length
+      })
+      continue
+    }
+
+    const orgResults = []
+
+    for (const member of members) {
+      const wallets = member.walletAddresses || []
+
+      // Upload profile image if present
+      let profileImage = null
+      if (member.profileImageUrl) {
+        console.log(`[members]   Uploading image for ${member.displayName || member.id} (${member.profileImageUrl})`)
+        profileImage = await uploadProfileImage(agent, member.profileImageUrl, handle)
+        if (!profileImage) {
+          console.warn(`[members]   Image upload failed for ${member.displayName || member.id} — continuing without image`)
+        }
+      }
+
+      // Build the record
+      const record = buildMemberRecord(
+        {
+          id: member.id,
+          first_name: member.firstName,
+          last_name: member.lastName,
+          title: member.title,
+          bio: member.bio,
+          profile_image_url: member.profileImageUrl,
+          display_order: member.displayOrder != null ? String(member.displayOrder) : null
+        },
+        wallets,
+        did,
+        profileImage
+      )
+
+      const rkey = TID.nextStr()
+
+      try {
+        await agent.com.atproto.repo.createRecord({
+          repo: did,
+          collection: MEMBER_COLLECTION,
+          rkey,
+          record
+        })
+        console.log(`[members]   Created member record: ${member.displayName || member.id} (rkey=${rkey})`)
+        orgResults.push({
+          memberId: member.id,
+          displayName: member.displayName,
+          rkey,
+          status: 'success',
+          hasImage: Boolean(profileImage),
+          walletCount: wallets.length
+        })
+      } catch (err) {
+        console.error(`[members]   Failed to create record for ${member.displayName || member.id}: ${err?.message || String(err)}`)
+        orgResults.push({
+          memberId: member.id,
+          displayName: member.displayName,
+          rkey,
+          status: 'failed',
+          error: err?.message || String(err)
+        })
+      }
+    }
+
+    const orgSuccessCount = orgResults.filter((r) => r.status === 'success').length
+    const orgFailCount = orgResults.filter((r) => r.status === 'failed').length
+    console.log(`[members] ${handle}: ${orgSuccessCount} created, ${orgFailCount} failed`)
+
+    writeResults.push({
+      handle,
+      did,
+      projectName,
+      status: orgFailCount === 0 ? 'success' : orgSuccessCount > 0 ? 'partial' : 'failed',
+      memberCount: members.length,
+      successCount: orgSuccessCount,
+      failCount: orgFailCount,
+      members: orgResults
+    })
+  }
+
+  // ------------------------------------------------------------------
+  // 10. Write final output
+  // ------------------------------------------------------------------
+  const writeSummary = {
+    ...summary,
+    dryRun: false,
+    orgsProcessed: writeResults.length,
+    orgsSuccess: writeResults.filter((r) => r.status === 'success').length,
+    orgsPartial: writeResults.filter((r) => r.status === 'partial').length,
+    orgsFailed: writeResults.filter((r) => r.status === 'failed').length,
+    orgsSkipped: writeResults.filter((r) => r.status === 'skipped').length,
+    totalCreated: writeResults.reduce((sum, r) => sum + (r.successCount || 0), 0),
+    totalFailed: writeResults.reduce((sum, r) => sum + (r.failCount || 0), 0)
+  }
+
+  console.log('[members] Write summary:', writeSummary)
+
   const output = {
-    summary,
+    summary: writeSummary,
+    results: writeResults,
     orgMapping,
     unmatchedProjects
   }
@@ -429,4 +757,7 @@ function main() {
   console.log(`[members] Wrote results to ${args.out}`)
 }
 
-main()
+main().catch((err) => {
+  console.error('[members] Fatal error:', err)
+  process.exit(1)
+})
