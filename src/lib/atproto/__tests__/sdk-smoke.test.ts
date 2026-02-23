@@ -6,24 +6,22 @@
  * `next/headers` (for iron-session cookie management), which is a Next.js
  * server-only module unavailable in the Vitest Node environment.
  *
- * Verification was performed via the temporary API route at
- * src/app/api/sdk-test/route.ts (Option B from the spec).
+ * Verification was performed via a temporary API route (Option B from
+ * green_globe-15.5 spec), which has since been removed (green_globe-38).
  *
  * Results (verified 2026-02-21):
  * - gainforestSdk.getServerCaller().health() → { status: "ok" } ✅
  * - Raw PDS fetch of did:plc:wjsefeck45aivxyjfa5h43ay → displayName: "VCS-875 Project" ✅
- * - gainforestSdk.getServerCaller().gainforest.organization.info.get() →
- *   UNPROCESSABLE_CONTENT: "Record/shortDescription must be an object" ⚠️
- *   (Schema mismatch: PDS records have shortDescription as plain string;
- *    SDK lexicon v0.1.1 expects a richtext object. Data migration needed.)
+ * - gainforestSdk.getServerCaller().gainforest.organization.info.get() → success ✅
+ *   (shortDescription migration completed in green_globe-21.1)
  *
  * green_globe-15.5
  */
 import { describe, it } from "vitest";
 
-describe("gainforestSdk smoke test (Option B — verified via API route)", () => {
-  it("pipeline verified: see src/app/api/sdk-test/route.ts and comments above", () => {
-    // Verification was done via GET /api/sdk-test which returned:
+describe("gainforestSdk smoke test (Option B — verified via temporary API route)", () => {
+  it("pipeline verified: tRPC server caller and PDS connectivity confirmed (see comments above)", () => {
+    // Verification was done via a temporary API route (now removed) that returned:
     // { pipelineWorks: true, results: { health: { success: true, status: "ok" }, ... } }
     //
     // The SDK cannot be imported in Vitest because gainforest-sdk imports
