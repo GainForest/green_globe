@@ -42,6 +42,37 @@ const unwrapSmallBlob = (value: unknown): unknown => {
   return value;
 };
 
+/**
+ * Extract a CID string from a BlobRef's ref field.
+ * The ATProto SDK deserializes ref as a CID object (from multiformats),
+ * not as { $link: string }. We need to handle both formats:
+ *   - CID object: use .toString()
+ *   - Plain object: use .$link
+ *   - String: use directly
+ */
+const extractCid = (ref: unknown): string | null => {
+  if (!ref) return null;
+  // String CID (unlikely but safe)
+  if (typeof ref === "string") return ref;
+  // Plain object with $link (raw JSON, not SDK-deserialized)
+  if (
+    typeof ref === "object" &&
+    "$link" in (ref as Record<string, unknown>)
+  ) {
+    return (ref as Record<string, unknown>)["$link"] as string;
+  }
+  // CID object from multiformats (has toString method, code, version, multihash)
+  if (
+    typeof ref === "object" &&
+    typeof (ref as { toString?: unknown }).toString === "function"
+  ) {
+    const str = (ref as { toString: () => string }).toString();
+    // CID strings start with 'baf' — sanity check to avoid [object Object]
+    if (str.startsWith("baf")) return str;
+  }
+  return null;
+};
+
 // ---------------------------------------------------------------------------
 // fetchSiteShapefile — fetch GeoJSON boundary from ATProto blob or external URI
 // ---------------------------------------------------------------------------
@@ -64,8 +95,10 @@ export const fetchSiteShapefile = async (
     const resolvedShapefile = unwrapSmallBlob(shapefile);
 
     // Case 1: blob ref object with a CID link — fetch via PDS XRPC URL (browser-safe)
-    if (isBlobRef(resolvedShapefile) && resolvedShapefile.ref?.$link) {
-      const cid = resolvedShapefile.ref.$link;
+    const cid = isBlobRef(resolvedShapefile)
+      ? extractCid(resolvedShapefile.ref)
+      : null;
+    if (cid) {
       const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
       const response = await fetch(url);
       if (!response.ok) {
@@ -89,8 +122,9 @@ export const fetchSiteShapefile = async (
         value?: { shapefile?: unknown };
       };
       const blobRef = record.value?.shapefile;
-      if (!isBlobRef(blobRef) || !blobRef.ref?.$link) return null;
-      const cid = blobRef.ref.$link;
+      const resolvedCid = isBlobRef(blobRef) ? extractCid(blobRef.ref) : null;
+      if (!resolvedCid) return null;
+      const cid = resolvedCid;
       const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
       const blobResponse = await fetch(blobUrl);
       if (!blobResponse.ok) {
@@ -170,8 +204,11 @@ export const fetchMeasuredTreesShapefile = async (
   // --- Path 1: ATProto blob ---
   // Unwrap SmallBlob / SmallImage wrapper if present (same pattern as fetchSiteShapefile).
   const resolvedTreesRef = unwrapSmallBlob(treesRef);
-  if (isBlobRef(resolvedTreesRef) && resolvedTreesRef.ref?.$link && did) {
-    const cid = resolvedTreesRef.ref.$link;
+  const treeCid = isBlobRef(resolvedTreesRef)
+    ? extractCid(resolvedTreesRef.ref)
+    : null;
+  if (treeCid && did) {
+    const cid = treeCid;
     try {
       const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
       const response = await fetch(url);
