@@ -73,7 +73,7 @@
     "lucide-react": "^0.483.0",
     "mapbox-gl": "^3.10.0",
     "multiformats": "^13.4.1",
-    "next": "15.1.7",
+    "next": "15.1.11",
     "postgres": "^3.4.7",
     "radix-ui": "^1.4.2",
     "react": "^19.0.0",
