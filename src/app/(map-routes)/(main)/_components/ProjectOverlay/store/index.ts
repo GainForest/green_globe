@@ -103,6 +103,28 @@ const fetchDefaultSiteUri = async (did: string): Promise<string | null> => {
   }
 };
 
+/** PDS truncates handles to 18 chars. Map truncated slugs to their full S3 names. */
+const SLUG_OVERRIDES: Record<string, string> = {
+  'oceanus-conservati': 'oceanus-conservation',
+  'centre-for-sustain': 'centre-for-sustainability-ph',
+  'albertine-rural-re': 'albertine-rural-restoration-alert',
+  'million-trees-proj': 'million-trees-project',
+  'youth-leading-envi': 'youth-leading-environmental-change',
+  'la-cotinga-biologi': 'la-cotinga-biological-station',
+  'reserva-natural-mo': 'reserva-natural-monte-alegre',
+  'pandu-alam-lestari': 'pandu-alam-lestari-foundation',
+  'forrest-forest-reg': 'forrest-forest-regeneration-and-environmental-sustainability-trust',
+  'community-based-en': 'community-based-environmental-conservation',
+  'defensores-del-cha': 'defensores-del-chaco',
+  'south-rift-associa': 'south-rift-association-of-landowners',
+  'bees-and-trees-uga': 'bees-and-trees-uganda',
+  'northern-rangeland': 'northern-rangelands-trust',
+  'masungi-georeserve': 'masungi',
+  'green-ambassadors': 'green-ambassador',
+  'nature-and-people': 'nature-and-people-as-one',
+  'xprize-rainfor-21p': 'xprize-rainforest-finals',
+};
+
 const fetchOrganizationSlug = async (did: string): Promise<string | null> => {
   try {
     const response = await ClimateAIAgent.com.atproto.repo.describeRepo({
@@ -110,7 +132,9 @@ const fetchOrganizationSlug = async (did: string): Promise<string | null> => {
     });
     const handle = response.data.handle ?? null;
     if (!handle) return null;
-    return handle.split(".")[0] ?? null;
+    const rawSlug = handle.split('.')[0] ?? null;
+    if (!rawSlug) return null;
+    return SLUG_OVERRIDES[rawSlug] ?? rawSlug;
   } catch {
     return null;
   }
