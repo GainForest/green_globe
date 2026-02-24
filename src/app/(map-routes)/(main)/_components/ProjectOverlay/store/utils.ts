@@ -215,11 +215,18 @@ export const fetchMeasuredTreesShapefile = async (
       if (response.ok) {
         const result =
           (await response.json()) as MeasuredTreesGeoJSON<TreeFeature>;
-        return normalizeMeasuredTreesGeoJSON(result);
+        if (result.features && result.features.length > 0) {
+          return normalizeMeasuredTreesGeoJSON(result);
+        }
+        console.warn(
+          'fetchMeasuredTreesShapefile: blob has empty features, falling back to S3'
+        );
       }
-      console.warn(
-        `fetchMeasuredTreesShapefile: blob fetch failed (${response.status}), falling back to S3`
-      );
+      if (!response.ok) {
+        console.warn(
+          `fetchMeasuredTreesShapefile: blob fetch failed (${response.status}), falling back to S3`
+        );
+      }
     } catch (error) {
       console.warn(
         "fetchMeasuredTreesShapefile: blob fetch error, falling back to S3",
