@@ -533,6 +533,29 @@ async function listExistingOccurrenceRkeys(agent, did) {
 }
 
 /**
+ * Fetch an existing dwc.occurrence record by rkey.
+ * Returns the record value or null if not found.
+ * @param {import('@atproto/api').AtpAgent} agent
+ * @param {string} did
+ * @param {string} rkey
+ * @returns {Promise<object | null>}
+ */
+async function fetchExistingOccurrenceRecord(agent, did, rkey) {
+  try {
+    const res = await agent.com.atproto.repo.getRecord({
+      repo: did,
+      collection: DWC_OCCURRENCE_COLLECTION,
+      rkey
+    })
+    return res.data.value || null
+  } catch (err) {
+    // Record not found or other error
+    console.warn(`[measured-trees]   Could not fetch existing occurrence ${rkey}: ${err?.message || String(err)}`)
+    return null
+  }
+}
+
+/**
  * List existing dwc.measurement records for an org (for idempotency check).
  * Returns a Set of rkeys.
  * @param {import('@atproto/api').AtpAgent} agent
@@ -863,17 +886,39 @@ async function main() {
           const alreadyExists = existingOccurrenceRkeys.has(occurrenceRkey)
 
           if (!alreadyExists) {
-            // Phase 3: Upload photos (one at a time)
-            let trunkEvidence = null
-            let leafEvidence = null
-            let barkEvidence = null
+            // Atomic pattern Step 1: Create the base occurrence record FIRST (no evidence fields yet)
+            // This ensures any subsequently uploaded blobs are immediately referenceable
+            try {
+              await agent.com.atproto.repo.putRecord({
+                repo: did,
+                collection: DWC_OCCURRENCE_COLLECTION,
+                rkey: occurrenceRkey,
+                record: occurrenceRecord
+              })
+              existingOccurrenceRkeys.add(occurrenceRkey)
+              orgOccurrencesCreated++
+              console.log(`[measured-trees]   Created occurrence: ${occurrenceRkey} (${species})`)
+            } catch (err) {
+              console.error(`[measured-trees]   Failed to create occurrence ${occurrenceRkey}: ${err?.message || String(err)}`)
+              appendError(errors, { handle, did, siteRkey, featureIdx, phase: 'create-occurrence', error: err?.message || String(err) })
+              orgErrors++
+              continue
+            }
 
+            // Atomic pattern Step 2: Upload each blob and IMMEDIATELY update the record to reference it
             // Process trunk photo
             if (trunkUrl) {
               try {
                 const result = await processPhoto(agent, trunkUrl, 'trunk', tmpDir)
                 if (result && !result.skipped) {
-                  trunkEvidence = result
+                  occurrenceRecord.trunkEvidence = result
+                  // Immediately update the record to reference this blob
+                  await agent.com.atproto.repo.putRecord({
+                    repo: did,
+                    collection: DWC_OCCURRENCE_COLLECTION,
+                    rkey: occurrenceRkey,
+                    record: occurrenceRecord
+                  })
                   orgPhotosUploaded++
                 } else if (result && result.skipped && result.reason === 'google-drive-url') {
                   appendError(errors, {
@@ -893,7 +938,14 @@ async function main() {
               try {
                 const result = await processPhoto(agent, leafUrl, 'leaf', tmpDir)
                 if (result && !result.skipped) {
-                  leafEvidence = result
+                  occurrenceRecord.leafEvidence = result
+                  // Immediately update the record to reference this blob
+                  await agent.com.atproto.repo.putRecord({
+                    repo: did,
+                    collection: DWC_OCCURRENCE_COLLECTION,
+                    rkey: occurrenceRkey,
+                    record: occurrenceRecord
+                  })
                   orgPhotosUploaded++
                 } else if (result && result.skipped && result.reason === 'google-drive-url') {
                   appendError(errors, {
@@ -913,7 +965,14 @@ async function main() {
               try {
                 const result = await processPhoto(agent, barkUrl, 'bark', tmpDir)
                 if (result && !result.skipped) {
-                  barkEvidence = result
+                  occurrenceRecord.barkEvidence = result
+                  // Immediately update the record to reference this blob
+                  await agent.com.atproto.repo.putRecord({
+                    repo: did,
+                    collection: DWC_OCCURRENCE_COLLECTION,
+                    rkey: occurrenceRkey,
+                    record: occurrenceRecord
+                  })
                   orgPhotosUploaded++
                 } else if (result && result.skipped && result.reason === 'google-drive-url') {
                   appendError(errors, {
@@ -927,32 +986,107 @@ async function main() {
                 orgErrors++
               }
             }
-
-            // Set evidence on record
-            if (trunkEvidence) occurrenceRecord.trunkEvidence = trunkEvidence
-            if (leafEvidence) occurrenceRecord.leafEvidence = leafEvidence
-            if (barkEvidence) occurrenceRecord.barkEvidence = barkEvidence
-
-            // Create occurrence record (putRecord for idempotency)
-            try {
-              await agent.com.atproto.repo.putRecord({
-                repo: did,
-                collection: DWC_OCCURRENCE_COLLECTION,
-                rkey: occurrenceRkey,
-                record: occurrenceRecord
-              })
-              existingOccurrenceRkeys.add(occurrenceRkey)
-              orgOccurrencesCreated++
-              console.log(`[measured-trees]   Created occurrence: ${occurrenceRkey} (${species})`)
-            } catch (err) {
-              console.error(`[measured-trees]   Failed to create occurrence ${occurrenceRkey}: ${err?.message || String(err)}`)
-              appendError(errors, { handle, did, siteRkey, featureIdx, phase: 'create-occurrence', error: err?.message || String(err) })
-              orgErrors++
-              continue
-            }
           } else {
+            // Atomic pattern Step 3: Resume case — fetch existing record and add missing photos
+            console.log(`[measured-trees]   Occurrence already exists: ${occurrenceRkey} — checking for missing photos`)
+            const existingRecord = await fetchExistingOccurrenceRecord(agent, did, occurrenceRkey)
+
+            if (existingRecord) {
+              // Use the existing record as the base for updates
+              const resumeRecord = { ...existingRecord }
+              let resumeUpdated = false
+
+              // Upload trunk if missing
+              if (trunkUrl && !resumeRecord.trunkEvidence) {
+                try {
+                  const result = await processPhoto(agent, trunkUrl, 'trunk', tmpDir)
+                  if (result && !result.skipped) {
+                    resumeRecord.trunkEvidence = result
+                    await agent.com.atproto.repo.putRecord({
+                      repo: did,
+                      collection: DWC_OCCURRENCE_COLLECTION,
+                      rkey: occurrenceRkey,
+                      record: resumeRecord
+                    })
+                    orgPhotosUploaded++
+                    resumeUpdated = true
+                  } else if (result && result.skipped && result.reason === 'google-drive-url') {
+                    appendError(errors, {
+                      handle, did, siteRkey, featureIdx, photoType: 'trunk',
+                      reason: 'google-drive-url', url: trunkUrl
+                    })
+                  }
+                } catch (err) {
+                  console.warn(`[measured-trees]   Resume trunk photo upload failed: ${err?.message || String(err)}`)
+                  appendError(errors, { handle, did, siteRkey, featureIdx, photoType: 'trunk', error: err?.message || String(err), url: trunkUrl })
+                  orgErrors++
+                }
+              }
+
+              // Upload leaf if missing
+              if (leafUrl && !resumeRecord.leafEvidence) {
+                try {
+                  const result = await processPhoto(agent, leafUrl, 'leaf', tmpDir)
+                  if (result && !result.skipped) {
+                    resumeRecord.leafEvidence = result
+                    await agent.com.atproto.repo.putRecord({
+                      repo: did,
+                      collection: DWC_OCCURRENCE_COLLECTION,
+                      rkey: occurrenceRkey,
+                      record: resumeRecord
+                    })
+                    orgPhotosUploaded++
+                    resumeUpdated = true
+                  } else if (result && result.skipped && result.reason === 'google-drive-url') {
+                    appendError(errors, {
+                      handle, did, siteRkey, featureIdx, photoType: 'leaf',
+                      reason: 'google-drive-url', url: leafUrl
+                    })
+                  }
+                } catch (err) {
+                  console.warn(`[measured-trees]   Resume leaf photo upload failed: ${err?.message || String(err)}`)
+                  appendError(errors, { handle, did, siteRkey, featureIdx, photoType: 'leaf', error: err?.message || String(err), url: leafUrl })
+                  orgErrors++
+                }
+              }
+
+              // Upload bark if missing
+              if (barkUrl && !resumeRecord.barkEvidence) {
+                try {
+                  const result = await processPhoto(agent, barkUrl, 'bark', tmpDir)
+                  if (result && !result.skipped) {
+                    resumeRecord.barkEvidence = result
+                    await agent.com.atproto.repo.putRecord({
+                      repo: did,
+                      collection: DWC_OCCURRENCE_COLLECTION,
+                      rkey: occurrenceRkey,
+                      record: resumeRecord
+                    })
+                    orgPhotosUploaded++
+                    resumeUpdated = true
+                  } else if (result && result.skipped && result.reason === 'google-drive-url') {
+                    appendError(errors, {
+                      handle, did, siteRkey, featureIdx, photoType: 'bark',
+                      reason: 'google-drive-url', url: barkUrl
+                    })
+                  }
+                } catch (err) {
+                  console.warn(`[measured-trees]   Resume bark photo upload failed: ${err?.message || String(err)}`)
+                  appendError(errors, { handle, did, siteRkey, featureIdx, photoType: 'bark', error: err?.message || String(err), url: barkUrl })
+                  orgErrors++
+                }
+              }
+
+              if (resumeUpdated) {
+                console.log(`[measured-trees]   Updated partially-migrated occurrence: ${occurrenceRkey}`)
+              } else {
+                console.log(`[measured-trees]   Occurrence fully migrated, skipping: ${occurrenceRkey}`)
+              }
+            } else {
+              console.log(`[measured-trees]   Could not fetch existing occurrence for resume, skipping: ${occurrenceRkey}`)
+            }
+
             orgOccurrencesSkipped++
-            console.log(`[measured-trees]   Skipping existing occurrence: ${occurrenceRkey}`)
           }
 
           // Phase 4: Create measurement records
