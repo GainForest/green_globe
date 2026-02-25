@@ -172,6 +172,13 @@ export const getTreeDateOfMeasurement = (tree: TreeFeature["properties"]) => {
   }
 };
 
+/**
+ * Returns true if the URL is a PDS blob URL (climateai.org/xrpc/com.atproto.sync.getBlob).
+ * PDS blob URLs are used directly without any S3 fallback.
+ */
+const isPdsBlobUrl = (url: string): boolean =>
+  url.includes("com.atproto.sync.getBlob");
+
 export const getTreePhotos = (
   tree: TreeFeature["properties"],
   activeProject: string,
@@ -181,6 +188,21 @@ export const getTreePhotos = (
   if (tree?.tree_photo) {
     return [tree?.tree_photo];
   }
+
+  // PDS blob URL detection: if awsUrl is a PDS blob URL, use it directly
+  // (no S3 fallback needed — the blob is already on the PDS)
+  if (tree?.awsUrl && isPdsBlobUrl(tree.awsUrl)) {
+    result.push(tree.awsUrl);
+    if (tree?.leafAwsUrl) result.push(tree.leafAwsUrl);
+    if (tree?.barkAwsUrl) result.push(tree.barkAwsUrl);
+    if (result.length === 0) {
+      result.push(
+        `${process.env.NEXT_PUBLIC_AWS_STORAGE}/miscellaneous/placeholders/taxa_plants.png`
+      );
+    }
+    return result;
+  }
+
   if (
     activeProject ==
       "40367dfcbafa0a8d1fa26ff481d6b2609536c0e14719f8e88060a9aee8c8ab0a" &&

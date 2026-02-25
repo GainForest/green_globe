@@ -14,6 +14,7 @@ import {
 } from "./ayyoweca-uganda";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
 import ClimateAIAgent from "@/lib/atproto/agent";
+import { fetchMeasuredTreeOccurrences } from "../../../_hooks/use-organization-measured-trees";
 
 // ---------------------------------------------------------------------------
 // ATProto collections
@@ -423,7 +424,10 @@ const useProjectOverlayStore = create<
         treesAsync: { _status: "loading", data: null },
       });
 
-      // Fetch measured trees for this site — prefer ATProto blob, fall back to S3
+      // Fetch measured trees for this site.
+      // Priority:
+      //   1. dwc.occurrence records (migrated orgs) — via fetchMeasuredTreeOccurrences
+      //   2. ATProto blob / S3 fallback (non-migrated orgs) — via fetchMeasuredTreesShapefile
       const slug = projectSlug ?? "";
       const treesRef = selectedSite.trees;
 
@@ -431,8 +435,24 @@ const useProjectOverlayStore = create<
         projectId ===
         "49bbaba0d8980989ce9b3988a45c375a42206239d6bc930c2357035e670838e0";
 
-      fetchMeasuredTreesShapefile(slug, treesRef, projectId)
-        .then(async (rawData) => {
+      (async () => {
+        try {
+          // Path 1: Try dwc.occurrence records first (migrated orgs)
+          const occurrenceData = await fetchMeasuredTreeOccurrences(projectId);
+          if (!isProjectStillActive(projectId)) return;
+
+          if (occurrenceData !== null) {
+            // Org has been migrated — use occurrence data directly
+            set({ treesAsync: { _status: "success", data: occurrenceData } });
+            return;
+          }
+
+          // Path 2: Fall back to legacy GeoJSON blob / S3 path (non-migrated orgs)
+          const rawData = await fetchMeasuredTreesShapefile(
+            slug,
+            treesRef,
+            projectId
+          );
           if (!isProjectStillActive(projectId)) return;
 
           let data: MeasuredTreesGeoJSON | null = rawData;
@@ -452,12 +472,12 @@ const useProjectOverlayStore = create<
           }
 
           set({ treesAsync: { _status: "success", data } });
-        })
-        .catch((error) => {
-          console.error("Error fetching measured trees shapefile", error);
+        } catch (error) {
+          console.error("Error fetching measured trees", error);
           if (!isProjectStillActive(projectId)) return;
           set({ treesAsync: { _status: "error", data: null } });
-        });
+        }
+      })();
     },
     setActiveTab: (tab, navigate) => {
       set({ activeTab: tab });
