@@ -46,7 +46,7 @@ const ProjectOverlay = () => {
   const coverImageCID = coverImage ? coverImage.image.ref : null;
   const coverImageUrl =
     coverImageCID ?
-      `${PDS_ENDPOINT}/xrpc/com.atProto.sync.getBlob?did=${organizationDid}&cid=${coverImageCID}`
+      `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(organizationDid ?? "")}&cid=${encodeURIComponent(String(coverImageCID))}`
     : "/assets/placeholders/cover-image.png";
 
   return (
