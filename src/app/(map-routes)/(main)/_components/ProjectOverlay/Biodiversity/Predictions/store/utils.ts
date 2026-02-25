@@ -292,6 +292,13 @@ export const fetchPlantsFromATProto = async (
               : undefined;
           if (kingdom !== "Plantae") continue;
 
+          // Skip measured trees — they are HumanObservation records, not species predictions
+          const basisOfRecord =
+            typeof record.value.basisOfRecord === "string"
+              ? record.value.basisOfRecord
+              : undefined;
+          if (basisOfRecord === "HumanObservation") continue;
+
           const plant = normalizePlantRecord(record, did);
           if (plant) {
             const { _dataType, ...plantData } = plant;
