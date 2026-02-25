@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import ClimateAIAgent from "@/lib/atproto/agent";
+import { PDS_ENDPOINT } from "@/config/atproto";
 import type {
   BiodiversityAnimal,
   BiodiversityPlant,
@@ -38,6 +39,7 @@ type RawOccurrenceValue = {
   occurrenceID?: unknown;
   speciesImageUrl?: unknown;
   thumbnailUrl?: unknown;
+  imageEvidence?: { $type?: string; file?: { ref?: unknown; mimeType?: string } };
   dynamicProperties?: unknown;
   conservationStatus?: unknown;
   plantTraits?: unknown;
@@ -141,11 +143,37 @@ const mapConservationStatus = (
   };
 };
 
+// ── CID extraction ─────────────────────────────────────────────────────────────
+
+/**
+ * Extract a CID string from a BlobRef's ref field.
+ * Handles both plain object { $link: string } and CID object (multiformats) formats.
+ */
+const extractCid = (ref: unknown): string | null => {
+  if (!ref) return null;
+  if (typeof ref === "string") return ref;
+  if (
+    typeof ref === "object" &&
+    "$link" in (ref as Record<string, unknown>)
+  ) {
+    return (ref as Record<string, unknown>)["$link"] as string;
+  }
+  if (
+    typeof ref === "object" &&
+    typeof (ref as { toString?: unknown }).toString === "function"
+  ) {
+    const str = (ref as { toString: () => string }).toString();
+    if (str.startsWith("baf")) return str;
+  }
+  return null;
+};
+
 // Internal extended plant type that carries dataType for tree/herb splitting
 type PlantWithDataType = BiodiversityPlant & { _dataType: string };
 
 const normalizePlantRecord = (
   raw: RawOccurrenceRecord,
+  did: string,
 ): PlantWithDataType | null => {
   const v = raw.value;
   const scientificName =
@@ -161,11 +189,19 @@ const normalizePlantRecord = (
   );
   const traits = mapPlantTraits(v.plantTraits);
 
-  const speciesImageUrl =
-    typeof v.speciesImageUrl === "string" ? v.speciesImageUrl : undefined;
-  const thumbnailUrl =
-    typeof v.thumbnailUrl === "string" ? v.thumbnailUrl : undefined;
-  const imageUrl = speciesImageUrl ?? thumbnailUrl;
+  // Resolve image URL: prefer PDS blob from imageEvidence, fall back to string URLs
+  let imageUrl: string | undefined;
+  const imageEvidenceRef = v.imageEvidence?.file?.ref;
+  const blobCid = extractCid(imageEvidenceRef);
+  if (blobCid) {
+    imageUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(blobCid)}`;
+  } else {
+    const speciesImageUrl =
+      typeof v.speciesImageUrl === "string" ? v.speciesImageUrl : undefined;
+    const thumbnailUrl =
+      typeof v.thumbnailUrl === "string" ? v.thumbnailUrl : undefined;
+    imageUrl = speciesImageUrl ?? thumbnailUrl;
+  }
 
   // edibleParts may come from plantTraits.edibleParts
   let edibleParts: string[] | undefined;
@@ -283,7 +319,7 @@ const fetchAllOccurrenceRecords = async (
         }
 
         if (kingdom === "Plantae") {
-          const plant = normalizePlantRecord(record);
+          const plant = normalizePlantRecord(record, did);
           if (plant) {
             const { _dataType, ...plantData } = plant;
             if (_dataType === "herbs") {
