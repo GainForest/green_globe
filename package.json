@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "prepare": "husky",
-    "codegen:lexicon-api": "lex gen-api ./lexicon-api ./lexicons/*/*/*/*.json ./lexicons/*/*/*/*/*.json && bun run scripts/lexicon-api-generation.ts",
+    "codegen:lexicon-api": "lex gen-api ./lexicon-api ./lexicons/*/*/*.json ./lexicons/*/*/*/*.json ./lexicons/*/*/*/*/*.json && bun run scripts/lexicon-api-generation.ts",
     "setup-client-metadata": "node scripts/setup-client-metadata.js",
     "vercel-build": "NODE_ENV=production bun run setup-client-metadata && bun run build",
     "pds:describe": "node scripts/pds/describe-server.js",

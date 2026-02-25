@@ -194,6 +194,9 @@ export interface Record {
   /** Additional structured data as a valid JSON string (per Simple DwC Section 7.1). Example: '{"iucnStatus":"vulnerable","canopyCover":"85%"}'. Should be flattened to a single line with no non-printing characters. */
   dynamicProperties?: string
   imageEvidence?: AppGainforestCommonDefs.Image
+  trunkEvidence?: AppGainforestCommonDefs.Image
+  leafEvidence?: AppGainforestCommonDefs.Image
+  barkEvidence?: AppGainforestCommonDefs.Image
   audioEvidence?: AppGainforestCommonDefs.Audio
   videoEvidence?: AppGainforestCommonDefs.Video
   spectrogramEvidence?: AppGainforestCommonDefs.Spectrogram
