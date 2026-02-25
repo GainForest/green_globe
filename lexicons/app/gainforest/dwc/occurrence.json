@@ -428,6 +428,21 @@
             "ref": "app.gainforest.common.defs#image",
             "description": "Image evidence (photo, camera trap, drone still, scanned specimen, etc.)."
           },
+          "trunkEvidence": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#image",
+            "description": "Image of the trunk or whole organism. Used for measured tree records (basisOfRecord: HumanObservation). Compressed to 800px wide WebP on PDS; full-res kept on external storage."
+          },
+          "leafEvidence": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#image",
+            "description": "Image of leaves or foliage. Used for measured tree records (basisOfRecord: HumanObservation). Compressed to 800px wide WebP on PDS; full-res kept on external storage."
+          },
+          "barkEvidence": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#image",
+            "description": "Image of bark. Used for measured tree records (basisOfRecord: HumanObservation). Compressed to 800px wide WebP on PDS; full-res kept on external storage."
+          },
           "audioEvidence": {
             "type": "ref",
             "ref": "app.gainforest.common.defs#audio",
