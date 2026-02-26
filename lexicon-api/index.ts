@@ -17,6 +17,7 @@ import { schemas } from './lexicons.js'
 import { CID } from 'multiformats/cid'
 import { type OmitKey, type Un$Typed } from './util.js'
 import * as AppBskyRichtextFacet from './types/app/bsky/richtext/facet.js'
+import * as AppGainforestAcMultimedia from './types/app/gainforest/ac/multimedia.js'
 import * as AppGainforestCommonDefs from './types/app/gainforest/common/defs.js'
 import * as AppGainforestDwcDefs from './types/app/gainforest/dwc/defs.js'
 import * as AppGainforestDwcEvent from './types/app/gainforest/dwc/event.js'
@@ -60,6 +61,7 @@ import * as PubLeafletPagesLinearDocument from './types/pub/leaflet/pages/linear
 import * as PubLeafletRichtextFacet from './types/pub/leaflet/richtext/facet.js'
 
 export * as AppBskyRichtextFacet from './types/app/bsky/richtext/facet.js'
+export * as AppGainforestAcMultimedia from './types/app/gainforest/ac/multimedia.js'
 export * as AppGainforestCommonDefs from './types/app/gainforest/common/defs.js'
 export * as AppGainforestDwcDefs from './types/app/gainforest/dwc/defs.js'
 export * as AppGainforestDwcEvent from './types/app/gainforest/dwc/event.js'
@@ -162,15 +164,110 @@ export class AppBskyRichtextNS {
 
 export class AppGainforestNS {
   _client: XrpcClient
+  ac: AppGainforestAcNS
   dwc: AppGainforestDwcNS
   evaluator: AppGainforestEvaluatorNS
   organization: AppGainforestOrganizationNS
 
   constructor(client: XrpcClient) {
     this._client = client
+    this.ac = new AppGainforestAcNS(client)
     this.dwc = new AppGainforestDwcNS(client)
     this.evaluator = new AppGainforestEvaluatorNS(client)
     this.organization = new AppGainforestOrganizationNS(client)
+  }
+}
+
+export class AppGainforestAcNS {
+  _client: XrpcClient
+  multimedia: AppGainforestAcMultimediaRecord
+
+  constructor(client: XrpcClient) {
+    this._client = client
+    this.multimedia = new AppGainforestAcMultimediaRecord(client)
+  }
+}
+
+export class AppGainforestAcMultimediaRecord {
+  _client: XrpcClient
+
+  constructor(client: XrpcClient) {
+    this._client = client
+  }
+
+  async list(
+    params: OmitKey<ComAtprotoRepoListRecords.QueryParams, 'collection'>,
+  ): Promise<{
+    cursor?: string
+    records: { uri: string; value: AppGainforestAcMultimedia.Record }[]
+  }> {
+    const res = await this._client.call('com.atproto.repo.listRecords', {
+      collection: 'app.gainforest.ac.multimedia',
+      ...params,
+    })
+    return res.data
+  }
+
+  async get(
+    params: OmitKey<ComAtprotoRepoGetRecord.QueryParams, 'collection'>,
+  ): Promise<{
+    uri: string
+    cid: string
+    value: AppGainforestAcMultimedia.Record
+  }> {
+    const res = await this._client.call('com.atproto.repo.getRecord', {
+      collection: 'app.gainforest.ac.multimedia',
+      ...params,
+    })
+    return res.data
+  }
+
+  async create(
+    params: OmitKey<
+      ComAtprotoRepoCreateRecord.InputSchema,
+      'collection' | 'record'
+    >,
+    record: Un$Typed<AppGainforestAcMultimedia.Record>,
+    headers?: Record<string, string>,
+  ): Promise<{ uri: string; cid: string }> {
+    const collection = 'app.gainforest.ac.multimedia'
+    const res = await this._client.call(
+      'com.atproto.repo.createRecord',
+      undefined,
+      { collection, ...params, record: { ...record, $type: collection } },
+      { encoding: 'application/json', headers },
+    )
+    return res.data
+  }
+
+  async put(
+    params: OmitKey<
+      ComAtprotoRepoPutRecord.InputSchema,
+      'collection' | 'record'
+    >,
+    record: Un$Typed<AppGainforestAcMultimedia.Record>,
+    headers?: Record<string, string>,
+  ): Promise<{ uri: string; cid: string }> {
+    const collection = 'app.gainforest.ac.multimedia'
+    const res = await this._client.call(
+      'com.atproto.repo.putRecord',
+      undefined,
+      { collection, ...params, record: { ...record, $type: collection } },
+      { encoding: 'application/json', headers },
+    )
+    return res.data
+  }
+
+  async delete(
+    params: OmitKey<ComAtprotoRepoDeleteRecord.InputSchema, 'collection'>,
+    headers?: Record<string, string>,
+  ): Promise<void> {
+    await this._client.call(
+      'com.atproto.repo.deleteRecord',
+      undefined,
+      { collection: 'app.gainforest.ac.multimedia', ...params },
+      { headers },
+    )
   }
 }
 

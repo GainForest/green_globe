@@ -91,6 +91,154 @@ export const schemaDict = {
       },
     },
   },
+  AppGainforestAcMultimedia: {
+    lexicon: 1,
+    id: 'app.gainforest.ac.multimedia',
+    description:
+      'Audubon Core multimedia resource record. Represents a single media item (image, audio, video, spectrogram) associated with a biodiversity occurrence. Based on the TDWG Audiovisual Core standard (http://www.tdwg.org/standards/638). Each media item is a separate record linked to a dwc.occurrence via occurrenceRef.',
+    defs: {
+      main: {
+        type: 'record',
+        key: 'tid',
+        record: {
+          type: 'object',
+          required: ['subjectPart', 'file', 'createdAt'],
+          properties: {
+            occurrenceRef: {
+              type: 'string',
+              format: 'at-uri',
+              description:
+                'AT-URI of the dwc.occurrence record this media is evidence for.',
+            },
+            siteRef: {
+              type: 'string',
+              format: 'at-uri',
+              description:
+                'AT-URI of the organization site record where this media was captured.',
+            },
+            subjectPart: {
+              type: 'string',
+              description:
+                'The part of the organism depicted, using TDWG Audubon Core subjectPart controlled values (http://rs.tdwg.org/acpart/values/). Examples: entireOrganism, leaf, bark, flower, fruit, seed, stem, twig, bud, root.',
+              maxGraphemes: 128,
+              knownValues: [
+                'entireOrganism',
+                'leaf',
+                'bark',
+                'flower',
+                'fruit',
+                'seed',
+                'stem',
+                'twig',
+                'bud',
+                'root',
+                'head',
+                'wing',
+                'shell',
+                'unspecifiedPart',
+              ],
+            },
+            subjectPartUri: {
+              type: 'string',
+              format: 'uri',
+              description:
+                'Full IRI of the subjectPart term from the TDWG controlled vocabulary. Example: http://rs.tdwg.org/acpart/values/p0002 for bark.',
+            },
+            subjectOrientation: {
+              type: 'string',
+              description:
+                'Viewing orientation relative to the subject, using TDWG Audubon Core subjectOrientation controlled values. Examples: dorsal, ventral, lateral, anterior, posterior.',
+              maxGraphemes: 128,
+            },
+            file: {
+              type: 'blob',
+              accept: [
+                'image/jpeg',
+                'image/jpg',
+                'image/png',
+                'image/webp',
+                'image/heic',
+                'image/heif',
+                'image/tiff',
+                'image/tif',
+                'image/gif',
+                'image/bmp',
+                'image/svg+xml',
+                'audio/wav',
+                'audio/x-wav',
+                'audio/mpeg',
+                'audio/mp3',
+                'audio/mp4',
+                'audio/x-m4a',
+                'audio/aac',
+                'audio/flac',
+                'audio/x-flac',
+                'audio/ogg',
+                'audio/opus',
+                'audio/webm',
+                'video/mp4',
+                'video/quicktime',
+                'video/webm',
+                'video/x-matroska',
+              ],
+              maxSize: 104857600,
+              description:
+                'The media file blob. Images up to 100MB, audio up to 100MB, video up to 100MB. For PDS-stored compressed versions; original full-res referenced via accessUri.',
+            },
+            format: {
+              type: 'string',
+              description:
+                "MIME type of the media file (e.g. image/webp, audio/flac). Should match the blob's actual content type.",
+              maxGraphemes: 128,
+            },
+            accessUri: {
+              type: 'string',
+              format: 'uri',
+              description:
+                'URI to the original full-resolution media resource (e.g. S3 URL). The PDS blob is a compressed variant; this points to the archival original.',
+              maxGraphemes: 2048,
+            },
+            variantLiteral: {
+              type: 'string',
+              description:
+                'AC variant describing the quality/size of this service access point. Values: Thumbnail, Lower Quality, Medium Quality, Good Quality, Best Quality, Offline.',
+              maxGraphemes: 64,
+              knownValues: [
+                'Thumbnail',
+                'Lower Quality',
+                'Medium Quality',
+                'Good Quality',
+                'Best Quality',
+                'Offline',
+              ],
+            },
+            caption: {
+              type: 'string',
+              description: 'Human-readable description of the media content.',
+              maxGraphemes: 1024,
+            },
+            creator: {
+              type: 'string',
+              description:
+                'Name of the person or agent who created the media resource.',
+              maxGraphemes: 256,
+            },
+            createDate: {
+              type: 'string',
+              format: 'datetime',
+              description:
+                'Date and time the media resource was originally created (e.g. when the photo was taken).',
+            },
+            createdAt: {
+              type: 'string',
+              format: 'datetime',
+              description: 'Timestamp of record creation in the ATProto PDS.',
+            },
+          },
+        },
+      },
+    },
+  },
   AppGainforestCommonDefs: {
     lexicon: 1,
     id: 'app.gainforest.common.defs',
@@ -1778,24 +1926,6 @@ export const schemaDict = {
               ref: 'lex:app.gainforest.common.defs#image',
               description:
                 'Image evidence (photo, camera trap, drone still, scanned specimen, etc.).',
-            },
-            trunkEvidence: {
-              type: 'ref',
-              ref: 'lex:app.gainforest.common.defs#image',
-              description:
-                'Image of the trunk or whole organism. Used for measured tree records (basisOfRecord: HumanObservation). Compressed to 800px wide WebP on PDS; full-res kept on external storage.',
-            },
-            leafEvidence: {
-              type: 'ref',
-              ref: 'lex:app.gainforest.common.defs#image',
-              description:
-                'Image of leaves or foliage. Used for measured tree records (basisOfRecord: HumanObservation). Compressed to 800px wide WebP on PDS; full-res kept on external storage.',
-            },
-            barkEvidence: {
-              type: 'ref',
-              ref: 'lex:app.gainforest.common.defs#image',
-              description:
-                'Image of bark. Used for measured tree records (basisOfRecord: HumanObservation). Compressed to 800px wide WebP on PDS; full-res kept on external storage.',
             },
             audioEvidence: {
               type: 'ref',
@@ -4769,6 +4899,7 @@ export function validate(
 
 export const ids = {
   AppBskyRichtextFacet: 'app.bsky.richtext.facet',
+  AppGainforestAcMultimedia: 'app.gainforest.ac.multimedia',
   AppGainforestCommonDefs: 'app.gainforest.common.defs',
   AppGainforestDwcDefs: 'app.gainforest.dwc.defs',
   AppGainforestDwcEvent: 'app.gainforest.dwc.event',
