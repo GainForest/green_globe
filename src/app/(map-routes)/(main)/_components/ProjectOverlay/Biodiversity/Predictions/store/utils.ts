@@ -7,6 +7,61 @@ import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 
 const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
+const AC_MULTIMEDIA_COLLECTION = "app.gainforest.ac.multimedia";
+
+// ── AC multimedia index ────────────────────────────────────────────────────────
+
+type RawMultimediaValue = {
+  occurrenceRef?: unknown;
+  subjectPart?: unknown;
+  file?: { ref?: unknown; mimeType?: string };
+  [k: string]: unknown;
+};
+
+type RawMultimediaRecord = {
+  uri: string;
+  cid: string;
+  value: RawMultimediaValue;
+};
+
+// Map from occurrence AT-URI to blob URL
+type MultimediaIndex = Map<string, string>;
+
+const fetchMultimediaIndex = async (did: string): Promise<MultimediaIndex> => {
+  const index: MultimediaIndex = new Map();
+  let cursor: string | undefined;
+
+  do {
+    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
+      repo: did,
+      collection: AC_MULTIMEDIA_COLLECTION,
+      limit: 100,
+      cursor,
+    });
+
+    const page = response.data.records as RawMultimediaRecord[] | undefined;
+    if (page?.length) {
+      for (const record of page) {
+        const v = record.value;
+        const occurrenceRef =
+          typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
+        if (!occurrenceRef) continue;
+
+        const cid = extractCid(v.file?.ref);
+        if (!cid) continue;
+
+        // For species images, we only care about the first image per occurrence
+        if (!index.has(occurrenceRef)) {
+          index.set(occurrenceRef, buildBlobUrl(PDS_ENDPOINT, did, cid));
+        }
+      }
+    }
+
+    cursor = response.data.cursor ?? undefined;
+  } while (cursor);
+
+  return index;
+};
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
@@ -145,6 +200,8 @@ type PlantWithDataType = BiodiversityPlant & { _dataType: string };
 const normalizePlantRecord = (
   raw: RawOccurrenceRecord,
   did: string,
+  multimediaIndex: MultimediaIndex,
+  occurrenceUri: string,
 ): PlantWithDataType | null => {
   const v = raw.value;
   const scientificName =
@@ -160,18 +217,24 @@ const normalizePlantRecord = (
   );
   const traits = mapPlantTraits(v.plantTraits);
 
-  // Resolve image URL: prefer PDS blob from imageEvidence, fall back to string URLs
+  // Resolve image URL: prefer AC multimedia record, then imageEvidence blob, then string URLs
   let imageUrl: string | undefined;
-  const imageEvidenceRef = v.imageEvidence?.file?.ref;
-  const blobCid = extractCid(imageEvidenceRef);
-  if (blobCid) {
-    imageUrl = buildBlobUrl(PDS_ENDPOINT, did, blobCid);
+  const acBlobUrl = multimediaIndex.get(occurrenceUri);
+  if (acBlobUrl) {
+    imageUrl = acBlobUrl;
   } else {
-    const speciesImageUrl =
-      typeof v.speciesImageUrl === "string" ? v.speciesImageUrl : undefined;
-    const thumbnailUrl =
-      typeof v.thumbnailUrl === "string" ? v.thumbnailUrl : undefined;
-    imageUrl = speciesImageUrl ?? thumbnailUrl;
+    // Fallback: imageEvidence blob on occurrence (backward compat during migration)
+    const imageEvidenceRef = v.imageEvidence?.file?.ref;
+    const blobCid = extractCid(imageEvidenceRef);
+    if (blobCid) {
+      imageUrl = buildBlobUrl(PDS_ENDPOINT, did, blobCid);
+    } else {
+      const speciesImageUrl =
+        typeof v.speciesImageUrl === "string" ? v.speciesImageUrl : undefined;
+      const thumbnailUrl =
+        typeof v.thumbnailUrl === "string" ? v.thumbnailUrl : undefined;
+      imageUrl = speciesImageUrl ?? thumbnailUrl;
+    }
   }
 
   let edibleParts: string[] | undefined;
@@ -249,6 +312,10 @@ export const fetchPlantsFromATProto = async (
   try {
     const trees: BiodiversityPlant[] = [];
     const herbs: BiodiversityPlant[] = [];
+
+    // Fetch multimedia index in parallel with occurrences
+    const multimediaIndex = await fetchMultimediaIndex(did);
+
     let cursor: string | undefined;
 
     do {
@@ -275,7 +342,12 @@ export const fetchPlantsFromATProto = async (
               : undefined;
           if (basisOfRecord === "HumanObservation") continue;
 
-          const plant = normalizePlantRecord(record, did);
+          const plant = normalizePlantRecord(
+            record,
+            did,
+            multimediaIndex,
+            record.uri,
+          );
           if (plant) {
             const { _dataType, ...plantData } = plant;
             if (_dataType === "herbs") {
