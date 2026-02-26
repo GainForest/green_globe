@@ -4,6 +4,7 @@ import { BiodiversityAnimal, BiodiversityPlant } from "./types";
 import * as d3 from "d3";
 import ClimateAIAgent from "@/lib/atproto/agent";
 import { PDS_ENDPOINT } from "@/config/atproto";
+import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 
 const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
 
@@ -138,31 +139,6 @@ const mapConservationStatus = (
   };
 };
 
-// ── CID extraction ─────────────────────────────────────────────────────────────
-
-/**
- * Extract a CID string from a BlobRef's ref field.
- * Handles both plain object { $link: string } and CID object (multiformats) formats.
- */
-const extractCid = (ref: unknown): string | null => {
-  if (!ref) return null;
-  if (typeof ref === "string") return ref;
-  if (
-    typeof ref === "object" &&
-    "$link" in (ref as Record<string, unknown>)
-  ) {
-    return (ref as Record<string, unknown>)["$link"] as string;
-  }
-  if (
-    typeof ref === "object" &&
-    typeof (ref as { toString?: unknown }).toString === "function"
-  ) {
-    const str = (ref as { toString: () => string }).toString();
-    if (str.startsWith("baf")) return str;
-  }
-  return null;
-};
-
 // Internal extended plant type that carries dataType for tree/herb splitting
 type PlantWithDataType = BiodiversityPlant & { _dataType: string };
 
@@ -189,7 +165,7 @@ const normalizePlantRecord = (
   const imageEvidenceRef = v.imageEvidence?.file?.ref;
   const blobCid = extractCid(imageEvidenceRef);
   if (blobCid) {
-    imageUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(blobCid)}`;
+    imageUrl = buildBlobUrl(PDS_ENDPOINT, did, blobCid);
   } else {
     const speciesImageUrl =
       typeof v.speciesImageUrl === "string" ? v.speciesImageUrl : undefined;

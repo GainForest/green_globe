@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import ClimateAIAgent from "@/lib/atproto/agent";
 import { PDS_ENDPOINT } from "@/config/atproto";
+import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import type {
   MeasuredTreesGeoJSON,
   NormalizedTreeFeature,
@@ -16,15 +17,6 @@ const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
-type RawImageEvidence = {
-  $type?: string;
-  file?: {
-    ref?: unknown;
-    mimeType?: string;
-    size?: number;
-  };
-};
-
 type RawOccurrenceValue = {
   basisOfRecord?: unknown;
   scientificName?: unknown;
@@ -33,9 +25,9 @@ type RawOccurrenceValue = {
   decimalLongitude?: unknown;
   dynamicProperties?: unknown;
   associatedMedia?: unknown;
-  trunkEvidence?: RawImageEvidence;
-  leafEvidence?: RawImageEvidence;
-  barkEvidence?: RawImageEvidence;
+  trunkEvidence?: { $type?: string; file?: { ref?: unknown; mimeType?: string; size?: number } };
+  leafEvidence?: { $type?: string; file?: { ref?: unknown; mimeType?: string; size?: number } };
+  barkEvidence?: { $type?: string; file?: { ref?: unknown; mimeType?: string; size?: number } };
   eventDate?: unknown;
   siteRef?: unknown;
   [k: string]: unknown;
@@ -84,51 +76,6 @@ const parseDynamicProperties = (
   } catch {
     return null;
   }
-};
-
-// ── Blob URL helpers ───────────────────────────────────────────────────────────
-
-/**
- * Extract a CID string from a BlobRef's ref field.
- * Handles both SDK-deserialized CID objects and plain { $link: string } objects.
- */
-const extractCid = (ref: unknown): string | null => {
-  if (!ref) return null;
-  if (typeof ref === "string") return ref;
-  if (
-    typeof ref === "object" &&
-    "$link" in (ref as Record<string, unknown>)
-  ) {
-    return (ref as Record<string, unknown>)["$link"] as string;
-  }
-  if (
-    typeof ref === "object" &&
-    typeof (ref as { toString?: unknown }).toString === "function"
-  ) {
-    const str = (ref as { toString: () => string }).toString();
-    if (str.startsWith("baf")) return str;
-  }
-  return null;
-};
-
-/**
- * Build a PDS blob URL from a did and CID.
- */
-const buildBlobUrl = (did: string, cid: string): string =>
-  `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
-
-/**
- * Extract a blob URL from an image evidence field.
- * Returns null if the evidence is missing or has no valid CID.
- */
-const extractBlobUrl = (
-  evidence: RawImageEvidence | undefined,
-  did: string,
-): string | null => {
-  if (!evidence?.file?.ref) return null;
-  const cid = extractCid(evidence.file.ref);
-  if (!cid) return null;
-  return buildBlobUrl(did, cid);
 };
 
 // ── Measurement index ──────────────────────────────────────────────────────────
@@ -271,9 +218,12 @@ export const fetchMeasuredTreeOccurrences = async (
       }
 
       // Extract blob URLs for trunk/leaf/bark evidence
-      const trunkUrl = extractBlobUrl(v.trunkEvidence, did);
-      const leafUrl = extractBlobUrl(v.leafEvidence, did);
-      const barkUrl = extractBlobUrl(v.barkEvidence, did);
+      const trunkCid = extractCid(v.trunkEvidence?.file?.ref);
+      const trunkUrl = trunkCid ? buildBlobUrl(PDS_ENDPOINT, did, trunkCid) : null;
+      const leafCid = extractCid(v.leafEvidence?.file?.ref);
+      const leafUrl = leafCid ? buildBlobUrl(PDS_ENDPOINT, did, leafCid) : null;
+      const barkCid = extractCid(v.barkEvidence?.file?.ref);
+      const barkUrl = barkCid ? buildBlobUrl(PDS_ENDPOINT, did, barkCid) : null;
 
       // Extract original S3/Kobo URLs from associatedMedia (pipe-delimited)
       const associatedMedia =

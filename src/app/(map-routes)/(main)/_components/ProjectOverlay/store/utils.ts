@@ -6,6 +6,7 @@ import {
 } from "./types";
 import { getTreeSpeciesName } from "../../Map/sources-and-layers/measured-trees";
 import { PDS_ENDPOINT } from "@/config/atproto";
+import { extractCid } from "@/lib/atproto/extract-cid";
 
 // ---------------------------------------------------------------------------
 // ATProto blob ref shape (subset of what the PDS returns)
@@ -40,37 +41,6 @@ const unwrapSmallBlob = (value: unknown): unknown => {
     return (value as Record<string, unknown>).blob;
   }
   return value;
-};
-
-/**
- * Extract a CID string from a BlobRef's ref field.
- * The ATProto SDK deserializes ref as a CID object (from multiformats),
- * not as { $link: string }. We need to handle both formats:
- *   - CID object: use .toString()
- *   - Plain object: use .$link
- *   - String: use directly
- */
-const extractCid = (ref: unknown): string | null => {
-  if (!ref) return null;
-  // String CID (unlikely but safe)
-  if (typeof ref === "string") return ref;
-  // Plain object with $link (raw JSON, not SDK-deserialized)
-  if (
-    typeof ref === "object" &&
-    "$link" in (ref as Record<string, unknown>)
-  ) {
-    return (ref as Record<string, unknown>)["$link"] as string;
-  }
-  // CID object from multiformats (has toString method, code, version, multihash)
-  if (
-    typeof ref === "object" &&
-    typeof (ref as { toString?: unknown }).toString === "function"
-  ) {
-    const str = (ref as { toString: () => string }).toString();
-    // CID strings start with 'baf' — sanity check to avoid [object Object]
-    if (str.startsWith("baf")) return str;
-  }
-  return null;
 };
 
 // ---------------------------------------------------------------------------
