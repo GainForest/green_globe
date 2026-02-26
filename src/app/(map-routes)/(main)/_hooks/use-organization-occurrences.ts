@@ -9,63 +9,12 @@ import type {
   BiodiversityPlant,
   BiodiversityTraits,
 } from "../_components/ProjectOverlay/Biodiversity/Predictions/store/types";
+import {
+  fetchMultimediaIndex,
+  type MultimediaIndex,
+} from "@/lib/atproto/ac-multimedia";
 
 const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
-const AC_MULTIMEDIA_COLLECTION = "app.gainforest.ac.multimedia";
-
-// ── AC multimedia index ────────────────────────────────────────────────────────
-
-type RawMultimediaValue = {
-  occurrenceRef?: unknown;
-  subjectPart?: unknown;
-  file?: { ref?: unknown; mimeType?: string };
-  [k: string]: unknown;
-};
-
-type RawMultimediaRecord = {
-  uri: string;
-  cid: string;
-  value: RawMultimediaValue;
-};
-
-// Map from occurrence AT-URI to blob URL
-type MultimediaIndex = Map<string, string>;
-
-const fetchMultimediaIndex = async (did: string): Promise<MultimediaIndex> => {
-  const index: MultimediaIndex = new Map();
-  let cursor: string | undefined;
-
-  do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-      repo: did,
-      collection: AC_MULTIMEDIA_COLLECTION,
-      limit: 100,
-      cursor,
-    });
-
-    const page = response.data.records as RawMultimediaRecord[] | undefined;
-    if (page?.length) {
-      for (const record of page) {
-        const v = record.value;
-        const occurrenceRef =
-          typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
-        if (!occurrenceRef) continue;
-
-        const cid = extractCid(v.file?.ref);
-        if (!cid) continue;
-
-        // For species images, we only care about the first image per occurrence
-        if (!index.has(occurrenceRef)) {
-          index.set(occurrenceRef, buildBlobUrl(PDS_ENDPOINT, did, cid));
-        }
-      }
-    }
-
-    cursor = response.data.cursor ?? undefined;
-  } while (cursor);
-
-  return index;
-};
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 

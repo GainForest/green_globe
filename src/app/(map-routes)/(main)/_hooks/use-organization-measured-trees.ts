@@ -2,19 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import ClimateAIAgent from "@/lib/atproto/agent";
-import { PDS_ENDPOINT } from "@/config/atproto";
-import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import type {
   MeasuredTreesGeoJSON,
   NormalizedTreeFeature,
 } from "../_components/ProjectOverlay/store/types";
 import { getTreeSpeciesName } from "../_components/Map/sources-and-layers/measured-trees";
+import { fetchMultimediaByOccurrence } from "@/lib/atproto/ac-multimedia";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
 const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
-const AC_MULTIMEDIA_COLLECTION = "app.gainforest.ac.multimedia";
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
@@ -30,33 +28,6 @@ type RawOccurrenceValue = {
   siteRef?: unknown;
   [k: string]: unknown;
 };
-
-type RawMultimediaValue = {
-  occurrenceRef?: unknown;
-  subjectPart?: unknown;
-  file?: { ref?: unknown; mimeType?: string };
-  accessUri?: unknown;
-  [k: string]: unknown;
-};
-
-type RawMultimediaRecord = {
-  uri: string;
-  cid: string;
-  value: RawMultimediaValue;
-};
-
-type MultimediaByOccurrence = Map<
-  string,
-  {
-    entireOrganism?: string;
-    leaf?: string;
-    bark?: string;
-    flower?: string;
-    fruit?: string;
-    seed?: string;
-    stem?: string;
-  }
->;
 
 type RawOccurrenceRecord = {
   uri: string;
@@ -101,53 +72,6 @@ const parseDynamicProperties = (
   } catch {
     return null;
   }
-};
-
-// ── AC multimedia index ────────────────────────────────────────────────────────
-
-/**
- * Fetch all app.gainforest.ac.multimedia records for an org and index them
- * by occurrenceRef (AT-URI) → grouped by subjectPart.
- */
-const fetchMultimediaIndex = async (
-  did: string,
-): Promise<MultimediaByOccurrence> => {
-  const index: MultimediaByOccurrence = new Map();
-  let cursor: string | undefined;
-
-  do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-      repo: did,
-      collection: AC_MULTIMEDIA_COLLECTION,
-      limit: 100,
-      cursor,
-    });
-
-    const page = response.data.records as RawMultimediaRecord[] | undefined;
-    if (page?.length) {
-      for (const record of page) {
-        const v = record.value;
-        const occurrenceRef =
-          typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
-        if (!occurrenceRef) continue;
-
-        const subjectPart =
-          typeof v.subjectPart === "string" ? v.subjectPart : null;
-        if (!subjectPart) continue;
-
-        const cid = extractCid(v.file?.ref);
-        if (!cid) continue;
-
-        const blobUrl = buildBlobUrl(PDS_ENDPOINT, did, cid);
-        const existing = index.get(occurrenceRef) ?? {};
-        index.set(occurrenceRef, { ...existing, [subjectPart]: blobUrl });
-      }
-    }
-
-    cursor = response.data.cursor ?? undefined;
-  } while (cursor);
-
-  return index;
 };
 
 // ── Measurement index ──────────────────────────────────────────────────────────
@@ -226,7 +150,7 @@ export const fetchMeasuredTreeOccurrences = async (
   // Fetch measurements and AC multimedia records in parallel with occurrences
   const [measurementIndex, multimediaIndex, occurrences] = await Promise.all([
     fetchMeasurementIndex(did),
-    fetchMultimediaIndex(did),
+    fetchMultimediaByOccurrence(did),
     (async () => {
       const records: RawOccurrenceRecord[] = [];
       let cursor: string | undefined;
