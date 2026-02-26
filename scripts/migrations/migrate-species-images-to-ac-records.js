@@ -194,11 +194,13 @@ function loadErrors() {
 }
 
 /**
- * @param {object} errorEntry
  * @param {Array<object>} errors
+ * @param {object} errorEntry
  */
-function appendError(errorEntry, errors) {
-  errors.push(errorEntry)
+function appendError(errors, errorEntry) {
+  errors.push({ ...errorEntry, timestamp: new Date().toISOString() })
+  fs.mkdirSync(path.dirname(ERRORS_FILE), { recursive: true })
+  fs.writeFileSync(ERRORS_FILE, JSON.stringify(errors, null, 2))
 }
 
 // ---------------------------------------------------------------------------
@@ -349,13 +351,13 @@ async function processOccurrenceRecord(agent, did, occurrenceUri, value, dryRun,
   } catch (err) {
     const errMsg = err?.message || String(err)
     console.warn(`[ac-species-images]   Download exception for occurrence=${occurrenceUri} url=${imageUrl}: ${errMsg}`)
-    appendError({ did, occurrenceUri, acRkey, imageUrl, stage: 'download', error: errMsg, timestamp: new Date().toISOString() }, errors)
+    appendError(errors, { did, occurrenceUri, acRkey, imageUrl, stage: 'download', error: errMsg })
     return 'error'
   }
 
   if (!downloadResult) {
     console.warn(`[ac-species-images]   Dead URL (404/network) for occurrence=${occurrenceUri}: ${imageUrl}`)
-    appendError({ did, occurrenceUri, acRkey, imageUrl, stage: 'download', error: 'dead-url', timestamp: new Date().toISOString() }, errors)
+    appendError(errors, { did, occurrenceUri, acRkey, imageUrl, stage: 'download', error: 'dead-url' })
     return 'error'
   }
 
@@ -384,6 +386,7 @@ async function processOccurrenceRecord(agent, did, occurrenceUri, value, dryRun,
 
   // Immediately createRecord for app.gainforest.ac.multimedia (atomic pattern)
   const acRecord = {
+    $type: AC_MULTIMEDIA_COLLECTION,
     occurrenceRef: occurrenceUri,
     subjectPart: SUBJECT_PART,
     file: blobRef,
