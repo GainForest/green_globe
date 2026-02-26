@@ -157,18 +157,3 @@ export type MeasuredTreesGeoJSON<
   features: T[];
 };
 
-/**
- * Maps dwc.occurrence fields to the TreeFeatureProperties shape.
- *
- * Field mapping:
- *   trunkEvidence blob URL → awsUrl  (reuse existing field for backward compat with getTreePhotos)
- *   leafEvidence blob URL  → leafAwsUrl
- *   barkEvidence blob URL  → barkAwsUrl
- *   associatedMedia URLs   → koboUrl / leafKoboUrl / barkKoboUrl (fallbacks)
- */
-export type MeasuredTreeOccurrence = TreeFeatureProperties & {
-  /** Source of this record — always 'dwc.occurrence' for migrated trees */
-  _source: "dwc.occurrence";
-  /** AT-URI of the dwc.occurrence record */
-  _occurrenceUri: string;
-};
