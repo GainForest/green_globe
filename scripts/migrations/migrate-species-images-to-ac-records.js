@@ -368,7 +368,7 @@ async function processOccurrenceRecord(agent, did, occurrenceUri, value, dryRun,
   } catch (err) {
     const errMsg = err?.message || String(err)
     console.warn(`[ac-species-images]   Compression failed for occurrence=${occurrenceUri}: ${errMsg}`)
-    appendError({ did, occurrenceUri, acRkey, imageUrl, stage: 'compress', error: errMsg, timestamp: new Date().toISOString() }, errors)
+    appendError(errors, { did, occurrenceUri, acRkey, imageUrl, stage: 'compress', error: errMsg })
     return 'error'
   }
 
@@ -380,7 +380,7 @@ async function processOccurrenceRecord(agent, did, occurrenceUri, value, dryRun,
   } catch (err) {
     const errMsg = err?.message || String(err)
     console.warn(`[ac-species-images]   Blob upload failed for occurrence=${occurrenceUri}: ${errMsg}`)
-    appendError({ did, occurrenceUri, acRkey, imageUrl, stage: 'upload', error: errMsg, timestamp: new Date().toISOString() }, errors)
+    appendError(errors, { did, occurrenceUri, acRkey, imageUrl, stage: 'upload', error: errMsg })
     return 'error'
   }
 
@@ -406,7 +406,7 @@ async function processOccurrenceRecord(agent, did, occurrenceUri, value, dryRun,
   } catch (err) {
     const errMsg = err?.message || String(err)
     console.warn(`[ac-species-images]   createRecord failed for occurrence=${occurrenceUri} rkey=${acRkey}: ${errMsg}`)
-    appendError({ did, occurrenceUri, acRkey, imageUrl, stage: 'createRecord', error: errMsg, timestamp: new Date().toISOString() }, errors)
+    appendError(errors, { did, occurrenceUri, acRkey, imageUrl, stage: 'createRecord', error: errMsg })
     return 'error'
   }
 
