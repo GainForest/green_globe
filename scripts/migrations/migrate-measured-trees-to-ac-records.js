@@ -933,9 +933,7 @@ async function main() {
               console.log(`[ac-measured-trees]   [DRY RUN] Would create AC record: ${acRkey} (bark)`)
             }
             orgOccurrencesCreated++
-            siteProgress.completedFeatures.push(featureIdx)
-            siteProgress.lastProcessedFeatureIndex = featureIdx
-            saveProgress(progress)
+            // NOTE: Do NOT write to progress file in dry-run mode to avoid polluting live runs
             continue
           }
 

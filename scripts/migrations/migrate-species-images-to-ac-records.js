@@ -469,15 +469,19 @@ async function processOrgOccurrences(agent, did, handle, dryRun, orgProgress, er
 
       if (result === 'created') {
         created++
-        completedSet.add(rkey)
-        // Save progress after each successful creation
-        orgProgress.completedRkeys = Array.from(completedSet)
-        orgProgress.lastCursor = cursor || null
+        if (!dryRun) {
+          completedSet.add(rkey)
+          // Save progress after each successful creation
+          orgProgress.completedRkeys = Array.from(completedSet)
+          orgProgress.lastCursor = cursor || null
+        }
       } else if (result === 'skipped') {
         skipped++
-        // Mark as completed so we don't re-examine on resume
-        completedSet.add(rkey)
-        orgProgress.completedRkeys = Array.from(completedSet)
+        if (!dryRun) {
+          // Mark as completed so we don't re-examine on resume
+          completedSet.add(rkey)
+          orgProgress.completedRkeys = Array.from(completedSet)
+        }
       } else {
         // error — don't add to completedSet so it can be retried
         errorCount++
@@ -488,8 +492,10 @@ async function processOrgOccurrences(agent, did, handle, dryRun, orgProgress, er
       }
     }
 
-    // Update cursor in progress after each page
-    orgProgress.lastCursor = cursor || null
+    // Update cursor in progress after each page (skip in dry-run to avoid polluting progress)
+    if (!dryRun) {
+      orgProgress.lastCursor = cursor || null
+    }
 
     if (cursor && !dryRun) {
       await sleep(COOLDOWN_MS)
@@ -572,10 +578,12 @@ async function main() {
     } catch (err) {
       console.error(`[ac-species-images] Unexpected error for ${handle}: ${err?.message || String(err)}`)
       results.push({ handle, did, status: 'failed', reason: 'unexpected-error', error: err?.message || String(err) })
-      // Save progress and errors before continuing
-      saveProgress(progress)
-      fs.mkdirSync(path.dirname(ERRORS_FILE), { recursive: true })
-      fs.writeFileSync(ERRORS_FILE, JSON.stringify(errors, null, 2))
+      // Save progress and errors before continuing (skip in dry-run)
+      if (!args.dryRun) {
+        saveProgress(progress)
+        fs.mkdirSync(path.dirname(ERRORS_FILE), { recursive: true })
+        fs.writeFileSync(ERRORS_FILE, JSON.stringify(errors, null, 2))
+      }
       continue
     }
 
@@ -590,10 +598,12 @@ async function main() {
       errors: orgResult.errors
     })
 
-    // Persist progress and errors after each org
-    saveProgress(progress)
-    fs.mkdirSync(path.dirname(ERRORS_FILE), { recursive: true })
-    fs.writeFileSync(ERRORS_FILE, JSON.stringify(errors, null, 2))
+    // Persist progress and errors after each org (skip in dry-run)
+    if (!args.dryRun) {
+      saveProgress(progress)
+      fs.mkdirSync(path.dirname(ERRORS_FILE), { recursive: true })
+      fs.writeFileSync(ERRORS_FILE, JSON.stringify(errors, null, 2))
+    }
   }
 
   // Final summary
