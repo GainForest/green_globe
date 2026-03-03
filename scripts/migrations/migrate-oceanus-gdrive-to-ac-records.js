@@ -555,34 +555,32 @@ async function main() {
 
     let geojson = null
 
-    // Try PDS site record first
-    if (!args.dryRun) {
-      try {
-        const siteRes = await agent.com.atproto.repo.getRecord({
-          repo: OCEANUS_DID,
-          collection: SITE_COLLECTION,
-          rkey: siteRkey
-        })
-        const siteValue = siteRes.data.value
-        const treesBlob = siteValue?.trees
-        if (treesBlob) {
-          const blobCid = treesBlob.blob?.ref?.$link || treesBlob.blob?.ref || treesBlob.ref?.$link || treesBlob.ref
-          if (blobCid) {
-            console.log(`[oceanus-gdrive]   Fetching tree GeoJSON from PDS blob: ${blobCid}`)
-            try {
-              const blobData = await fetchPdsBlob(args.service, OCEANUS_DID, blobCid)
-              if (blobData && blobData.buffer.length > 100) {
-                geojson = JSON.parse(blobData.buffer.toString('utf8'))
-                console.log(`[oceanus-gdrive]   Loaded ${geojson?.features?.length || 0} features from PDS blob`)
-              }
-            } catch (err) {
-              console.warn(`[oceanus-gdrive]   PDS blob fetch failed: ${err?.message || String(err)}`)
+    // Try PDS site record first (read-only, works without auth)
+    try {
+      const siteRes = await agent.com.atproto.repo.getRecord({
+        repo: OCEANUS_DID,
+        collection: SITE_COLLECTION,
+        rkey: siteRkey
+      })
+      const siteValue = siteRes.data.value
+      const treesBlob = siteValue?.trees
+      if (treesBlob) {
+        const blobCid = treesBlob.blob?.ref?.$link || treesBlob.blob?.ref || treesBlob.ref?.$link || treesBlob.ref
+        if (blobCid) {
+          console.log(`[oceanus-gdrive]   Fetching tree GeoJSON from PDS blob: ${blobCid}`)
+          try {
+            const blobData = await fetchPdsBlob(args.service, OCEANUS_DID, blobCid)
+            if (blobData && blobData.buffer.length > 100) {
+              geojson = JSON.parse(blobData.buffer.toString('utf8'))
+              console.log(`[oceanus-gdrive]   Loaded ${geojson?.features?.length || 0} features from PDS blob`)
             }
+          } catch (err) {
+            console.warn(`[oceanus-gdrive]   PDS blob fetch failed: ${err?.message || String(err)}`)
           }
         }
-      } catch (err) {
-        console.warn(`[oceanus-gdrive]   Failed to fetch site record ${siteRkey}: ${err?.message || String(err)}`)
       }
+    } catch (err) {
+      console.warn(`[oceanus-gdrive]   Failed to fetch site record ${siteRkey}: ${err?.message || String(err)}`)
     }
 
     // Fall back to S3
