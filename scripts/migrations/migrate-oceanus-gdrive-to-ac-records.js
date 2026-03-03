@@ -589,21 +589,17 @@ async function main() {
     if (!geojson || !Array.isArray(geojson.features) || geojson.features.length === 0) {
       const s3Url = `${AWS_BASE}/shapefiles/oceanus-conservati-all-tree-plantings.geojson`
       console.log(`[oceanus-gdrive]   Falling back to S3: ${s3Url}`)
-      if (!args.dryRun) {
-        try {
-          geojson = await fetchJson(s3Url)
-          if (geojson && Array.isArray(geojson.features)) {
-            console.log(`[oceanus-gdrive]   Loaded ${geojson.features.length} features from S3`)
-          } else {
-            console.warn(`[oceanus-gdrive]   No valid GeoJSON from S3 for site ${siteRkey}`)
-            geojson = null
-          }
-        } catch (err) {
-          console.warn(`[oceanus-gdrive]   S3 fetch failed: ${err?.message || String(err)}`)
+      try {
+        geojson = await fetchJson(s3Url)
+        if (geojson && Array.isArray(geojson.features)) {
+          console.log(`[oceanus-gdrive]   Loaded ${geojson.features.length} features from S3`)
+        } else {
+          console.warn(`[oceanus-gdrive]   No valid GeoJSON from S3 for site ${siteRkey}`)
           geojson = null
         }
-      } else {
-        console.log(`[oceanus-gdrive]   [DRY RUN] Would fetch from S3: ${s3Url}`)
+      } catch (err) {
+        console.warn(`[oceanus-gdrive]   S3 fetch failed: ${err?.message || String(err)}`)
+        geojson = null
       }
     }
 
@@ -639,8 +635,8 @@ async function main() {
       const feature = features[featureIdx]
 
       if (!feature || !feature.geometry || !Array.isArray(feature.geometry.coordinates) || feature.geometry.coordinates.length < 2) {
+        skippedOutOfBounds++
         if (!args.dryRun) {
-          skippedOutOfBounds++
           appendError(errors, {
             handle: entry.handle,
             did: entry.did,
