@@ -36,6 +36,8 @@
   },
   "dependencies": {
     "@atproto/api": "*",
+    "@supabase/supabase-js": "^2.49.4",
+    "jose": "^5.10.0",
     "@trpc/client": "^11.8.0",
     "@trpc/react-query": "^11.8.0",
     "@trpc/server": "^11.8.0",
