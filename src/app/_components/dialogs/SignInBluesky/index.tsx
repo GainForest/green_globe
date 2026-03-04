@@ -11,108 +11,80 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useAtproto } from "@/app/_components/Providers/atproto-provider";
+import { useAtprotoStore } from "@/app/_components/stores/atproto";
+import { authorize, logout } from "@/app/_components/actions/oauth";
+import { allowedPDSDomains } from "@/config/gainforest-sdk";
 
 type Props = {
   trigger?: React.ReactNode;
 };
 
-function validateHandle(handle: string): { isValid: boolean; error?: string } {
-  if (!handle || handle.trim().length === 0) {
-    return { isValid: false, error: 'Handle cannot be empty' };
-  }
-  
-  const cleanHandle = handle.replace(/^@/, '').trim();
-
-  if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(cleanHandle)) {
-    return { isValid: false, error: 'Invalid handle format. Use format: username.domain.com' };
-  }
-
-  if (cleanHandle.length > 253) {
-    return { isValid: false, error: 'Handle too long (max 253 characters)' };
-  }
-
-  if (!cleanHandle.includes('.')) {
-    return { isValid: false, error: 'Handle must include a domain (e.g., username.bsky.social)' };
-  }
-  
-  return { isValid: true };
-}
-
 const SignInBlueskyDialog: React.FC<Props> = ({ trigger }) => {
-  const { isAuthenticated, userProfile, signIn, signOut, refreshSession, error } = useAtproto();
+  const auth = useAtprotoStore((state) => state.auth);
+  const setAuth = useAtprotoStore((state) => state.setAuth);
   const [handle, setHandle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newHandle = e.target.value;
-    setHandle(newHandle);
-    
-    // Clear validation error on input change
-    if (validationError) {
-      setValidationError(null);
-    }
-  };
+  const [error, setError] = useState<string | null>(null);
 
   const onSignIn = async () => {
-    const validation = validateHandle(handle);
-    
-    if (!validation.isValid) {
-      setValidationError(validation.error || 'Invalid handle');
-      return;
-    }
-    
+    if (!handle.trim()) return;
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setValidationError(null);
-      await signIn(handle.trim());
-    } finally {
+      const { authorizationUrl } = await authorize(handle.trim());
+      window.location.href = authorizationUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to initiate sign in");
       setIsLoading(false);
     }
   };
 
-  const authedName = userProfile?.displayName || userProfile?.handle || userProfile?.did;
+  const onSignOut = async () => {
+    await logout();
+    setAuth(null);
+  };
+
+  const isAuthenticated = auth.authenticated;
+  const user = auth.authenticated ? auth.user : null;
+  const authedName = user?.displayName || user?.handle || user?.did;
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        {trigger ?? (
-          <Button variant="outline" size="sm">Account</Button>
-        )}
+        {trigger ?? <Button variant="outline" size="sm">Account</Button>}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isAuthenticated ? "Your Account" : "Sign in with Bluesky"}</DialogTitle>
+          <DialogTitle>{isAuthenticated ? "Your Account" : "Sign in with ClimateAI"}</DialogTitle>
           <DialogDescription>
             {isAuthenticated
-              ? "You are signed in via AT Protocol (Bluesky)."
-              : "Enter your Bluesky handle to continue."}
+              ? "You are signed in via AT Protocol."
+              : "Enter your handle to continue."}
           </DialogDescription>
         </DialogHeader>
-
         {!isAuthenticated ? (
           <div className="mt-2 space-y-3">
             <div className="space-y-1">
-              <label className="block text-sm text-muted-foreground" htmlFor="bsky-handle">
-                Bluesky handle
+              <label className="block text-sm text-muted-foreground" htmlFor="atproto-handle">
+                Handle
               </label>
-              <Input
-                id="bsky-handle"
-                placeholder="yourname.bsky.social"
-                value={handle}
-                onChange={handleInputChange}
-                disabled={isLoading}
-              />
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground">@</span>
+                <Input
+                  id="atproto-handle"
+                  placeholder="your-handle"
+                  value={handle}
+                  onChange={(e) => { setHandle(e.target.value); setError(null); }}
+                  disabled={isLoading}
+                  onKeyDown={(e) => { if (e.key === "Enter" && handle.trim()) onSignIn(); }}
+                />
+                <span className="text-sm text-muted-foreground">.{allowedPDSDomains[0]}</span>
+              </div>
             </div>
-            {(validationError || error) ? (
-              <p className="text-sm text-red-600">{validationError || error}</p>
-            ) : null}
-            <div className="flex gap-2">
-              <Button onClick={onSignIn} disabled={!handle || isLoading}>
-                {isLoading ? "Redirecting…" : "Sign in with Bluesky"}
-              </Button>
-            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button onClick={onSignIn} disabled={!handle.trim() || isLoading}>
+              {isLoading ? "Redirecting…" : "Sign in"}
+            </Button>
           </div>
         ) : (
           <div className="mt-2 space-y-3">
@@ -120,13 +92,7 @@ const SignInBlueskyDialog: React.FC<Props> = ({ trigger }) => {
               <p className="text-sm text-muted-foreground">Signed in as</p>
               <p className="text-base font-medium">{authedName}</p>
             </div>
-            {error ? (
-              <p className="text-sm text-red-600">{error}</p>
-            ) : null}
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={refreshSession}>Refresh Session</Button>
-              <Button variant="destructive" onClick={signOut}>Sign Out</Button>
-            </div>
+            <Button variant="destructive" onClick={onSignOut}>Sign Out</Button>
           </div>
         )}
       </DialogContent>
@@ -135,4 +101,3 @@ const SignInBlueskyDialog: React.FC<Props> = ({ trigger }) => {
 };
 
 export default SignInBlueskyDialog;
-
