@@ -3,12 +3,12 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import SignInBlueskyDialog from "@/app/_components/dialogs/SignInBluesky";
-import { useAtproto } from "@/app/_components/Providers/atproto-provider";
+import { useAtprotoStore } from "@/app/_components/stores/atproto";
 
 const AccountButton = () => {
-  const { isAuthenticated, userProfile } = useAtproto();
-  const label = isAuthenticated
-    ? userProfile?.displayName || userProfile?.handle || "Account"
+  const auth = useAtprotoStore((state) => state.auth);
+  const label = auth.authenticated
+    ? auth.user.displayName || auth.user.handle || "Account"
     : "Sign in";
 
   return (
