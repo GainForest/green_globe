@@ -43,7 +43,6 @@
     "gainforest-sdk": "file:./vendor/gainforest-sdk-nextjs-0.1.1.tgz",
     "superjson": "^2.2.5",
     "@atproto/identity": "^0.4.9",
-    "@atproto/oauth-client-browser": "*",
     "@formkit/auto-animate": "^0.8.2",
     "@google-cloud/bigquery": "^7.9.2",
     "@hookform/resolvers": "^5.0.1",

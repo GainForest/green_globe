@@ -7,7 +7,6 @@
       "dependencies": {
         "@atproto/api": "*",
         "@atproto/identity": "^0.4.9",
-        "@atproto/oauth-client-browser": "*",
         "@formkit/auto-animate": "^0.8.2",
         "@google-cloud/bigquery": "^7.9.2",
         "@hookform/resolvers": "^5.0.1",
@@ -135,8 +134,6 @@
     "@atproto/lexicon": ["@atproto/lexicon@0.5.1", "", { "dependencies": { "@atproto/common-web": "^0.4.3", "@atproto/syntax": "^0.4.1", "iso-datestring-validator": "^2.2.2", "multiformats": "^9.9.0", "zod": "^3.23.8" } }, "sha512-y8AEtYmfgVl4fqFxqXAeGvhesiGkxiy3CWoJIfsFDDdTlZUC8DFnZrYhcqkIop3OlCkkljvpSJi1hbeC1tbi8A=="],
 
     "@atproto/oauth-client": ["@atproto/oauth-client@0.5.7", "", { "dependencies": { "@atproto-labs/did-resolver": "0.2.2", "@atproto-labs/fetch": "0.2.3", "@atproto-labs/handle-resolver": "0.3.2", "@atproto-labs/identity-resolver": "0.3.2", "@atproto-labs/simple-store": "0.3.0", "@atproto-labs/simple-store-memory": "0.1.4", "@atproto/did": "0.2.1", "@atproto/jwk": "0.6.0", "@atproto/oauth-types": "0.4.2", "@atproto/xrpc": "0.7.5", "core-js": "^3", "multiformats": "^9.9.0", "zod": "^3.23.8" } }, "sha512-pDvbvy9DCxrAJv7bAbBUzWrHZKhFy091HvEMZhr+EyZA6gSCGYmmQJG/coDj0oICSVQeafAZd+IxR0YUCWwmEg=="],
-
-    "@atproto/oauth-client-browser": ["@atproto/oauth-client-browser@0.3.33", "", { "dependencies": { "@atproto-labs/did-resolver": "0.2.2", "@atproto-labs/handle-resolver": "0.3.2", "@atproto-labs/simple-store": "0.3.0", "@atproto/did": "0.2.1", "@atproto/jwk": "0.6.0", "@atproto/jwk-webcrypto": "0.2.0", "@atproto/oauth-client": "0.5.7", "@atproto/oauth-types": "0.4.2", "core-js": "^3" } }, "sha512-IvHn/5W3e9GXFUGXQ4MV19E4HXY4zJFgu+eZRWexIXnZl4GwgTH7op8J1SosczdOK1Ngu+LnHE6npcNhUGGd6Q=="],
 
     "@atproto/oauth-client-node": ["@atproto/oauth-client-node@0.3.9", "", { "dependencies": { "@atproto-labs/did-resolver": "0.2.2", "@atproto-labs/handle-resolver-node": "0.1.20", "@atproto-labs/simple-store": "0.3.0", "@atproto/did": "0.2.1", "@atproto/jwk": "0.6.0", "@atproto/jwk-jose": "0.1.11", "@atproto/jwk-webcrypto": "0.2.0", "@atproto/oauth-client": "0.5.7", "@atproto/oauth-types": "0.4.2" } }, "sha512-JdzwDQ8Gczl0lgfJNm7lG7omkJ4yu99IuGkkRWixpEvKY/jY/mDZaho+3pfd29SrUvwQOOx4Bm4l7DGeYwxxyA=="],
 
