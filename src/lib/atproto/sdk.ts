@@ -46,8 +46,6 @@ export const resolvePublicUrl = (): string => {
   );
 };
 
-const PUBLIC_URL = resolvePublicUrl();
-
 /**
  * ATProto SDK instance configured for OAuth authentication.
  *
@@ -58,52 +56,76 @@ const PUBLIC_URL = resolvePublicUrl();
  *
  * Sessions are stored in Supabase (atproto_oauth_session table).
  * Auth flow state is stored temporarily in Supabase (atproto_oauth_state table).
+ *
+ * Lazily initialised on first use so that missing env vars only throw at
+ * runtime (when a request actually hits an auth route), not at build time
+ * when Next.js collects page data.
  */
-const atprotoJwkPrivate = process.env.ATPROTO_JWK_PRIVATE;
-if (!atprotoJwkPrivate) {
-  throw new Error("ATPROTO_JWK_PRIVATE is not set");
+let _atprotoSDK: ReturnType<typeof createATProtoSDK> | undefined;
+
+export function getAtprotoSDK(): ReturnType<typeof createATProtoSDK> {
+  if (_atprotoSDK) return _atprotoSDK;
+
+  const PUBLIC_URL = resolvePublicUrl();
+
+  const atprotoJwkPrivate = process.env.ATPROTO_JWK_PRIVATE;
+  if (!atprotoJwkPrivate) {
+    throw new Error("ATPROTO_JWK_PRIVATE is not set");
+  }
+
+  /**
+   * Development OAuth Configuration (Loopback Client)
+   *
+   * RFC 8252 compliant loopback client for local development.
+   * - Uses http://localhost (no port) in client ID per RFC 8252
+   * - Actual redirect URI uses 127.0.0.1:8910
+   * - No client authentication required (token_endpoint_auth_method: "none")
+   * - Application type: "native"
+   */
+  const DEV_OAUTH_CONFIG = {
+    clientId: `http://localhost?scope=${encodeURIComponent(OAUTH_SCOPE)}&redirect_uri=${encodeURIComponent(`${PUBLIC_URL}/api/oauth/callback`)}`,
+    redirectUri: `${PUBLIC_URL}/api/oauth/callback`,
+    jwksUri: `${PUBLIC_URL}/.well-known/jwks.json`,
+    jwkPrivate: atprotoJwkPrivate,
+    scope: OAUTH_SCOPE,
+  };
+
+  /**
+   * Production OAuth Configuration (Web Client)
+   *
+   * Standard web client using client metadata endpoint.
+   * - Client ID points to metadata endpoint
+   * - Uses private_key_jwt authentication
+   * - Application type: "web"
+   */
+  const PROD_OAUTH_CONFIG = {
+    clientId: `${PUBLIC_URL}/client-metadata.json`,
+    redirectUri: `${PUBLIC_URL}/api/oauth/callback`,
+    jwksUri: `${PUBLIC_URL}/.well-known/jwks.json`,
+    jwkPrivate: atprotoJwkPrivate,
+    scope: OAUTH_SCOPE,
+  };
+
+  _atprotoSDK = createATProtoSDK({
+    oauth: isDev ? DEV_OAUTH_CONFIG : PROD_OAUTH_CONFIG,
+    servers: {
+      pds: `https://${allowedPDSDomains[0]}`,
+    },
+    storage: {
+      sessionStore: createSupabaseSessionStore(supabase, APP_ID),
+      stateStore: createSupabaseStateStore(supabase, APP_ID),
+    },
+  });
+
+  return _atprotoSDK;
 }
 
 /**
- * Development OAuth Configuration (Loopback Client)
- *
- * RFC 8252 compliant loopback client for local development.
- * - Uses http://localhost (no port) in client ID per RFC 8252
- * - Actual redirect URI uses 127.0.0.1:8910
- * - No client authentication required (token_endpoint_auth_method: "none")
- * - Application type: "native"
+ * @deprecated Use `getAtprotoSDK()` instead. This export is kept for
+ * backwards compatibility but will be removed in a follow-up.
  */
-export const DEV_OAUTH_CONFIG = {
-  clientId: `http://localhost?scope=${encodeURIComponent(OAUTH_SCOPE)}&redirect_uri=${encodeURIComponent(`${PUBLIC_URL}/api/oauth/callback`)}`,
-  redirectUri: `${PUBLIC_URL}/api/oauth/callback`,
-  jwksUri: `${PUBLIC_URL}/.well-known/jwks.json`,
-  jwkPrivate: atprotoJwkPrivate,
-  scope: OAUTH_SCOPE,
-};
-
-/**
- * Production OAuth Configuration (Web Client)
- *
- * Standard web client using client metadata endpoint.
- * - Client ID points to metadata endpoint
- * - Uses private_key_jwt authentication
- * - Application type: "web"
- */
-export const PROD_OAUTH_CONFIG = {
-  clientId: `${PUBLIC_URL}/client-metadata.json`,
-  redirectUri: `${PUBLIC_URL}/api/oauth/callback`,
-  jwksUri: `${PUBLIC_URL}/.well-known/jwks.json`,
-  jwkPrivate: atprotoJwkPrivate,
-  scope: OAUTH_SCOPE,
-};
-
-export const atprotoSDK = createATProtoSDK({
-  oauth: isDev ? DEV_OAUTH_CONFIG : PROD_OAUTH_CONFIG,
-  servers: {
-    pds: `https://${allowedPDSDomains[0]}`,
-  },
-  storage: {
-    sessionStore: createSupabaseSessionStore(supabase, APP_ID),
-    stateStore: createSupabaseStateStore(supabase, APP_ID),
+export const atprotoSDK = new Proxy({} as ReturnType<typeof createATProtoSDK>, {
+  get(_target, prop) {
+    return getAtprotoSDK()[prop as keyof ReturnType<typeof createATProtoSDK>];
   },
 });
