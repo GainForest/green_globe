@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { Download } from "lucide-react";
+import JSZip from "jszip";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,10 @@ import { Button } from "@/components/ui/button";
 import { SlidingTabs, Underlay, Tab } from "@/components/ui/sliding-tabs";
 import useProjectOverlayStore from "../../../store";
 import { NormalizedTreeProperties } from "@/app/(map-routes)/(main)/_components/ProjectOverlay/store/types";
+import { assembleDwca } from "@/lib/gbif/dwca";
+import type { PdsOccurrenceRecord } from "@/lib/gbif/dwca/occurrence-writer";
+import type { PdsMeasurementRecord } from "@/lib/gbif/dwca/measurement-writer";
+import type { DwcaEmlInput } from "@/lib/gbif/dwca/types";
 
 interface ExportDialogProps {
   selectedFilter: string;
@@ -31,6 +36,19 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const projectSlug = useProjectOverlayStore((state) => state.projectSlug);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [exportTab, setExportTab] = useState("complete");
+
+  // Compute DwC-A summary counts for preview
+  const dwcaSummary = useMemo(() => {
+    const occurrenceCount = projectTrees.length;
+    const measurementCount = projectTrees.length * 2; // height + DBH per tree
+    const mediaCount = projectTrees.filter(
+      (t) =>
+        (t.awsUrl && t.awsUrl !== "") ||
+        (t.leafAwsUrl && t.leafAwsUrl !== "") ||
+        (t.barkAwsUrl && t.barkAwsUrl !== "")
+    ).length;
+    return { occurrenceCount, measurementCount, mediaCount };
+  }, [projectTrees]);
 
   // Generate preview data based on selected export type
   const previewData = useMemo(() => {
@@ -73,9 +91,106 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
     }
   }, [exportTab, selectedFilter, projectTrees, speciesGroups, heightGroups]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const slug = projectSlug ?? "untitled";
+
+    if (exportTab === "dwca") {
+      // Build occurrence records
+      const occurrences: PdsOccurrenceRecord[] = projectTrees.map(
+        (tree, idx) => {
+          const mediaUrls = [tree.awsUrl, tree.leafAwsUrl, tree.barkAwsUrl]
+            .filter((u): u is string => Boolean(u))
+            .join("|");
+
+          return {
+            occurrenceID: String(idx + 1),
+            basisOfRecord: "HumanObservation",
+            scientificName: tree.species,
+            kingdom: "Plantae",
+            decimalLatitude: tree.lat != null ? String(tree.lat) : undefined,
+            decimalLongitude: tree.lon != null ? String(tree.lon) : undefined,
+            eventDate: tree.dateMeasured,
+            associatedMedia: mediaUrls || undefined,
+          };
+        }
+      );
+
+      // Build measurement records
+      const measurements: PdsMeasurementRecord[] = [];
+      projectTrees.forEach((tree, idx) => {
+        const occurrenceID = String(idx + 1);
+        if (tree.Height) {
+          measurements.push({
+            occurrenceID,
+            measurementID: `${occurrenceID}-height`,
+            measurementType: "height",
+            measurementValue: tree.Height,
+            measurementUnit: "m",
+          });
+        }
+        if (tree.DBH) {
+          measurements.push({
+            occurrenceID,
+            measurementID: `${occurrenceID}-dbh`,
+            measurementType: "DBH",
+            measurementValue: tree.DBH,
+            measurementUnit: "cm",
+          });
+        }
+      });
+
+      // Build occurrenceUriToId map (index-based IDs)
+      const occurrenceUriToId = new Map<string, string>();
+      projectTrees.forEach((_tree, idx) => {
+        occurrenceUriToId.set(String(idx + 1), String(idx + 1));
+      });
+
+      // Build EML input
+      const emlInput: DwcaEmlInput = {
+        datasetTitle: `Tree Data - ${slug}`,
+        abstract: "Tree planting and measurement data",
+        license: "CC-BY",
+        organizationName: slug || "GainForest",
+        contactEmail: "info@gainforest.earth",
+        contactName: "GainForest",
+      };
+
+      // Assemble DwC-A archive
+      const archiveFiles = assembleDwca({
+        data: {
+          occurrences,
+          measurements,
+          multimedia: [],
+          occurrenceUriToId,
+          orgDid: "",
+        },
+        eml: emlInput,
+        pdsEndpoint: "",
+      });
+
+      // Create ZIP using JSZip
+      const zip = new JSZip();
+      for (const [filename, content] of Object.entries(archiveFiles)) {
+        zip.file(filename, content);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `dwca-${slug}.zip`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setDialogOpen(false);
+      return;
+    }
+
     let csvContent = "";
-    let filename = `tree-data-${projectSlug ?? "untitled"}.csv`;
+    let filename = `tree-data-${slug}.csv`;
 
     if (exportTab === "complete") {
       // Export all tree data
@@ -107,7 +222,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
       filename = "complete-tree-data.csv";
     } else {
       // Export filtered data
-      filename = `${selectedFilter}-distribution-${projectSlug ?? "untitled"}.csv`;
+      filename = `${selectedFilter}-distribution-${slug}.csv`;
       if (selectedFilter === "species") {
         // Export species data
         csvContent = "Species,Count\n";
@@ -180,6 +295,16 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                 Filtered Data
               </Button>
             </Tab>
+            <Tab tabKey="dwca" asChild>
+              <Button
+                variant="ghost"
+                className="flex-1 relative z-10 disabled:opacity-100"
+                disabled={exportTab === "dwca"}
+                onClick={() => setExportTab("dwca")}
+              >
+                Darwin Core
+              </Button>
+            </Tab>
           </SlidingTabs>
 
           <div className="mt-6">
@@ -188,89 +313,125 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                 Export all tree data from this project, including all species
                 and measurements.
               </p>
-            ) : (
+            ) : exportTab === "filtered" ? (
               <p className="text-sm text-muted-foreground">
                 Export tree data grouped by {selectedFilter}, as shown in the
                 current view.
               </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Export as a GBIF-compatible Darwin Core Archive (DwC-A) ZIP
+                file. Includes occurrence records, measurements, and media
+                references in standard biodiversity format.
+              </p>
             )}
           </div>
 
-          {/* Preview Table */}
-          <div className="mt-4">
-            <h4 className="text-sm font-medium mb-2">Preview</h4>
-            <div className="border rounded-md overflow-x-scroll w-0 min-w-full [mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)]">
-              <div className="flex items-start">
-                <table className="min-w-full divide-y divide-border">
-                  <thead className="bg-muted">
-                    <tr>
-                      {previewData.headers.map((header, i) => (
-                        <th
-                          key={i}
-                          className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap"
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-card divide-y divide-border">
-                    {previewData.rows.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
-                        {row.map((cell, cellIndex) => (
-                          <td
-                            key={cellIndex}
-                            className="px-3 py-2 text-sm whitespace-nowrap text-card-foreground"
-                          >
-                            {cell}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                    {previewData.rows.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={previewData.headers.length || 1}
-                          className="px-3 py-4 text-sm text-center text-muted-foreground"
-                        >
-                          No data to preview
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+          {/* Preview / Summary */}
+          {exportTab === "dwca" ? (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Summary</h4>
+              <div className="border rounded-md p-4 space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {dwcaSummary.occurrenceCount} occurrence records
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {dwcaSummary.measurementCount} measurement records (estimated:
+                  2 per tree — height + DBH)
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {dwcaSummary.mediaCount} media references (estimated)
+                </p>
               </div>
             </div>
-            <div className="flex items-center justify-center">
-              {projectTrees.length > 4 && exportTab === "complete" && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {projectTrees.length - 4} more rows not shown in preview
-                </p>
-              )}
-              {selectedFilter === "species" &&
-                speciesGroups.length > 4 &&
-                exportTab === "filtered" && (
+          ) : (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Preview</h4>
+              <div className="border rounded-md overflow-x-scroll w-0 min-w-full [mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)]">
+                <div className="flex items-start">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted">
+                      <tr>
+                        {previewData.headers.map((header, i) => (
+                          <th
+                            key={i}
+                            className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-card divide-y divide-border">
+                      {previewData.rows.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {row.map((cell, cellIndex) => (
+                            <td
+                              key={cellIndex}
+                              className="px-3 py-2 text-sm whitespace-nowrap text-card-foreground"
+                            >
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                      {previewData.rows.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={previewData.headers.length || 1}
+                            className="px-3 py-4 text-sm text-center text-muted-foreground"
+                          >
+                            No data to preview
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="flex items-center justify-center">
+                {projectTrees.length > 4 && exportTab === "complete" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {speciesGroups.length - 4} more species not shown in preview
+                    {projectTrees.length - 4} more rows not shown in preview
                   </p>
                 )}
-              {selectedFilter === "height" &&
-                heightGroups.length > 4 &&
-                exportTab === "filtered" && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {heightGroups.length - 4} more height ranges not shown in
-                    preview
-                  </p>
-                )}
+                {selectedFilter === "species" &&
+                  speciesGroups.length > 4 &&
+                  exportTab === "filtered" && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {speciesGroups.length - 4} more species not shown in
+                      preview
+                    </p>
+                  )}
+                {selectedFilter === "height" &&
+                  heightGroups.length > 4 &&
+                  exportTab === "filtered" && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {heightGroups.length - 4} more height ranges not shown in
+                      preview
+                    </p>
+                  )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <DialogFooter className="mt-6">
           <Button variant="outline" onClick={() => setDialogOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleExport}>Download</Button>
+          {exportTab === "dwca" ? (
+            <Button
+              onClick={handleExport}
+              disabled={projectTrees.length === 0}
+            >
+              {projectTrees.length === 0
+                ? "No tree data to export"
+                : "Download ZIP"}
+            </Button>
+          ) : (
+            <Button onClick={handleExport}>Download</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
