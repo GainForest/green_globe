@@ -17,7 +17,8 @@
  *     --measured-trees-only \
  *     --out tmp/bees-and-trees-comboni-dwca.zip \
  *     [--service https://climateai.org] \
- *     [--dry-run]
+ *     [--dry-run] \
+ *     [--occurrence-only]
  *
  * Arguments:
  *   --handle              (required) PDS handle or DID of the organization
@@ -28,6 +29,7 @@
  *   --license             (required) One of: CC0, CC-BY, CC-BY-NC
  *   --out                 (required) Output ZIP file path
  *   --measured-trees-only           Only export HumanObservation records with dataType=measuredTree
+ *   --occurrence-only               Output only occurrence.txt + meta.xml + eml.xml (no extensions)
  *   --service                       PDS service URL (default: https://climateai.org)
  *   --dry-run                       Fetch and assemble but don't write ZIP; print summary to stdout
  */
@@ -51,6 +53,7 @@ type ParsedArgs = {
   license: 'CC0' | 'CC-BY' | 'CC-BY-NC'
   out: string
   measuredTreesOnly: boolean
+  occurrenceOnly: boolean
   service: string
   dryRun: boolean
 }
@@ -204,6 +207,7 @@ Required arguments:
 
 Optional arguments:
   --measured-trees-only Only export HumanObservation records with dataType=measuredTree
+  --occurrence-only     Output only occurrence.txt + meta.xml + eml.xml (no extensions)
   --service             PDS service URL (default: https://climateai.org)
   --dry-run             Fetch and assemble but don't write ZIP; print summary to stdout
 `.trim()
@@ -264,6 +268,7 @@ function parseArgs(argv: string[]): ParsedArgs | null {
     license: licenseRaw as 'CC0' | 'CC-BY' | 'CC-BY-NC',
     out: out!,
     measuredTreesOnly: has('--measured-trees-only'),
+    occurrenceOnly: has('--occurrence-only'),
     service: get('--service') ?? 'https://climateai.org',
     dryRun: has('--dry-run'),
   }
@@ -281,6 +286,9 @@ async function main(): Promise<void> {
   console.log(`PDS service: ${args.service}`)
   if (args.measuredTreesOnly) {
     console.log('Filter: measured trees only (basisOfRecord=HumanObservation, dataType=measuredTree)')
+  }
+  if (args.occurrenceOnly) {
+    console.log('Mode: occurrence-only (extensions skipped — output: occurrence.txt, meta.xml, eml.xml)')
   }
 
   // 1. Fetch records from PDS
@@ -321,6 +329,7 @@ async function main(): Promise<void> {
     eml: emlInput,
     pdsEndpoint: args.service,
     defaultMultimediaLicense: 'http://creativecommons.org/licenses/by/4.0/legalcode',
+    occurrenceOnly: args.occurrenceOnly,
   })
 
   // 5. Compute summary stats
@@ -342,6 +351,9 @@ async function main(): Promise<void> {
   // 6. Dry-run: print summary and file contents, then exit
   if (args.dryRun) {
     console.log('\n--- DRY RUN SUMMARY ---')
+    if (args.occurrenceOnly) {
+      console.log('Mode:          occurrence-only (extensions skipped)')
+    }
     console.log(`Occurrences:   ${occurrenceCount}`)
     console.log(`Measurements:  ${measurementCount}`)
     console.log(`Multimedia:    ${multimediaCount}`)
@@ -378,6 +390,9 @@ async function main(): Promise<void> {
 
   // 9. Print summary
   console.log('\n--- EXPORT SUMMARY ---')
+  if (args.occurrenceOnly) {
+    console.log('Mode:          occurrence-only (extensions skipped)')
+  }
   console.log(`Occurrences:   ${occurrenceCount}`)
   console.log(`Measurements:  ${measurementCount}`)
   console.log(`Multimedia:    ${multimediaCount}`)

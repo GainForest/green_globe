@@ -27,6 +27,8 @@ export type AssembleOptions = {
   pdsEndpoint: string
   /** Default license URL for multimedia extension rows */
   defaultMultimediaLicense?: string
+  /** If true, skip all extensions — output only occurrence.txt + meta.xml + eml.xml */
+  occurrenceOnly?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -105,31 +107,39 @@ function computeTemporalRange(
  * 8. Return DwcaArchiveFiles (omit extension files that contain only the header)
  */
 export function assembleDwca(options: AssembleOptions): DwcaArchiveFiles {
-  const { data, eml, pdsEndpoint, defaultMultimediaLicense } = options
+  const { data, eml, pdsEndpoint, defaultMultimediaLicense, occurrenceOnly } = options
 
   // Step 1: occurrence.txt
   const occurrenceTsv = writeOccurrenceTsv(data.occurrences)
 
-  // Step 2: measurementOrFact.txt
-  const measurementTsv = writeMeasurementTsv(
-    data.measurements,
-    data.occurrenceUriToId
-  )
+  // Step 2 & 3: skip extensions when occurrenceOnly is true
+  let hasMeasurements = false
+  let hasMultimedia = false
+  let measurementTsv = ''
+  let multimediaTsv = ''
 
-  // Step 3: multimedia.txt
-  const multimediaTsv = writeMultimediaTsv(
-    data.multimedia,
-    data.occurrenceUriToId,
-    {
-      pdsEndpoint,
-      orgDid: data.orgDid,
-      defaultLicense: defaultMultimediaLicense,
-    }
-  )
+  if (!occurrenceOnly) {
+    // Step 2: measurementOrFact.txt
+    measurementTsv = writeMeasurementTsv(
+      data.measurements,
+      data.occurrenceUriToId
+    )
 
-  // Step 4: determine which extensions have data rows (more than just the header)
-  const hasMeasurements = measurementTsv.split('\n').filter(Boolean).length > 1
-  const hasMultimedia = multimediaTsv.split('\n').filter(Boolean).length > 1
+    // Step 3: multimedia.txt
+    multimediaTsv = writeMultimediaTsv(
+      data.multimedia,
+      data.occurrenceUriToId,
+      {
+        pdsEndpoint,
+        orgDid: data.orgDid,
+        defaultLicense: defaultMultimediaLicense,
+      }
+    )
+
+    // Step 4: determine which extensions have data rows (more than just the header)
+    hasMeasurements = measurementTsv.split('\n').filter(Boolean).length > 1
+    hasMultimedia = multimediaTsv.split('\n').filter(Boolean).length > 1
+  }
 
   // Step 5: meta.xml
   const metaXml = writeMetaXml({
