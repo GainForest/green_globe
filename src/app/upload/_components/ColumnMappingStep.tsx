@@ -31,6 +31,13 @@ const REQUIRED_FIELDS = [
   "decimalLongitude",
 ] as const;
 
+/** Sentinel value used for the "Skip this column" Select option.
+ *  Radix UI @radix-ui/react-select throws a runtime error when a
+ *  SelectItem has an empty-string value, so we use this non-empty
+ *  sentinel and treat it as "no mapping" in handleSelectChange.
+ */
+const SKIP_SENTINEL = "__skip__";
+
 // Group TARGET_FIELDS by category
 const OCCURRENCE_REQUIRED = TARGET_FIELDS.filter(
   (f) => f.category === "occurrence" && f.required
@@ -52,9 +59,12 @@ function getSampleValue(
   return "";
 }
 
-/** Get the current target field mapped to a source column (or "" if none) */
+/** Get the current target field mapped to a source column.
+ *  Returns SKIP_SENTINEL when no mapping exists so the Radix Select
+ *  never receives an empty-string value (which would throw at runtime).
+ */
 function getMappedTarget(mappings: ColumnMapping[], sourceColumn: string): string {
-  return mappings.find((m) => m.sourceColumn === sourceColumn)?.targetField ?? "";
+  return mappings.find((m) => m.sourceColumn === sourceColumn)?.targetField ?? SKIP_SENTINEL;
 }
 
 export default function ColumnMappingStep({
@@ -100,7 +110,8 @@ export default function ColumnMappingStep({
 
   const handleSelectChange = (sourceColumn: string, newTarget: string) => {
     const updated = mappings.filter((m) => m.sourceColumn !== sourceColumn);
-    if (newTarget !== "") {
+    // Treat SKIP_SENTINEL as "no mapping" — don't push an entry for it.
+    if (newTarget !== SKIP_SENTINEL) {
       updated.push({ sourceColumn, targetField: newTarget });
     }
     onMappingsChange(updated);
@@ -159,9 +170,9 @@ export default function ColumnMappingStep({
             const currentTarget = getMappedTarget(mappings, header);
             const sampleValue = getSampleValue(parsedData, header);
             const isDuplicate =
-              currentTarget !== "" &&
+              currentTarget !== SKIP_SENTINEL &&
               duplicateSourceColumns.has(`${header}::${currentTarget}`);
-            const isMapped = currentTarget !== "";
+            const isMapped = currentTarget !== SKIP_SENTINEL;
             const targetMeta = TARGET_FIELDS.find((f) => f.field === currentTarget);
             const isRequiredField = targetMeta?.required ?? false;
 
@@ -207,8 +218,8 @@ export default function ColumnMappingStep({
                       <SelectValue placeholder="Skip this column" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Skip option */}
-                      <SelectItem value="">
+                       {/* Skip option — must use a non-empty sentinel; Radix throws on value="" */}
+                      <SelectItem value={SKIP_SENTINEL}>
                         <span className="text-muted-foreground">Skip this column</span>
                       </SelectItem>
 
