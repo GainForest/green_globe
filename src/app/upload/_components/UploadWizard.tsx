@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ColumnMapping, ValidationResult } from "@/lib/upload/types";
+import type { ColumnMapping, ValidatedRow, ValidationResult } from "@/lib/upload/types";
 import FileDropStep from "./FileDropStep";
 import ColumnMappingStep from "./ColumnMappingStep";
+import PreviewStep from "./PreviewStep";
 
 type WizardState = {
   currentStep: 1 | 2 | 3 | 4;
@@ -13,6 +14,7 @@ type WizardState = {
   headers: string[] | null;
   mappings: ColumnMapping[];
   validationResult: ValidationResult | null;
+  validRows: ValidatedRow[];
 };
 
 const STEP_LABELS: Record<number, string> = {
@@ -30,6 +32,7 @@ export default function UploadWizard() {
     headers: null,
     mappings: [],
     validationResult: null,
+    validRows: [],
   });
 
   const handleFileAndMappings = (
@@ -57,6 +60,14 @@ export default function UploadWizard() {
 
   const handleMappingsChange = (mappings: ColumnMapping[]) => {
     setState((prev) => ({ ...prev, mappings }));
+  };
+
+  const handlePreviewNext = (validRows: ValidatedRow[]) => {
+    setState((prev) => ({
+      ...prev,
+      validRows,
+      currentStep: 4,
+    }));
   };
 
   return (
@@ -111,10 +122,13 @@ export default function UploadWizard() {
             onBack={handleBack}
           />
         )}
-        {state.currentStep === 3 && (
-          <div className="py-8 text-center text-muted-foreground">
-            Step 3: Preview &amp; Validate (coming soon)
-          </div>
+        {state.currentStep === 3 && state.parsedData && (
+          <PreviewStep
+            parsedData={state.parsedData}
+            mappings={state.mappings}
+            onNext={handlePreviewNext}
+            onBack={handleBack}
+          />
         )}
         {state.currentStep === 4 && (
           <div className="py-8 text-center text-muted-foreground">
