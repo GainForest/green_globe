@@ -62,16 +62,27 @@ export type PublishOptions = {
     position?: string
   }
   skipValidation?: boolean
+  /**
+   * When true, the orchestrator stops after generate/upload/validate and does
+   * NOT register the dataset with GBIF or trigger a crawl.
+   */
+  dryRun?: boolean
 }
 
 export type PublishResult = {
-  gbifDatasetKey: string
-  gbifEndpointKey: number
+  /** Present for full publish runs; undefined for dry-run. */
+  gbifDatasetKey?: string
+  /** Present for full publish runs; undefined for dry-run. */
+  gbifEndpointKey?: number
   archiveBlobCid: string
   archiveBlobUrl: string
+  /** false for dry-run (crawl is never triggered). */
   crawlTriggered: boolean
   validationPassed: boolean | null
-  isNewDataset: boolean
+  /** Present for full publish runs; undefined for dry-run. */
+  isNewDataset?: boolean
+  /** true when the orchestrator stopped before the register/crawl steps. */
+  isDryRun: boolean
 }
 
 export type PublishProgress = {
@@ -209,6 +220,7 @@ export async function publishToGbif(
     description,
     contact,
     skipValidation = false,
+    dryRun = false,
   } = options
 
   // -------------------------------------------------------------------------
@@ -302,6 +314,19 @@ export async function publishToGbif(
         `GBIF validation error: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err : undefined,
       )
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Dry-run: stop here — do NOT register or crawl
+  // -------------------------------------------------------------------------
+  if (dryRun) {
+    return {
+      archiveBlobCid,
+      archiveBlobUrl,
+      crawlTriggered: false,
+      validationPassed,
+      isDryRun: true,
     }
   }
 
@@ -444,5 +469,6 @@ export async function publishToGbif(
     crawlTriggered,
     validationPassed,
     isNewDataset,
+    isDryRun: false,
   }
 }

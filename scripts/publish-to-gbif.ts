@@ -31,16 +31,7 @@ import {
   PublishError,
 } from '../src/lib/gbif/publisher'
 import type { PublishOptions } from '../src/lib/gbif/publisher'
-import {
-  submitUrlForValidation,
-  pollValidationUntilComplete,
-  isValidationIndexeable,
-} from '../src/lib/gbif/api/validator-client'
-import { uploadAndGetUrl } from '../src/lib/gbif/pds-archive-host'
-import { fetchDwcaRecords, assembleDwca } from '../src/lib/gbif/dwca/index'
-import type { DwcaEmlInput } from '../src/lib/gbif/dwca/index'
 import { PDS_ENDPOINT } from '../src/config/atproto'
-import { deflateRawSync, crc32 } from 'node:zlib'
 
 // ---------------------------------------------------------------------------
 // Argument parsing
@@ -146,105 +137,6 @@ function validateEnv(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Internal ZIP builder (no external dependencies)
-// Mirrors the buildZip helper in publisher.ts
-// ---------------------------------------------------------------------------
-
-type ZipEntry = {
-  filename: string
-  crc: number
-  compressedData: Buffer
-  compressedSize: number
-  uncompressedSize: number
-  offset: number
-}
-
-function buildZip(files: Record<string, string>): Buffer {
-  const entries: ZipEntry[] = []
-  const localParts: Buffer[] = []
-  let currentOffset = 0
-
-  for (const [filename, content] of Object.entries(files)) {
-    const rawData = Buffer.from(content, 'utf8')
-    const uncompressedSize = rawData.length
-    const crcValue = crc32(rawData) as unknown as number
-    const compressedData = deflateRawSync(rawData)
-    const compressedSize = compressedData.length
-    const filenameBytes = Buffer.from(filename, 'utf8')
-    const filenameLen = filenameBytes.length
-
-    const localHeader = Buffer.alloc(30 + filenameLen)
-    localHeader.writeUInt32LE(0x04034b50, 0)
-    localHeader.writeUInt16LE(20, 4)
-    localHeader.writeUInt16LE(0x0800, 6)
-    localHeader.writeUInt16LE(8, 8)
-    localHeader.writeUInt16LE(0, 10)
-    localHeader.writeUInt16LE(0, 12)
-    localHeader.writeUInt32LE(crcValue, 14)
-    localHeader.writeUInt32LE(compressedSize, 18)
-    localHeader.writeUInt32LE(uncompressedSize, 22)
-    localHeader.writeUInt16LE(filenameLen, 26)
-    localHeader.writeUInt16LE(0, 28)
-    filenameBytes.copy(localHeader, 30)
-
-    entries.push({
-      filename,
-      crc: crcValue,
-      compressedData,
-      compressedSize,
-      uncompressedSize,
-      offset: currentOffset,
-    })
-
-    currentOffset += localHeader.length + compressedData.length
-    localParts.push(localHeader, compressedData)
-  }
-
-  const centralParts: Buffer[] = []
-  let centralDirSize = 0
-
-  for (const entry of entries) {
-    const filenameBytes = Buffer.from(entry.filename, 'utf8')
-    const filenameLen = filenameBytes.length
-    const centralHeader = Buffer.alloc(46 + filenameLen)
-
-    centralHeader.writeUInt32LE(0x02014b50, 0)
-    centralHeader.writeUInt16LE(20, 4)
-    centralHeader.writeUInt16LE(20, 6)
-    centralHeader.writeUInt16LE(0x0800, 8)
-    centralHeader.writeUInt16LE(8, 10)
-    centralHeader.writeUInt16LE(0, 12)
-    centralHeader.writeUInt16LE(0, 14)
-    centralHeader.writeUInt32LE(entry.crc, 16)
-    centralHeader.writeUInt32LE(entry.compressedSize, 20)
-    centralHeader.writeUInt32LE(entry.uncompressedSize, 24)
-    centralHeader.writeUInt16LE(filenameLen, 28)
-    centralHeader.writeUInt16LE(0, 30)
-    centralHeader.writeUInt16LE(0, 32)
-    centralHeader.writeUInt16LE(0, 34)
-    centralHeader.writeUInt16LE(0, 36)
-    centralHeader.writeUInt32LE(0, 38)
-    centralHeader.writeUInt32LE(entry.offset, 42)
-    filenameBytes.copy(centralHeader, 46)
-
-    centralParts.push(centralHeader)
-    centralDirSize += centralHeader.length
-  }
-
-  const eocd = Buffer.alloc(22)
-  eocd.writeUInt32LE(0x06054b50, 0)
-  eocd.writeUInt16LE(0, 4)
-  eocd.writeUInt16LE(0, 6)
-  eocd.writeUInt16LE(entries.length, 8)
-  eocd.writeUInt16LE(entries.length, 10)
-  eocd.writeUInt32LE(centralDirSize, 12)
-  eocd.writeUInt32LE(currentOffset, 16)
-  eocd.writeUInt16LE(0, 20)
-
-  return Buffer.concat([...localParts, ...centralParts, eocd])
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -297,101 +189,7 @@ async function main(): Promise<void> {
   const contactLastName = contactNameParts[contactNameParts.length - 1] ?? ''
 
   // ---------------------------------------------------------------------------
-  // Dry-run flow: generate, upload, validate — but do NOT register or crawl
-  // ---------------------------------------------------------------------------
-  if (args.dryRun) {
-    console.log('[generate] Generating DwC-A archive...')
-
-    let archiveBuffer: Uint8Array
-    try {
-      const fetchResult = await fetchDwcaRecords({
-        pdsEndpoint: PDS_ENDPOINT,
-        orgIdentifier: args.did,
-      })
-
-      const emlInput: DwcaEmlInput = {
-        datasetTitle: args.title,
-        abstract: args.description,
-        license: 'CC-BY',
-        organizationName: 'GainForest',
-        contactEmail: args.contactEmail,
-        contactName: args.contactName,
-        language: 'en',
-      }
-
-      const archiveFiles = assembleDwca({
-        data: fetchResult,
-        eml: emlInput,
-        pdsEndpoint: PDS_ENDPOINT,
-        defaultMultimediaLicense:
-          'http://creativecommons.org/licenses/by/4.0/legalcode',
-      })
-
-      archiveBuffer = buildZip(archiveFiles)
-
-      const occurrenceLines = (archiveFiles['occurrence.txt'] ?? '')
-        .split('\n')
-        .filter(Boolean)
-      const occurrenceCount = Math.max(0, occurrenceLines.length - 1)
-      console.log(`[generate] Archive generated: ${occurrenceCount} occurrence(s)`)
-    } catch (err) {
-      console.error(
-        `[generate] Failed to generate archive: ${err instanceof Error ? err.message : String(err)}`,
-      )
-      process.exit(1)
-    }
-
-    console.log('[upload] Uploading archive to PDS...')
-
-    let blobUrl: string
-    try {
-      const uploaded = await uploadAndGetUrl(agent, args.did, archiveBuffer)
-      blobUrl = uploaded.url
-      console.log(`[upload] Blob uploaded: ${blobUrl}`)
-    } catch (err) {
-      console.error(
-        `[upload] Failed to upload archive: ${err instanceof Error ? err.message : String(err)}`,
-      )
-      process.exit(1)
-    }
-
-    if (!args.skipValidation) {
-      console.log('[validate] Validating archive with GBIF...')
-
-      try {
-        const submitted = await submitUrlForValidation(blobUrl)
-        console.log(`[validate] Validation job submitted: key=${submitted.key}`)
-        const finalValidation = await pollValidationUntilComplete(submitted.key)
-        const passed = isValidationIndexeable(finalValidation)
-
-        console.log()
-        console.log('--- DRY RUN VALIDATION RESULT ---')
-        console.log(`Status:  ${finalValidation.status}`)
-        console.log(`Passed:  ${passed ? 'YES' : 'NO'}`)
-        if (!passed) {
-          console.log(
-            `Error:   ${finalValidation.metrics?.error ?? 'unknown'}`,
-          )
-        }
-        console.log('--- END DRY RUN ---')
-      } catch (err) {
-        console.error(
-          `[validate] Validation error: ${err instanceof Error ? err.message : String(err)}`,
-        )
-        process.exit(1)
-      }
-    } else {
-      console.log()
-      console.log('--- DRY RUN COMPLETE (validation skipped) ---')
-      console.log(`Blob URL: ${blobUrl}`)
-      console.log('--- END DRY RUN ---')
-    }
-
-    return
-  }
-
-  // ---------------------------------------------------------------------------
-  // Full publish flow
+  // Delegate entirely to publishToGbif (handles both dry-run and full publish)
   // ---------------------------------------------------------------------------
   const options: PublishOptions = {
     agent,
@@ -406,6 +204,7 @@ async function main(): Promise<void> {
       organization: 'GainForest',
     },
     skipValidation: args.skipValidation,
+    dryRun: args.dryRun,
   }
 
   let result
@@ -429,7 +228,25 @@ async function main(): Promise<void> {
   }
 
   // ---------------------------------------------------------------------------
-  // Success — print summary
+  // Dry-run summary
+  // ---------------------------------------------------------------------------
+  if (result.isDryRun) {
+    console.log()
+    if (args.skipValidation) {
+      console.log('--- DRY RUN COMPLETE (validation skipped) ---')
+      console.log(`Blob URL: ${result.archiveBlobUrl}`)
+    } else {
+      console.log('--- DRY RUN VALIDATION RESULT ---')
+      console.log(
+        `Passed:  ${result.validationPassed === null ? 'skipped' : result.validationPassed ? 'YES' : 'NO'}`,
+      )
+    }
+    console.log('--- END DRY RUN ---')
+    return
+  }
+
+  // ---------------------------------------------------------------------------
+  // Full publish summary
   // ---------------------------------------------------------------------------
   const gbifBaseUrl = isProduction()
     ? 'https://www.gbif.org'
