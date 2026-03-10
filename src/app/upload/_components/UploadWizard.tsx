@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ColumnMapping, ValidationResult } from "@/lib/upload/types";
 import FileDropStep from "./FileDropStep";
+import ColumnMappingStep from "./ColumnMappingStep";
 
 type WizardState = {
   currentStep: 1 | 2 | 3 | 4;
@@ -45,6 +46,17 @@ export default function UploadWizard() {
       ...prev,
       currentStep: Math.min(4, prev.currentStep + 1) as 1 | 2 | 3 | 4,
     }));
+  };
+
+  const handleBack = () => {
+    setState((prev) => ({
+      ...prev,
+      currentStep: Math.max(1, prev.currentStep - 1) as 1 | 2 | 3 | 4,
+    }));
+  };
+
+  const handleMappingsChange = (mappings: ColumnMapping[]) => {
+    setState((prev) => ({ ...prev, mappings }));
   };
 
   return (
@@ -89,10 +101,15 @@ export default function UploadWizard() {
             onNext={handleNext}
           />
         )}
-        {state.currentStep === 2 && (
-          <div className="py-8 text-center text-muted-foreground">
-            Step 2: Map Columns (coming soon)
-          </div>
+        {state.currentStep === 2 && state.headers && state.parsedData && (
+          <ColumnMappingStep
+            headers={state.headers}
+            parsedData={state.parsedData}
+            mappings={state.mappings}
+            onMappingsChange={handleMappingsChange}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
         )}
         {state.currentStep === 3 && (
           <div className="py-8 text-center text-muted-foreground">
