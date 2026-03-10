@@ -2,35 +2,50 @@ import type { ColumnMapping } from "@/lib/upload/types";
 
 /**
  * Known KoboToolbox field patterns mapped to Darwin Core target fields.
- * Each entry: [pattern, targetField, isGpsCombined?]
  *
  * isGpsCombined = true means the source column holds a combined
  * "lat lon alt accuracy" string that must be split into two mappings.
+ *
+ * koboSpecific = true means this pattern is a strong indicator of a
+ * KoboToolbox export (not a generic field name that appears in any CSV).
+ * At least one koboSpecific match is required for detectKoboFormat to
+ * return isKobo=true, preventing false positives on standard Darwin Core
+ * headers like eventDate (contains "date") or decimalLatitude (contains
+ * "latitude").
  */
 type KoboPattern = {
   pattern: string;
   targetField: string;
   /** If true, this column contains combined GPS data (lat lon alt accuracy) */
   gpsCombined?: boolean;
+  /** If true, this pattern is a strong KoboToolbox-specific indicator */
+  koboSpecific?: boolean;
 };
 
 const KOBO_PATTERNS: KoboPattern[] = [
   // Combined GPS field — handled specially: produces TWO mappings
-  { pattern: "gps", targetField: "decimalLatitude", gpsCombined: true },
-  { pattern: "geopoint", targetField: "decimalLatitude", gpsCombined: true },
+  // koboSpecific: these combined GPS fields are unique to KoboToolbox exports
+  { pattern: "gps", targetField: "decimalLatitude", gpsCombined: true, koboSpecific: true },
+  { pattern: "geopoint", targetField: "decimalLatitude", gpsCombined: true, koboSpecific: true },
 
   // Explicit latitude fields
-  { pattern: "_gps_latitude", targetField: "decimalLatitude" },
-  { pattern: "gps_latitude", targetField: "decimalLatitude" },
+  // koboSpecific: prefixed GPS fields are KoboToolbox-specific
+  { pattern: "_gps_latitude", targetField: "decimalLatitude", koboSpecific: true },
+  { pattern: "gps_latitude", targetField: "decimalLatitude", koboSpecific: true },
+  // generic: "latitude" also appears in standard CSVs
   { pattern: "latitude", targetField: "decimalLatitude" },
 
   // Explicit longitude fields
-  { pattern: "_gps_longitude", targetField: "decimalLongitude" },
-  { pattern: "gps_longitude", targetField: "decimalLongitude" },
+  // koboSpecific: prefixed GPS fields are KoboToolbox-specific
+  { pattern: "_gps_longitude", targetField: "decimalLongitude", koboSpecific: true },
+  { pattern: "gps_longitude", targetField: "decimalLongitude", koboSpecific: true },
+  // generic: "longitude" also appears in standard CSVs
   { pattern: "longitude", targetField: "decimalLongitude" },
 
   // Scientific name
-  { pattern: "plant_name", targetField: "scientificName" },
+  // koboSpecific: plant_name is KoboToolbox's species field
+  { pattern: "plant_name", targetField: "scientificName", koboSpecific: true },
+  // generic: species / scientific_name appear in any tree CSV
   { pattern: "species", targetField: "scientificName" },
   { pattern: "scientific_name", targetField: "scientificName" },
 
@@ -44,13 +59,15 @@ const KOBO_PATTERNS: KoboPattern[] = [
   { pattern: "canopy", targetField: "canopyCover" },
 
   // Date / time — explicit date fields take priority over submission_time
-  { pattern: "fcd-tree_records-tree_time", targetField: "eventDate" },
+  // koboSpecific: FCD tree time field is KoboToolbox-specific
+  { pattern: "fcd-tree_records-tree_time", targetField: "eventDate", koboSpecific: true },
+  // generic: "date" also appears in standard CSVs (e.g. eventDate contains "date")
   { pattern: "date", targetField: "eventDate" },
   { pattern: "observation_date", targetField: "eventDate" },
   { pattern: "survey_date", targetField: "eventDate" },
-  // Fallback (lower priority — only matched if no explicit date field matched)
-  { pattern: "_submission_time", targetField: "eventDate" },
-  { pattern: "submission_time", targetField: "eventDate" },
+  // koboSpecific: submission_time is KoboToolbox metadata
+  { pattern: "_submission_time", targetField: "eventDate", koboSpecific: true },
+  { pattern: "submission_time", targetField: "eventDate", koboSpecific: true },
 
   // Observer
   { pattern: "recorder", targetField: "recordedBy" },
@@ -155,9 +172,13 @@ export function getKoboColumnMappings(headers: string[]): ColumnMapping[] {
  * Auto-detect whether a set of CSV headers looks like a KoboToolbox export.
  *
  * Returns:
- *   - isKobo: true when confidence >= 0.3
+ *   - isKobo: true when confidence >= 0.3 AND at least one koboSpecific pattern matched
  *   - confidence: 0–1 = matched headers / total headers
  *   - mappings: all recognized column mappings (via getKoboColumnMappings)
+ *
+ * The strongMatchCount guard prevents false positives on standard Darwin Core
+ * headers (e.g. eventDate contains "date", decimalLatitude contains "latitude")
+ * which would otherwise push confidence above 0.3 without any genuine Kobo signal.
  */
 export function detectKoboFormat(headers: string[]): {
   isKobo: boolean;
@@ -169,9 +190,21 @@ export function detectKoboFormat(headers: string[]): {
   }
 
   // Count how many headers match at least one Kobo pattern
-  const matchedCount = headers.filter((h) => matchPattern(h) !== null).length;
+  let matchedCount = 0;
+  let strongMatchCount = 0;
+  for (const header of headers) {
+    const pattern = matchPattern(header);
+    if (pattern !== null) {
+      matchedCount++;
+      if (pattern.koboSpecific) {
+        strongMatchCount++;
+      }
+    }
+  }
+
   const confidence = matchedCount / headers.length;
-  const isKobo = confidence >= 0.3;
+  // Require both a minimum confidence AND at least one KoboToolbox-specific indicator
+  const isKobo = confidence >= 0.3 && strongMatchCount >= 1;
   const mappings = getKoboColumnMappings(headers);
 
   return { isKobo, confidence, mappings };

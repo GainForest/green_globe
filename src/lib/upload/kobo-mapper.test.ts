@@ -67,6 +67,36 @@ describe("detectKoboFormat — generic CSV headers (low confidence)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Standard Darwin Core headers — must NOT be detected as KoboToolbox
+// ---------------------------------------------------------------------------
+describe("detectKoboFormat — standard Darwin Core headers (false positive guard)", () => {
+  const dwcHeaders = [
+    "scientificName",
+    "eventDate",
+    "decimalLatitude",
+    "decimalLongitude",
+    "vernacularName",
+    "recordedBy",
+    "locality",
+    "height",
+    "dbh",
+  ];
+
+  it("returns isKobo = false for standard Darwin Core headers", () => {
+    const { isKobo } = detectKoboFormat(dwcHeaders);
+    expect(isKobo).toBe(false);
+  });
+
+  it("still produces mappings for recognized generic patterns (height, dbh, locality)", () => {
+    const { mappings } = detectKoboFormat(dwcHeaders);
+    // height, dbh, locality are generic patterns that still map correctly
+    expect(mappings.find((m) => m.sourceColumn === "height")).toBeDefined();
+    expect(mappings.find((m) => m.sourceColumn === "dbh")).toBeDefined();
+    expect(mappings.find((m) => m.sourceColumn === "locality")).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GPS single-field splitting
 // ---------------------------------------------------------------------------
 describe("GPS single-field format", () => {

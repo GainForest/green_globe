@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { TARGET_FIELDS } from "@/lib/upload/types";
 import type { ColumnMapping } from "@/lib/upload/types";
+import { detectKoboFormat } from "@/lib/upload/kobo-mapper";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 type ColumnMappingStepProps = {
@@ -117,15 +118,10 @@ export default function ColumnMappingStep({
     onMappingsChange(updated);
   };
 
-  // Detect format for subtitle
+  // Detect format for subtitle — use the same detectKoboFormat logic as Step 1
   const detectedFormat = useMemo(() => {
-    const koboSignals = headers.some(
-      (h) =>
-        h.toLowerCase().includes("plant_name") ||
-        h.toLowerCase().includes("_gps_") ||
-        h.toLowerCase().includes("fcd-tree")
-    );
-    return koboSignals ? "KoboToolbox format" : "Generic CSV";
+    const { isKobo } = detectKoboFormat(headers);
+    return isKobo ? "KoboToolbox format" : "Generic CSV";
   }, [headers]);
 
   return (
