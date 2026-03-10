@@ -84,16 +84,20 @@ export default function PreviewStep({
 
   const errorSummary = useMemo(() => buildErrorSummary(errors), [errors]);
 
-  const previewRows = mappedRows.slice(0, MAX_PREVIEW_ROWS);
+  // Pair each preview row with its actual index in mappedRows (before slicing)
+  // so that errorByIndex (keyed by original row index) is looked up correctly.
+  const previewRows = mappedRows
+    .slice(0, MAX_PREVIEW_ROWS)
+    .map((row, sliceIdx) => ({ row, rowIndex: sliceIdx }));
   const showingNote = totalRows > MAX_PREVIEW_ROWS;
 
-  const toggleRow = (index: number) => {
+  const toggleRow = (rowIndex: number) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
+      if (next.has(rowIndex)) {
+        next.delete(rowIndex);
       } else {
-        next.add(index);
+        next.add(rowIndex);
       }
       return next;
     });
@@ -170,24 +174,27 @@ export default function PreviewStep({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {previewRows.map((row, displayIdx) => {
-                const rowErrors = errorByIndex.get(displayIdx);
+              {previewRows.map(({ row, rowIndex }) => {
+                // Use rowIndex (position in the full mappedRows array) to look up
+                // errors — errorByIndex is keyed by the original row index from
+                // parseAndValidateRows, not by the slice-local display position.
+                const rowErrors = errorByIndex.get(rowIndex);
                 const hasError = !!rowErrors;
-                const isExpanded = expandedRows.has(displayIdx);
+                const isExpanded = expandedRows.has(rowIndex);
 
                 return (
                   <>
                     <tr
-                      key={displayIdx}
+                      key={rowIndex}
                       className={`${
                         hasError
                           ? "border-l-2 border-l-destructive bg-destructive/5 cursor-pointer hover:bg-destructive/10"
                           : "hover:bg-muted/20"
                       }`}
-                      onClick={hasError ? () => toggleRow(displayIdx) : undefined}
+                      onClick={hasError ? () => toggleRow(rowIndex) : undefined}
                     >
                       <td className="px-3 py-2 text-muted-foreground font-mono">
-                        {displayIdx + 1}
+                        {rowIndex + 1}
                       </td>
                       {mappedHeaders.map((header) => (
                         <td
@@ -215,7 +222,7 @@ export default function PreviewStep({
                       </td>
                     </tr>
                     {hasError && isExpanded && (
-                      <tr key={`${displayIdx}-errors`} className="bg-destructive/5">
+                      <tr key={`${rowIndex}-errors`} className="bg-destructive/5">
                         <td
                           colSpan={mappedHeaders.length + 2}
                           className="px-4 py-2"
