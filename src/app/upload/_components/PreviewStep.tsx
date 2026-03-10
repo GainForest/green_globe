@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { applyMappings } from "@/lib/upload/column-mapper";
@@ -183,9 +183,8 @@ export default function PreviewStep({
                 const isExpanded = expandedRows.has(rowIndex);
 
                 return (
-                  <>
+                  <Fragment key={rowIndex}>
                     <tr
-                      key={rowIndex}
                       className={`${
                         hasError
                           ? "border-l-2 border-l-destructive bg-destructive/5 cursor-pointer hover:bg-destructive/10"
@@ -240,7 +239,7 @@ export default function PreviewStep({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
