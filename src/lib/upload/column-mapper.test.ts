@@ -87,6 +87,26 @@ describe("autoDetectMappings", () => {
     const mappings = autoDetectMappings([]);
     expect(mappings).toHaveLength(0);
   });
+
+  it("does not map a column named 'name' to vernacularName (regression: bare 'name' was too broad)", () => {
+    // A generic 'name' column should not be silently mapped to vernacularName
+    const headers = ["name", "lat", "lon"];
+    const mappings = autoDetectMappings(headers);
+
+    const byTarget = Object.fromEntries(mappings.map((m) => [m.targetField, m.sourceColumn]));
+    expect(byTarget["vernacularName"]).toBeUndefined();
+    // 'name' should be unrecognized and excluded entirely
+    const sourceColumns = mappings.map((m) => m.sourceColumn);
+    expect(sourceColumns).not.toContain("name");
+  });
+
+  it("still maps explicit vernacular name aliases to vernacularName", () => {
+    const headers = ["common_name", "lat", "lon"];
+    const mappings = autoDetectMappings(headers);
+
+    const byTarget = Object.fromEntries(mappings.map((m) => [m.targetField, m.sourceColumn]));
+    expect(byTarget["vernacularName"]).toBe("common_name");
+  });
 });
 
 describe("applyMappings", () => {

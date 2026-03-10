@@ -16,7 +16,7 @@ const KNOWN_PATTERNS: { patterns: string[]; target: string }[] = [
     target: "eventDate",
   },
   { patterns: ["observer", "recorded_by", "recordedby", "recorder", "collector"], target: "recordedBy" },
-  { patterns: ["name", "common_name", "vernacular_name", "vernacularname", "local_name"], target: "vernacularName" },
+  { patterns: ["common_name", "vernacular_name", "vernacularname", "local_name"], target: "vernacularName" },
   {
     patterns: ["notes", "remarks", "comments", "observation_remarks", "occurrenceremarks"],
     target: "occurrenceRemarks",
