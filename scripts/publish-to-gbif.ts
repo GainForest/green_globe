@@ -396,7 +396,7 @@ async function main(): Promise<void> {
   const options: PublishOptions = {
     agent,
     did: args.did,
-    organizationAtUri: `at://${args.did}`,
+    organizationAtUri: `at://${args.did}/app.gainforest.organization.info/self`,
     datasetTitle: args.title,
     description: args.description,
     contact: {
