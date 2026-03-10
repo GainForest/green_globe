@@ -74,6 +74,7 @@
     "mapbox-gl": "^3.10.0",
     "multiformats": "^13.4.1",
     "next": "15.1.11",
+    "papaparse": "^5.5.3",
     "postgres": "^3.4.7",
     "radix-ui": "^1.4.2",
     "react": "^19.0.0",
@@ -88,10 +89,11 @@
   },
   "devDependencies": {
     "@atproto/lex-cli": "^0.9.5",
-    "@types/geojson": "^7946.0.14",
     "@types/d3": "^7.4.3",
+    "@types/geojson": "^7946.0.14",
     "@types/mapbox__mapbox-gl-draw": "^1.4.8",
     "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
@@ -99,9 +101,9 @@
     "husky": "^9.1.7",
     "pino-pretty": "^13.0.0",
     "postcss": "^8",
+    "sharp": "^0.34.4",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
-    "sharp": "^0.34.4",
     "vitest": "^2.1.4"
   }
 }
