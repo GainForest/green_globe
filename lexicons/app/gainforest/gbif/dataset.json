@@ -1,0 +1,62 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.gbif.dataset",
+  "description": "Tracks a dataset registered with GBIF via the Registry API. Links a PDS organization to its GBIF dataset UUID, installation, and archive blob.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A GBIF dataset registration record linking a PDS organization to its GBIF dataset UUID, installation, and archive blob.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["organizationRef", "gbifDatasetKey", "gbifInstallationKey", "createdAt"],
+        "properties": {
+          "organizationRef": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI of the organization info record this dataset belongs to"
+          },
+          "gbifDatasetKey": {
+            "type": "string",
+            "maxGraphemes": 64,
+            "description": "GBIF dataset UUID returned by POST /dataset"
+          },
+          "gbifInstallationKey": {
+            "type": "string",
+            "maxGraphemes": 64,
+            "description": "GBIF installation UUID used when creating the dataset"
+          },
+          "gbifEndpointKey": {
+            "type": "integer",
+            "description": "GBIF endpoint integer key returned by POST /dataset/{key}/endpoint"
+          },
+          "datasetTitle": {
+            "type": "string",
+            "maxGraphemes": 256,
+            "description": "Human-readable dataset title"
+          },
+          "archiveBlobCid": {
+            "type": "string",
+            "maxGraphemes": 128,
+            "description": "CID of the most recently uploaded DwC-A blob"
+          },
+          "lastPublishedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When the archive was last published to GBIF"
+          },
+          "lastCrawlFinishReason": {
+            "type": "string",
+            "maxGraphemes": 32,
+            "description": "Result of last GBIF crawl (NORMAL, ABORT, etc.)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp of record creation in the ATProto PDS"
+          }
+        }
+      }
+    }
+  }
+}
