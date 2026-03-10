@@ -6,6 +6,7 @@ import type { ColumnMapping, ValidatedRow, ValidationResult } from "@/lib/upload
 import FileDropStep from "./FileDropStep";
 import ColumnMappingStep from "./ColumnMappingStep";
 import PreviewStep from "./PreviewStep";
+import UploadStep from "./UploadStep";
 
 type WizardState = {
   currentStep: 1 | 2 | 3 | 4;
@@ -131,9 +132,21 @@ export default function UploadWizard() {
           />
         )}
         {state.currentStep === 4 && (
-          <div className="py-8 text-center text-muted-foreground">
-            Step 4: Submit (coming soon)
-          </div>
+          <UploadStep
+            validRows={state.validRows}
+            onComplete={() =>
+              setState({
+                currentStep: 1,
+                file: null,
+                parsedData: null,
+                headers: null,
+                mappings: [],
+                validationResult: null,
+                validRows: [],
+              })
+            }
+            onBack={handleBack}
+          />
         )}
       </CardContent>
     </Card>
