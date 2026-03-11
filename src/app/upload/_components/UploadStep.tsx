@@ -23,6 +23,8 @@ type UploadProgress = {
   currentRow: string;
 };
 
+export const STORAGE_KEY = "upload-wizard-pending";
+
 type UploadStepProps = {
   validRows: ValidatedRow[];
   onComplete: () => void;
@@ -108,6 +110,17 @@ export default function UploadStep({ validRows, onComplete, onBack }: UploadStep
     setUploadDone(true);
   };
 
+  // Persist wizard state to sessionStorage when the user is not yet authenticated,
+  // so it can be restored after the OAuth redirect brings them back to /upload.
+  useEffect(() => {
+    if (!isAuthenticated && validRows.length > 0) {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ validRows, timestamp: Date.now() })
+      );
+    }
+  }, [isAuthenticated, validRows]);
+
   // Auto-start upload when component mounts (if authenticated)
   useEffect(() => {
     if (isAuthenticated && !uploadStarted) {
@@ -141,6 +154,7 @@ export default function UploadStep({ validRows, onComplete, onBack }: UploadStep
         </div>
 
         <SignInBlueskyDialog
+          returnTo="/upload"
           trigger={
             <Button>Sign in with ClimateAI</Button>
           }

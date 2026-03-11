@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { atprotoSDK } from "@/lib/atproto/sdk";
 import {
   getAppSession,
@@ -24,11 +25,23 @@ import { allowedPDSDomains } from "@/config/gainforest-sdk";
  * window.location.href = authorizationUrl;
  * ```
  */
-export async function authorize(handle: string): Promise<{ authorizationUrl: string }> {
+export async function authorize(handle: string, returnTo?: string): Promise<{ authorizationUrl: string }> {
   // Normalize the handle - add domain if not present
   const normalizedHandle = handle.includes(".")
     ? handle
     : `${handle}.${allowedPDSDomains[0]}`;
+
+  // If a return URL is provided and is a relative path (security: no open redirect),
+  // store it in a short-lived cookie so the OAuth callback can redirect back there.
+  if (returnTo && returnTo.startsWith("/")) {
+    const cookieStore = await cookies();
+    cookieStore.set("oauth_return_to", returnTo, {
+      path: "/",
+      maxAge: 600, // 10 minutes
+      httpOnly: true,
+      sameSite: "lax",
+    });
+  }
 
   const authUrl = await atprotoSDK.authorize(normalizedHandle);
 

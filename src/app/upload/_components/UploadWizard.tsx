@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ColumnMapping, ValidatedRow, ValidationResult } from "@/lib/upload/types";
 import FileDropStep from "./FileDropStep";
 import ColumnMappingStep from "./ColumnMappingStep";
 import PreviewStep from "./PreviewStep";
-import UploadStep from "./UploadStep";
+import UploadStep, { STORAGE_KEY } from "./UploadStep";
 
 type WizardState = {
   currentStep: 1 | 2 | 3 | 4;
@@ -35,6 +35,30 @@ export default function UploadWizard() {
     validationResult: null,
     validRows: [],
   });
+
+  // On mount, check for wizard state persisted before an OAuth redirect.
+  // If found and not expired (10 min), resume at Step 4 with the saved rows.
+  useEffect(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      try {
+        const { validRows, timestamp } = JSON.parse(stored) as {
+          validRows: ValidatedRow[];
+          timestamp: number;
+        };
+        if (
+          Date.now() - timestamp < 10 * 60 * 1000 &&
+          Array.isArray(validRows) &&
+          validRows.length > 0
+        ) {
+          setState((prev) => ({ ...prev, currentStep: 4, validRows }));
+        }
+      } catch {
+        /* ignore corrupt data */
+      }
+    }
+  }, []);
 
   const handleFileAndMappings = (
     file: File,

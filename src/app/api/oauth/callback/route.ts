@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { atprotoSDK } from "@/lib/atproto/sdk";
 import { saveAppSession, Agent } from "gainforest-sdk/oauth";
 
@@ -20,6 +21,15 @@ import { saveAppSession, Agent } from "gainforest-sdk/oauth";
  */
 export async function GET(request: NextRequest) {
   let success = false;
+
+  // Read and immediately delete the return URL cookie before any async work
+  // so it is consumed exactly once regardless of success/failure.
+  const cookieStore = await cookies();
+  const rawReturnTo = cookieStore.get("oauth_return_to")?.value ?? null;
+  cookieStore.set("oauth_return_to", "", { path: "/", maxAge: 0 });
+
+  // Security: only allow relative paths to prevent open-redirect attacks
+  const returnUrl = rawReturnTo && rawReturnTo.startsWith("/") ? rawReturnTo : null;
 
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -51,7 +61,7 @@ export async function GET(request: NextRequest) {
   // Redirects are outside try/catch because Next.js redirect() throws
   // a control-flow exception that must not be caught
   if (success) {
-    redirect("/");
+    redirect(returnUrl ?? "/");
   } else {
     redirect("/?error=auth_failed");
   }

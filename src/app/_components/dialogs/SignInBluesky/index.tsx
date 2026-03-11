@@ -17,9 +17,10 @@ import { allowedPDSDomains } from "@/config/gainforest-sdk";
 
 type Props = {
   trigger?: React.ReactNode;
+  returnTo?: string;
 };
 
-const SignInBlueskyDialog: React.FC<Props> = ({ trigger }) => {
+const SignInBlueskyDialog: React.FC<Props> = ({ trigger, returnTo }) => {
   const auth = useAtprotoStore((state) => state.auth);
   const setAuth = useAtprotoStore((state) => state.setAuth);
   const [handle, setHandle] = useState("");
@@ -31,7 +32,7 @@ const SignInBlueskyDialog: React.FC<Props> = ({ trigger }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const { authorizationUrl } = await authorize(handle.trim());
+      const { authorizationUrl } = await authorize(handle.trim(), returnTo);
       window.location.href = authorizationUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initiate sign in");
