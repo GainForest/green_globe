@@ -245,3 +245,19 @@ export async function findByGbifDatasetKey(
   const records = await listGbifDatasetRecords(did);
   return records.find((r) => r.gbifDatasetKey === gbifDatasetKey) ?? null;
 }
+
+/**
+ * Find a GBIF dataset record by the AT-URI of the organization it belongs to.
+ * Lists all records for the DID and filters by organizationRef match.
+ * Returns null if no matching record is found.
+ *
+ * Use this to check whether an organization already has a registered GBIF
+ * dataset before deciding to create a new one vs. updating the existing one.
+ */
+export async function findByOrganizationRef(
+  did: string,
+  organizationRef: string
+): Promise<GbifDatasetRecord | null> {
+  const records = await listGbifDatasetRecords(did);
+  return records.find((r) => r.organizationRef === organizationRef) ?? null;
+}

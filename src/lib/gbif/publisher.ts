@@ -3,11 +3,11 @@
 // CLI scripts and future UI call publishToGbif() from here.
 
 import type { Agent } from '@atproto/api'
-import { deflateRawSync, crc32 } from 'node:zlib'
 import { gbifConfig } from '@/config/gbif'
 import { PDS_ENDPOINT } from '@/config/atproto'
 import { fetchDwcaRecords, assembleDwca } from '@/lib/gbif/dwca/index'
 import type { DwcaEmlInput } from '@/lib/gbif/dwca/index'
+import { buildZip } from '@/lib/gbif/dwca/zip-builder'
 import { uploadAndGetUrl } from '@/lib/gbif/pds-archive-host'
 import {
   submitUrlForValidation,
@@ -25,7 +25,7 @@ import {
 import {
   createGbifDatasetRecord,
   updateGbifDatasetRecord,
-  listGbifDatasetRecords,
+  findByOrganizationRef,
 } from '@/lib/gbif/pds-dataset-registry'
 
 // ---------------------------------------------------------------------------
@@ -345,6 +345,12 @@ export async function publishToGbif(
   }
 
   const publishingOrganizationKey = gbifConfig.orgKey
+  if (!publishingOrganizationKey) {
+    throw new PublishError(
+      'register',
+      'GBIF_ORG_KEY is not set. Set it in your .env file before publishing.',
+    )
+  }
 
   let gbifDatasetKey: string
   let gbifEndpointKey: number
@@ -353,10 +359,7 @@ export async function publishToGbif(
 
   try {
     // Check if a PDS record already exists for this organizationAtUri
-    const existingRecords = await listGbifDatasetRecords(did)
-    const existingRecord = existingRecords.find(
-      (r) => r.organizationRef === organizationAtUri,
-    )
+    const existingRecord = await findByOrganizationRef(did, organizationAtUri)
 
     if (!existingRecord) {
       // --- NEW DATASET ---
