@@ -49,6 +49,7 @@ export async function submitUrlForValidation(
 
   const response = await fetch(url.toString(), {
     method: 'POST',
+    body: new FormData(),
   })
 
   if (!response.ok) {
