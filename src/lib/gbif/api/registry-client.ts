@@ -106,7 +106,7 @@ export async function getInstallation(key: string): Promise<GbifInstallation> {
 
 /**
  * POST /dataset — creates a new dataset and returns its UUID string.
- * NOTE: GBIF returns a plain UUID string (not a JSON object).
+ * NOTE: GBIF returns a JSON-encoded UUID string (not a plain text string).
  */
 export async function createDataset(
   dataset: Omit<GbifDataset, 'key'>,
@@ -115,8 +115,8 @@ export async function createDataset(
     method: 'POST',
     body: dataset,
   })
-  // GBIF returns a plain UUID string, not a JSON object
-  return response.text()
+  // GBIF returns a JSON-encoded UUID string
+  return response.json() as Promise<string>
 }
 
 /**
