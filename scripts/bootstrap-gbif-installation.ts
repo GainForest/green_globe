@@ -60,7 +60,13 @@ function parseArgs(argv: string[]): { title: string } | null {
 // Env validation
 // ---------------------------------------------------------------------------
 
-function validateEnv(): void {
+type ValidatedEnv = {
+  username: string
+  password: string
+  orgKey: string
+}
+
+function validateEnv(): ValidatedEnv {
   const missing: string[] = []
 
   if (!gbifConfig.username) missing.push('GBIF_USERNAME')
@@ -76,6 +82,12 @@ function validateEnv(): void {
     )
     process.exit(1)
   }
+
+  return {
+    username: gbifConfig.username as string,
+    password: gbifConfig.password as string,
+    orgKey: gbifConfig.orgKey as string,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -86,14 +98,14 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv)
   if (!args) return
 
-  // Validate env vars
-  validateEnv()
+  // Validate env vars — returns non-nullable values after process.exit guard
+  const env_ = validateEnv()
 
   // Print target environment
   const env = isProduction() ? 'PRODUCTION' : 'UAT'
   console.log(`Target environment: ${env}`)
   console.log(`GBIF API URL:       ${gbifConfig.apiUrl}`)
-  console.log(`Organization key:   ${gbifConfig.orgKey}`)
+  console.log(`Organization key:   ${env_.orgKey}`)
   console.log(`Installation title: ${args.title}`)
   console.log()
 
@@ -103,7 +115,7 @@ async function main(): Promise<void> {
   let installationKey: string
   try {
     installationKey = await createInstallation({
-      organizationKey: gbifConfig.orgKey!,
+      organizationKey: env_.orgKey,
       type: 'HTTP_INSTALLATION',
       title: args.title,
       description:
