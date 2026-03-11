@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
@@ -55,7 +55,7 @@ export default function UploadStep({ validRows, onComplete, onBack }: UploadStep
 
   const isAuthenticated = auth.authenticated;
 
-  const runUpload = async () => {
+  const runUpload = useCallback(async () => {
     if (uploadRef.current) return;
     uploadRef.current = true;
     setUploadStarted(true);
@@ -108,7 +108,7 @@ export default function UploadStep({ validRows, onComplete, onBack }: UploadStep
     }
 
     setUploadDone(true);
-  };
+  }, [validRows]);
 
   // Persist wizard state to sessionStorage when the user is not yet authenticated,
   // so it can be restored after the OAuth redirect brings them back to /upload.
@@ -121,13 +121,14 @@ export default function UploadStep({ validRows, onComplete, onBack }: UploadStep
     }
   }, [isAuthenticated, validRows]);
 
-  // Auto-start upload when component mounts (if authenticated)
+  // Auto-start upload when authenticated and not yet started.
+  // uploadStarted is included so the effect re-evaluates if the flag changes,
+  // preventing a stale-closure re-trigger when isAuthenticated cycles.
   useEffect(() => {
     if (isAuthenticated && !uploadStarted) {
       runUpload();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, uploadStarted, runUpload]);
 
   // --- Not signed in ---
   if (!isReady) {
