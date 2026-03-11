@@ -36,9 +36,9 @@
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { deflateRawSync, crc32 } from 'node:zlib'
 import { fetchDwcaRecords, assembleDwca } from '../src/lib/gbif/dwca/index'
 import type { DwcaEmlInput } from '../src/lib/gbif/dwca/index'
+import { buildZip } from '../src/lib/gbif/dwca/zip-builder'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,126 +56,6 @@ type ParsedArgs = {
   occurrenceOnly: boolean
   service: string
   dryRun: boolean
-}
-
-// ---------------------------------------------------------------------------
-// Minimal ZIP writer (no external dependencies)
-// Uses DEFLATE compression via Node.js built-in zlib.deflateRawSync
-// ZIP format reference: https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
-// ---------------------------------------------------------------------------
-
-type ZipEntry = {
-  filename: string
-  data: Buffer
-  crc: number
-  compressedData: Buffer
-  compressedSize: number
-  uncompressedSize: number
-  offset: number
-}
-
-function writeUint16LE(buf: Buffer, offset: number, value: number): void {
-  buf.writeUInt16LE(value, offset)
-}
-
-function writeUint32LE(buf: Buffer, offset: number, value: number): void {
-  buf.writeUInt32LE(value, offset)
-}
-
-/**
- * Build a ZIP archive buffer from a map of filename → string content.
- * Files are stored at the root level (no directory structure).
- */
-function buildZip(files: Record<string, string>): Buffer {
-  const entries: ZipEntry[] = []
-  let currentOffset = 0
-
-  // Build local file headers + compressed data
-  const localParts: Buffer[] = []
-
-  for (const [filename, content] of Object.entries(files)) {
-    const rawData = Buffer.from(content, 'utf8')
-    const uncompressedSize = rawData.length
-    const crcValue = crc32(rawData) as unknown as number
-    const compressedData = deflateRawSync(rawData)
-    const compressedSize = compressedData.length
-    const filenameBytes = Buffer.from(filename, 'utf8')
-    const filenameLen = filenameBytes.length
-
-    // Local file header: 30 bytes + filename
-    const localHeader = Buffer.alloc(30 + filenameLen)
-    writeUint32LE(localHeader, 0, 0x04034b50) // Local file header signature
-    writeUint16LE(localHeader, 4, 20) // Version needed: 2.0
-    writeUint16LE(localHeader, 6, 0x0800) // General purpose bit flag: UTF-8
-    writeUint16LE(localHeader, 8, 8) // Compression method: DEFLATE
-    writeUint16LE(localHeader, 10, 0) // Last mod file time
-    writeUint16LE(localHeader, 12, 0) // Last mod file date
-    writeUint32LE(localHeader, 14, crcValue) // CRC-32
-    writeUint32LE(localHeader, 18, compressedSize) // Compressed size
-    writeUint32LE(localHeader, 22, uncompressedSize) // Uncompressed size
-    writeUint16LE(localHeader, 26, filenameLen) // Filename length
-    writeUint16LE(localHeader, 28, 0) // Extra field length
-    filenameBytes.copy(localHeader, 30)
-
-    entries.push({
-      filename,
-      data: rawData,
-      crc: crcValue,
-      compressedData,
-      compressedSize,
-      uncompressedSize,
-      offset: currentOffset,
-    })
-
-    const entrySize = localHeader.length + compressedData.length
-    currentOffset += entrySize
-    localParts.push(localHeader, compressedData)
-  }
-
-  // Build central directory
-  const centralParts: Buffer[] = []
-  let centralDirSize = 0
-
-  for (const entry of entries) {
-    const filenameBytes = Buffer.from(entry.filename, 'utf8')
-    const filenameLen = filenameBytes.length
-    const centralHeader = Buffer.alloc(46 + filenameLen)
-
-    writeUint32LE(centralHeader, 0, 0x02014b50) // Central directory signature
-    writeUint16LE(centralHeader, 4, 20) // Version made by
-    writeUint16LE(centralHeader, 6, 20) // Version needed
-    writeUint16LE(centralHeader, 8, 0x0800) // General purpose bit flag: UTF-8
-    writeUint16LE(centralHeader, 10, 8) // Compression method: DEFLATE
-    writeUint16LE(centralHeader, 12, 0) // Last mod file time
-    writeUint16LE(centralHeader, 14, 0) // Last mod file date
-    writeUint32LE(centralHeader, 16, entry.crc) // CRC-32
-    writeUint32LE(centralHeader, 20, entry.compressedSize) // Compressed size
-    writeUint32LE(centralHeader, 24, entry.uncompressedSize) // Uncompressed size
-    writeUint16LE(centralHeader, 28, filenameLen) // Filename length
-    writeUint16LE(centralHeader, 30, 0) // Extra field length
-    writeUint16LE(centralHeader, 32, 0) // File comment length
-    writeUint16LE(centralHeader, 34, 0) // Disk number start
-    writeUint16LE(centralHeader, 36, 0) // Internal file attributes
-    writeUint32LE(centralHeader, 38, 0) // External file attributes
-    writeUint32LE(centralHeader, 42, entry.offset) // Relative offset of local header
-    filenameBytes.copy(centralHeader, 46)
-
-    centralParts.push(centralHeader)
-    centralDirSize += centralHeader.length
-  }
-
-  // End of central directory record
-  const eocd = Buffer.alloc(22)
-  writeUint32LE(eocd, 0, 0x06054b50) // EOCD signature
-  writeUint16LE(eocd, 4, 0) // Disk number
-  writeUint16LE(eocd, 6, 0) // Disk with start of central directory
-  writeUint16LE(eocd, 8, entries.length) // Number of entries on this disk
-  writeUint16LE(eocd, 10, entries.length) // Total number of entries
-  writeUint32LE(eocd, 12, centralDirSize) // Size of central directory
-  writeUint32LE(eocd, 16, currentOffset) // Offset of central directory
-  writeUint16LE(eocd, 20, 0) // Comment length
-
-  return Buffer.concat([...localParts, ...centralParts, eocd])
 }
 
 // ---------------------------------------------------------------------------
