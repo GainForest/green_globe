@@ -51,8 +51,9 @@ export default function PreviewStep({
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [errorSectionOpen, setErrorSectionOpen] = useState(false);
 
-  // Apply mappings then validate — computed once on mount
-  const { validationResult, mappedHeaders } = useMemo(() => {
+  // Apply mappings then validate — computed once on mount.
+  // mappedRows is returned here to avoid calling applyMappings a second time.
+  const { validationResult, mappedHeaders, mappedRows } = useMemo(() => {
     const mapped = applyMappings(parsedData, mappings);
     const result = parseAndValidateRows(mapped);
     // Collect the unique target field names that appear in the mapped data
@@ -62,7 +63,7 @@ export default function PreviewStep({
         headerSet.add(key);
       }
     }
-    return { validationResult: result, mappedHeaders: Array.from(headerSet) };
+    return { validationResult: result, mappedHeaders: Array.from(headerSet), mappedRows: mapped };
   }, [parsedData, mappings]);
 
   const { valid, errors } = validationResult;
@@ -78,9 +79,6 @@ export default function PreviewStep({
     }
     return map;
   }, [errors]);
-
-  // Build a lookup: row index -> mapped row data (for display)
-  const mappedRows = useMemo(() => applyMappings(parsedData, mappings), [parsedData, mappings]);
 
   const errorSummary = useMemo(() => buildErrorSummary(errors), [errors]);
 
