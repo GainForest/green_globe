@@ -16,12 +16,12 @@ import { PDS_ENDPOINT } from '@/config/atproto'
  *
  * @param agent - Authenticated ATProto agent
  * @param archiveBuffer - ZIP archive as a Uint8Array (not validated here)
- * @returns The blob CID and mimeType from the PDS response
+ * @returns The blob CID, mimeType, and raw blob object from the PDS response
  */
 export async function uploadDwcaBlob(
   agent: Agent,
   archiveBuffer: Uint8Array
-): Promise<{ cid: string; mimeType: string }> {
+): Promise<{ cid: string; mimeType: string; blob: unknown }> {
   const response = await agent.com.atproto.repo.uploadBlob(archiveBuffer, {
     encoding: 'application/zip',
   })
@@ -30,6 +30,7 @@ export async function uploadDwcaBlob(
   return {
     cid: blob.ref.toString(),
     mimeType: blob.mimeType,
+    blob: response.data.blob,
   }
 }
 
@@ -70,14 +71,14 @@ export function buildBlobUrl(did: string, cid: string): string {
  * @param agent - Authenticated ATProto agent
  * @param did - The DID of the account that owns the blob
  * @param archiveBuffer - ZIP archive as a Uint8Array
- * @returns The blob CID and the public URL
+ * @returns The blob CID, the public URL, and the raw blob object
  */
 export async function uploadAndGetUrl(
   agent: Agent,
   did: string,
   archiveBuffer: Uint8Array
-): Promise<{ cid: string; url: string }> {
-  const { cid } = await uploadDwcaBlob(agent, archiveBuffer)
+): Promise<{ cid: string; url: string; blob: unknown }> {
+  const { cid, blob } = await uploadDwcaBlob(agent, archiveBuffer)
   const url = buildBlobUrl(did, cid)
-  return { cid, url }
+  return { cid, url, blob }
 }

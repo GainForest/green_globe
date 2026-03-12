@@ -40,6 +40,11 @@
             "maxGraphemes": 128,
             "description": "CID of the most recently uploaded DwC-A blob"
           },
+          "archiveBlob": {
+            "type": "blob",
+            "accept": ["application/zip"],
+            "description": "Blob reference to the DwC-A archive ZIP. Storing as a proper blob ref prevents PDS garbage collection."
+          },
           "lastPublishedAt": {
             "type": "string",
             "format": "datetime",

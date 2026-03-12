@@ -171,10 +171,12 @@ export async function publishToGbif(
 
   let archiveBlobCid: string
   let archiveBlobUrl: string
+  let archiveBlob: unknown
   try {
     const uploaded = await uploadAndGetUrl(agent, did, archiveBuffer)
     archiveBlobCid = uploaded.cid
     archiveBlobUrl = uploaded.url
+    archiveBlob = uploaded.blob
   } catch (err) {
     throw new PublishError(
       'upload',
@@ -302,6 +304,7 @@ export async function publishToGbif(
         gbifEndpointKey,
         datasetTitle,
         archiveBlobCid,
+        archiveBlob,
         lastPublishedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       })
@@ -327,10 +330,11 @@ export async function publishToGbif(
         url: archiveBlobUrl,
       })
 
-      // Update PDS record with new archiveBlobCid and lastPublishedAt
+      // Update PDS record with new archiveBlobCid, archiveBlob, and lastPublishedAt
       await updateGbifDatasetRecord(agent, did, pdsRecordRkey, {
         gbifEndpointKey,
         archiveBlobCid,
+        archiveBlob,
         lastPublishedAt: new Date().toISOString(),
       })
     }

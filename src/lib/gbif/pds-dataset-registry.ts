@@ -15,6 +15,7 @@ export type GbifDatasetRecord = {
   gbifEndpointKey?: number;
   datasetTitle?: string;
   archiveBlobCid?: string;
+  archiveBlob?: unknown;
   lastPublishedAt?: string;
   lastCrawlFinishReason?: string;
   createdAt: string;
@@ -59,6 +60,9 @@ export async function createGbifDatasetRecord(
       ...(data.datasetTitle !== undefined && { datasetTitle: data.datasetTitle }),
       ...(data.archiveBlobCid !== undefined && {
         archiveBlobCid: data.archiveBlobCid,
+      }),
+      ...(data.archiveBlob !== undefined && {
+        archiveBlob: data.archiveBlob,
       }),
       ...(data.lastPublishedAt !== undefined && {
         lastPublishedAt: data.lastPublishedAt,
@@ -143,6 +147,10 @@ export async function updateGbifDatasetRecord(
       data.archiveBlobCid !== undefined
         ? data.archiveBlobCid
         : existing.archiveBlobCid,
+    archiveBlob:
+      data.archiveBlob !== undefined
+        ? data.archiveBlob
+        : existing.archiveBlob,
     lastPublishedAt:
       data.lastPublishedAt !== undefined
         ? data.lastPublishedAt
@@ -171,6 +179,9 @@ export async function updateGbifDatasetRecord(
       }),
       ...(merged.archiveBlobCid !== undefined && {
         archiveBlobCid: merged.archiveBlobCid,
+      }),
+      ...(merged.archiveBlob !== undefined && {
+        archiveBlob: merged.archiveBlob,
       }),
       ...(merged.lastPublishedAt !== undefined && {
         lastPublishedAt: merged.lastPublishedAt,
