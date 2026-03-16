@@ -81,7 +81,7 @@ export default function UploadStep({ validRows, onComplete, onBack }: UploadStep
 
       const result = await writeTreeRecordAction({
         occurrence: row.occurrence,
-        measurements: row.measurements,
+        floraMeasurement: row.floraMeasurement,
       });
 
       if (result.success) {
