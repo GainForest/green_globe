@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { MeasurementInput, OccurrenceInput, ValidationResult } from "./types";
+import type { FloraMeasurementBundle, OccurrenceInput, ValidationResult } from "./types";
 
 const DATE_PATTERNS = [
   /^\d{4}-\d{2}-\d{2}$/, // YYYY-MM-DD
@@ -47,42 +47,32 @@ export const TreeRowSchema = OccurrenceRowSchema.merge(z.object(MeasurementField
 
 type TreeRowOutput = z.output<typeof TreeRowSchema>;
 
-function extractMeasurements(row: TreeRowOutput): MeasurementInput[] {
-  const measurements: MeasurementInput[] = [];
+function extractFloraMeasurement(row: TreeRowOutput): FloraMeasurementBundle | null {
+  const bundle: FloraMeasurementBundle = {};
 
   if (row.height !== undefined) {
-    measurements.push({
-      measurementType: "tree height",
-      measurementValue: String(row.height),
-      measurementUnit: "m",
-    });
+    bundle.totalHeight = String(row.height);
   }
 
   if (row.dbh !== undefined) {
-    measurements.push({
-      measurementType: "DBH",
-      measurementValue: String(row.dbh),
-      measurementUnit: "cm",
-    });
+    bundle.dbh = String(row.dbh);
   }
 
   if (row.diameter !== undefined) {
-    measurements.push({
-      measurementType: "diameter",
-      measurementValue: String(row.diameter),
-      measurementUnit: "cm",
-    });
+    bundle.diameter = String(row.diameter);
   }
 
   if (row.canopyCover !== undefined) {
-    measurements.push({
-      measurementType: "canopy cover",
-      measurementValue: String(row.canopyCover),
-      measurementUnit: "%",
-    });
+    bundle.canopyCoverPercent = String(row.canopyCover);
   }
 
-  return measurements;
+  const hasAnyField =
+    bundle.totalHeight !== undefined ||
+    bundle.dbh !== undefined ||
+    bundle.diameter !== undefined ||
+    bundle.canopyCoverPercent !== undefined;
+
+  return hasAnyField ? bundle : null;
 }
 
 function extractOccurrence(row: TreeRowOutput): OccurrenceInput {
@@ -114,8 +104,8 @@ export function parseAndValidateRows(rows: Record<string, string>[]): Validation
 
     if (result.success) {
       const occurrence = extractOccurrence(result.data);
-      const measurements = extractMeasurements(result.data);
-      valid.push({ index, occurrence, measurements });
+      const floraMeasurement = extractFloraMeasurement(result.data);
+      valid.push({ index, occurrence, floraMeasurement });
     } else {
       const issues = result.error.issues.map((issue) => ({
         path: issue.path.join(".") || "root",

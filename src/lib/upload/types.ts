@@ -23,6 +23,9 @@ export type OccurrenceInput = {
   kingdom?: string;
 };
 
+/**
+ * @deprecated Use FloraMeasurementBundle instead. Kept for backward compat with the DwC-A pipeline.
+ */
 export type MeasurementInput = {
   measurementType: string;
   measurementValue: string;
@@ -30,10 +33,17 @@ export type MeasurementInput = {
   measurementMethod?: string;
 };
 
+export type FloraMeasurementBundle = {
+  dbh?: string; // value in cm
+  totalHeight?: string; // value in m
+  diameter?: string; // value in cm (maps to basalDiameter if non-DBH)
+  canopyCoverPercent?: string; // value as percentage string
+};
+
 export type ValidatedRow = {
   index: number;
   occurrence: OccurrenceInput;
-  measurements: MeasurementInput[];
+  floraMeasurement: FloraMeasurementBundle | null; // null when no measurements present
 };
 
 export type RowError = {

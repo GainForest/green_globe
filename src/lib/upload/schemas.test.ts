@@ -136,24 +136,16 @@ describe("parseAndValidateRows", () => {
     expect(row.occurrence.scientificName).toBe("Quercus robur");
     expect(row.occurrence.recordedBy).toBe("Jane Doe");
     expect(row.occurrence.locality).toBe("Hyde Park");
-    expect(row.measurements).toHaveLength(2);
-    expect(row.measurements[0]).toEqual({
-      measurementType: "tree height",
-      measurementValue: "12.5",
-      measurementUnit: "m",
-    });
-    expect(row.measurements[1]).toEqual({
-      measurementType: "DBH",
-      measurementValue: "30",
-      measurementUnit: "cm",
-    });
+    expect(row.floraMeasurement).not.toBeNull();
+    expect(row.floraMeasurement?.totalHeight).toBe("12.5");
+    expect(row.floraMeasurement?.dbh).toBe("30");
   });
 
-  it("skips empty measurement fields (not included in measurements array)", () => {
+  it("skips empty measurement fields (floraMeasurement is null)", () => {
     const rows = [{ ...validRow }];
     const result = parseAndValidateRows(rows);
     expect(result.valid).toHaveLength(1);
-    expect(result.valid[0].measurements).toHaveLength(0);
+    expect(result.valid[0].floraMeasurement).toBeNull();
   });
 
   it("returns error rows with row index and per-field error messages", () => {
@@ -200,7 +192,7 @@ describe("parseAndValidateRows", () => {
     expect(result.errors[0].index).toBe(1);
   });
 
-  it("creates correct MeasurementInput objects for all measurement types", () => {
+  it("creates correct FloraMeasurementBundle from parsed fields", () => {
     const rows = [
       {
         ...validRow,
@@ -212,29 +204,11 @@ describe("parseAndValidateRows", () => {
     ];
     const result = parseAndValidateRows(rows);
     expect(result.valid).toHaveLength(1);
-    const measurements = result.valid[0].measurements;
-    expect(measurements).toHaveLength(4);
-
-    const byType = Object.fromEntries(measurements.map((m) => [m.measurementType, m]));
-    expect(byType["tree height"]).toEqual({
-      measurementType: "tree height",
-      measurementValue: "10",
-      measurementUnit: "m",
-    });
-    expect(byType["DBH"]).toEqual({
-      measurementType: "DBH",
-      measurementValue: "25",
-      measurementUnit: "cm",
-    });
-    expect(byType["diameter"]).toEqual({
-      measurementType: "diameter",
-      measurementValue: "23",
-      measurementUnit: "cm",
-    });
-    expect(byType["canopy cover"]).toEqual({
-      measurementType: "canopy cover",
-      measurementValue: "60",
-      measurementUnit: "%",
-    });
+    const floraMeasurement = result.valid[0].floraMeasurement;
+    expect(floraMeasurement).not.toBeNull();
+    expect(floraMeasurement?.dbh).toBe("25");
+    expect(floraMeasurement?.totalHeight).toBe("10");
+    expect(floraMeasurement?.diameter).toBe("23");
+    expect(floraMeasurement?.canopyCoverPercent).toBe("60");
   });
 });
