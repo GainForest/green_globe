@@ -4,24 +4,12 @@
 import { MEASUREMENT_TSV_COLUMNS, NEWLINE, TAB } from './types'
 
 // ---------------------------------------------------------------------------
-// Input type
+// Input type — defined in pds-fetcher to avoid duplication; re-exported here
+// for consumers that import from this module.
 // ---------------------------------------------------------------------------
 
-export type PdsMeasurementRecord = {
-  /** AT-URI of the linked dwc.occurrence record (e.g. 'at://did:plc:xxx/app.gainforest.dwc.occurrence/mt1234') */
-  occurrenceRef?: string
-  /** Cross-system ID duplicated from occurrence (fallback if occurrenceRef is missing) */
-  occurrenceID?: string
-  measurementID?: string
-  measurementType?: string
-  measurementValue?: string
-  measurementUnit?: string
-  measurementAccuracy?: string
-  measurementDeterminedBy?: string
-  measurementDeterminedDate?: string
-  measurementMethod?: string
-  measurementRemarks?: string
-}
+import type { PdsMeasurementRecord } from './pds-fetcher'
+export type { PdsMeasurementRecord } from './pds-fetcher'
 
 // ---------------------------------------------------------------------------
 // Writer

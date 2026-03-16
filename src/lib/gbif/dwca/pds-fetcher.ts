@@ -247,11 +247,182 @@ export async function fetchDwcaRecords(options: {
     });
   }
 
-  // 5. Map measurements
-  const measurements: PdsMeasurementRecord[] = rawMeasurements.map(
-    (record) => {
-      const v = record.value;
-      return {
+  // 5. Map measurements — handle both old (per-measurement) and new (bundled) formats.
+  //
+  // Old format: each PDS record has top-level measurementType/measurementValue/measurementUnit
+  //   fields → direct passthrough to PdsMeasurementRecord.
+  //
+  // New format: each PDS record has a `result` object (union of floraMeasurement /
+  //   faunaMeasurement / genericMeasurement) → flatten typed fields into multiple
+  //   PdsMeasurementRecord rows so downstream writeMeasurementTsv is unchanged.
+
+  /** Maps floraMeasurement field names to their DwC measurementType and unit. */
+  const FLORA_FIELD_MAP: Record<
+    string,
+    { measurementType: string; measurementUnit: string }
+  > = {
+    dbh: { measurementType: "DBH", measurementUnit: "cm" },
+    totalHeight: { measurementType: "tree height", measurementUnit: "m" },
+    canopyCoverPercent: {
+      measurementType: "canopy cover",
+      measurementUnit: "%",
+    },
+    basalDiameter: { measurementType: "diameter", measurementUnit: "cm" },
+    girth: { measurementType: "girth", measurementUnit: "cm" },
+    basalArea: { measurementType: "basal area", measurementUnit: "cm2" },
+    heightToFirstBranch: {
+      measurementType: "height to first branch",
+      measurementUnit: "m",
+    },
+    crownDiameter: { measurementType: "crown diameter", measurementUnit: "m" },
+    crownDepth: { measurementType: "crown depth", measurementUnit: "m" },
+    abovegroundBiomass: {
+      measurementType: "aboveground biomass",
+      measurementUnit: "kg",
+    },
+    belowgroundBiomass: {
+      measurementType: "belowground biomass",
+      measurementUnit: "kg",
+    },
+    carbonContent: { measurementType: "carbon content", measurementUnit: "kg" },
+    woodDensity: {
+      measurementType: "wood density",
+      measurementUnit: "g/cm3",
+    },
+    annualDiameterIncrement: {
+      measurementType: "annual diameter increment",
+      measurementUnit: "mm/yr",
+    },
+    estimatedAge: { measurementType: "estimated age", measurementUnit: "yr" },
+    leafAreaIndex: {
+      measurementType: "leaf area index",
+      measurementUnit: "m2/m2",
+    },
+    colonyDiameter: {
+      measurementType: "colony diameter",
+      measurementUnit: "cm",
+    },
+    colonyHeight: { measurementType: "colony height", measurementUnit: "cm" },
+    liveTissueCoverPercent: {
+      measurementType: "live tissue cover",
+      measurementUnit: "%",
+    },
+    depthBelowSurface: {
+      measurementType: "depth below surface",
+      measurementUnit: "m",
+    },
+    crownDieback: { measurementType: "crown dieback", measurementUnit: "%" },
+    healthScore: { measurementType: "health score", measurementUnit: "" },
+    buttressHeight: {
+      measurementType: "buttress height",
+      measurementUnit: "m",
+    },
+    dbhMeasurementHeight: {
+      measurementType: "DBH measurement height",
+      measurementUnit: "m",
+    },
+  };
+
+  const measurements: PdsMeasurementRecord[] = [];
+
+  for (const record of rawMeasurements) {
+    const v = record.value;
+
+    // Detect new format: has a `result` field that is an object
+    if (v.result !== null && v.result !== undefined && typeof v.result === "object") {
+      // ── New bundled format ──────────────────────────────────────────────
+      const result = v.result as Record<string, unknown>;
+      const resultType = result.$type as string | undefined;
+
+      // Common metadata shared across all rows generated from this bundle
+      const occurrenceRef = v.occurrenceRef as string | undefined;
+      const occurrenceID = v.occurrenceID as string | undefined;
+      const measurementDeterminedBy = v.measuredBy as string | undefined;
+      const measurementDeterminedDate = v.measurementDate as string | undefined;
+      const measurementMethod = v.measurementMethod as string | undefined;
+      const measurementRemarks = v.measurementRemarks as string | undefined;
+
+      const baseFields = {
+        occurrenceRef,
+        occurrenceID,
+        measurementDeterminedBy,
+        measurementDeterminedDate,
+        measurementMethod,
+        measurementRemarks,
+      };
+
+      if (resultType?.endsWith("#floraMeasurement")) {
+        // Flatten typed flora fields using FLORA_FIELD_MAP
+        for (const [field, mapping] of Object.entries(FLORA_FIELD_MAP)) {
+          const rawValue = result[field];
+          if (rawValue !== null && rawValue !== undefined) {
+            measurements.push({
+              ...baseFields,
+              measurementType: mapping.measurementType,
+              measurementValue: String(rawValue),
+              measurementUnit: mapping.measurementUnit || undefined,
+            });
+          }
+        }
+
+        // Flatten additionalMeasurements array if present
+        const additional = result.additionalMeasurements;
+        if (Array.isArray(additional)) {
+          for (const entry of additional as Array<Record<string, unknown>>) {
+            if (entry.measurementType !== undefined && entry.measurementValue !== undefined) {
+              measurements.push({
+                ...baseFields,
+                measurementType: entry.measurementType as string,
+                measurementValue: entry.measurementValue as string,
+                measurementUnit: entry.measurementUnit as string | undefined,
+                measurementAccuracy: entry.measurementAccuracy as string | undefined,
+                measurementRemarks: (entry.measurementRemarks as string | undefined) ?? measurementRemarks,
+                measurementMethod: (entry.measurementMethod as string | undefined) ?? measurementMethod,
+              });
+            }
+          }
+        }
+      } else if (resultType?.endsWith("#faunaMeasurement")) {
+        // TODO: Add fauna field mapping when fauna data is available
+        // For now, flatten additionalMeasurements only
+        const additional = result.additionalMeasurements;
+        if (Array.isArray(additional)) {
+          for (const entry of additional as Array<Record<string, unknown>>) {
+            if (entry.measurementType !== undefined && entry.measurementValue !== undefined) {
+              measurements.push({
+                ...baseFields,
+                measurementType: entry.measurementType as string,
+                measurementValue: entry.measurementValue as string,
+                measurementUnit: entry.measurementUnit as string | undefined,
+                measurementAccuracy: entry.measurementAccuracy as string | undefined,
+                measurementRemarks: (entry.measurementRemarks as string | undefined) ?? measurementRemarks,
+                measurementMethod: (entry.measurementMethod as string | undefined) ?? measurementMethod,
+              });
+            }
+          }
+        }
+      } else if (resultType?.endsWith("#genericMeasurement")) {
+        // Flatten the measurements array from genericMeasurement
+        const genericMeasurements = result.measurements;
+        if (Array.isArray(genericMeasurements)) {
+          for (const entry of genericMeasurements as Array<Record<string, unknown>>) {
+            if (entry.measurementType !== undefined && entry.measurementValue !== undefined) {
+              measurements.push({
+                ...baseFields,
+                measurementType: entry.measurementType as string,
+                measurementValue: entry.measurementValue as string,
+                measurementUnit: entry.measurementUnit as string | undefined,
+                measurementAccuracy: entry.measurementAccuracy as string | undefined,
+                measurementRemarks: (entry.measurementRemarks as string | undefined) ?? measurementRemarks,
+                measurementMethod: (entry.measurementMethod as string | undefined) ?? measurementMethod,
+              });
+            }
+          }
+        }
+      }
+    } else {
+      // ── Old per-measurement format ──────────────────────────────────────
+      measurements.push({
         occurrenceRef: v.occurrenceRef as string | undefined,
         occurrenceID: v.occurrenceID as string | undefined,
         measurementID: v.measurementID as string | undefined,
@@ -267,9 +438,9 @@ export async function fetchDwcaRecords(options: {
           | undefined,
         measurementMethod: v.measurementMethod as string | undefined,
         measurementRemarks: v.measurementRemarks as string | undefined,
-      };
+      });
     }
-  );
+  }
 
   // 6. Map multimedia — handle blob ref nested structure
   const multimedia: PdsMultimediaRecord[] = rawMultimedia.map((record) => {

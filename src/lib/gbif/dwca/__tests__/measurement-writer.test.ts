@@ -146,6 +146,59 @@ describe('writeMeasurementTsv', () => {
     expect(dataRow[idx('measurementRemarks')]).toBe('Measured at breast height')
   })
 
+  it('8. handles new-format bundled measurement records (flattened by fetcher)', () => {
+    // The fetcher flattens bundles into PdsMeasurementRecord[] before they reach the writer,
+    // so this test verifies the flattened output is correctly written to TSV.
+    const uri = 'at://did:plc:abc123/app.gainforest.dwc.occurrence/mt006'
+    const occurrenceUriToId = new Map([[uri, 'OCC-006']])
+    const records: PdsMeasurementRecord[] = [
+      {
+        occurrenceRef: uri,
+        measurementType: 'DBH',
+        measurementValue: '45.2',
+        measurementUnit: 'cm',
+        measurementDeterminedBy: 'Jane Doe',
+        measurementDeterminedDate: '2024-06-15',
+        measurementMethod: 'Tape measure',
+      },
+      {
+        occurrenceRef: uri,
+        measurementType: 'tree height',
+        measurementValue: '18.5',
+        measurementUnit: 'm',
+        measurementDeterminedBy: 'Jane Doe',
+        measurementDeterminedDate: '2024-06-15',
+        measurementMethod: 'Tape measure',
+      },
+    ]
+
+    const result = writeMeasurementTsv(records, occurrenceUriToId)
+    const rows = parseRows(result)
+
+    // header + 2 data rows
+    expect(rows).toHaveLength(3)
+
+    const idx = (col: string) => MEASUREMENT_TSV_COLUMNS.indexOf(col)
+    const coreidIndex = idx('coreid')
+
+    // Both rows resolve to the same occurrence
+    expect(rows[1][coreidIndex]).toBe('OCC-006')
+    expect(rows[2][coreidIndex]).toBe('OCC-006')
+
+    // First row: DBH
+    expect(rows[1][idx('measurementType')]).toBe('DBH')
+    expect(rows[1][idx('measurementValue')]).toBe('45.2')
+    expect(rows[1][idx('measurementUnit')]).toBe('cm')
+    expect(rows[1][idx('measurementDeterminedBy')]).toBe('Jane Doe')
+    expect(rows[1][idx('measurementDeterminedDate')]).toBe('2024-06-15')
+    expect(rows[1][idx('measurementMethod')]).toBe('Tape measure')
+
+    // Second row: tree height
+    expect(rows[2][idx('measurementType')]).toBe('tree height')
+    expect(rows[2][idx('measurementValue')]).toBe('18.5')
+    expect(rows[2][idx('measurementUnit')]).toBe('m')
+  })
+
   it('7. no "undefined" or "null" strings appear in output', () => {
     const uri = 'at://did:plc:abc123/app.gainforest.dwc.occurrence/mt005'
     const occurrenceUriToId = new Map([[uri, 'OCC-005']])
