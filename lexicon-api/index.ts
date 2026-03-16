@@ -27,6 +27,7 @@ import * as AppGainforestEvaluatorDefs from './types/app/gainforest/evaluator/de
 import * as AppGainforestEvaluatorEvaluation from './types/app/gainforest/evaluator/evaluation.js'
 import * as AppGainforestEvaluatorService from './types/app/gainforest/evaluator/service.js'
 import * as AppGainforestEvaluatorSubscription from './types/app/gainforest/evaluator/subscription.js'
+import * as AppGainforestGbifDataset from './types/app/gainforest/gbif/dataset.js'
 import * as AppGainforestOrganizationDefaultSite from './types/app/gainforest/organization/defaultSite.js'
 import * as AppGainforestOrganizationDonation from './types/app/gainforest/organization/donation.js'
 import * as AppGainforestOrganizationGetIndexedOrganizations from './types/app/gainforest/organization/getIndexedOrganizations.js'
@@ -71,6 +72,7 @@ export * as AppGainforestEvaluatorDefs from './types/app/gainforest/evaluator/de
 export * as AppGainforestEvaluatorEvaluation from './types/app/gainforest/evaluator/evaluation.js'
 export * as AppGainforestEvaluatorService from './types/app/gainforest/evaluator/service.js'
 export * as AppGainforestEvaluatorSubscription from './types/app/gainforest/evaluator/subscription.js'
+export * as AppGainforestGbifDataset from './types/app/gainforest/gbif/dataset.js'
 export * as AppGainforestOrganizationDefaultSite from './types/app/gainforest/organization/defaultSite.js'
 export * as AppGainforestOrganizationDonation from './types/app/gainforest/organization/donation.js'
 export * as AppGainforestOrganizationGetIndexedOrganizations from './types/app/gainforest/organization/getIndexedOrganizations.js'
@@ -167,6 +169,7 @@ export class AppGainforestNS {
   ac: AppGainforestAcNS
   dwc: AppGainforestDwcNS
   evaluator: AppGainforestEvaluatorNS
+  gbif: AppGainforestGbifNS
   organization: AppGainforestOrganizationNS
 
   constructor(client: XrpcClient) {
@@ -174,6 +177,7 @@ export class AppGainforestNS {
     this.ac = new AppGainforestAcNS(client)
     this.dwc = new AppGainforestDwcNS(client)
     this.evaluator = new AppGainforestEvaluatorNS(client)
+    this.gbif = new AppGainforestGbifNS(client)
     this.organization = new AppGainforestOrganizationNS(client)
   }
 }
@@ -797,6 +801,99 @@ export class AppGainforestEvaluatorSubscriptionRecord {
       'com.atproto.repo.deleteRecord',
       undefined,
       { collection: 'app.gainforest.evaluator.subscription', ...params },
+      { headers },
+    )
+  }
+}
+
+export class AppGainforestGbifNS {
+  _client: XrpcClient
+  dataset: AppGainforestGbifDatasetRecord
+
+  constructor(client: XrpcClient) {
+    this._client = client
+    this.dataset = new AppGainforestGbifDatasetRecord(client)
+  }
+}
+
+export class AppGainforestGbifDatasetRecord {
+  _client: XrpcClient
+
+  constructor(client: XrpcClient) {
+    this._client = client
+  }
+
+  async list(
+    params: OmitKey<ComAtprotoRepoListRecords.QueryParams, 'collection'>,
+  ): Promise<{
+    cursor?: string
+    records: { uri: string; value: AppGainforestGbifDataset.Record }[]
+  }> {
+    const res = await this._client.call('com.atproto.repo.listRecords', {
+      collection: 'app.gainforest.gbif.dataset',
+      ...params,
+    })
+    return res.data
+  }
+
+  async get(
+    params: OmitKey<ComAtprotoRepoGetRecord.QueryParams, 'collection'>,
+  ): Promise<{
+    uri: string
+    cid: string
+    value: AppGainforestGbifDataset.Record
+  }> {
+    const res = await this._client.call('com.atproto.repo.getRecord', {
+      collection: 'app.gainforest.gbif.dataset',
+      ...params,
+    })
+    return res.data
+  }
+
+  async create(
+    params: OmitKey<
+      ComAtprotoRepoCreateRecord.InputSchema,
+      'collection' | 'record'
+    >,
+    record: Un$Typed<AppGainforestGbifDataset.Record>,
+    headers?: Record<string, string>,
+  ): Promise<{ uri: string; cid: string }> {
+    const collection = 'app.gainforest.gbif.dataset'
+    const res = await this._client.call(
+      'com.atproto.repo.createRecord',
+      undefined,
+      { collection, ...params, record: { ...record, $type: collection } },
+      { encoding: 'application/json', headers },
+    )
+    return res.data
+  }
+
+  async put(
+    params: OmitKey<
+      ComAtprotoRepoPutRecord.InputSchema,
+      'collection' | 'record'
+    >,
+    record: Un$Typed<AppGainforestGbifDataset.Record>,
+    headers?: Record<string, string>,
+  ): Promise<{ uri: string; cid: string }> {
+    const collection = 'app.gainforest.gbif.dataset'
+    const res = await this._client.call(
+      'com.atproto.repo.putRecord',
+      undefined,
+      { collection, ...params, record: { ...record, $type: collection } },
+      { encoding: 'application/json', headers },
+    )
+    return res.data
+  }
+
+  async delete(
+    params: OmitKey<ComAtprotoRepoDeleteRecord.InputSchema, 'collection'>,
+    headers?: Record<string, string>,
+  ): Promise<void> {
+    await this._client.call(
+      'com.atproto.repo.deleteRecord',
+      undefined,
+      { collection: 'app.gainforest.gbif.dataset', ...params },
       { headers },
     )
   }
