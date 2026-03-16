@@ -37,9 +37,10 @@ type RawOccurrenceRecord = {
 
 type RawMeasurementValue = {
   occurrenceRef?: unknown;
-  measurementType?: unknown;
-  measurementValue?: unknown;
-  measurementUnit?: unknown;
+  measurementType?: unknown;   // old format
+  measurementValue?: unknown;  // old format
+  measurementUnit?: unknown;   // old format
+  result?: unknown;            // new format — will be object with $type
   [k: string]: unknown;
 };
 
@@ -106,23 +107,37 @@ const fetchMeasurementIndex = async (
           typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
         if (!occurrenceRef) continue;
 
-        const measurementType =
-          typeof v.measurementType === "string"
-            ? v.measurementType.toLowerCase()
-            : "";
-        const measurementValue =
-          typeof v.measurementValue === "string" ? v.measurementValue : null;
-        if (!measurementValue) continue;
-
         const existing = index.get(occurrenceRef) ?? {};
 
-        if (measurementType === "dbh") {
-          index.set(occurrenceRef, { ...existing, dbh: measurementValue });
-        } else if (
-          measurementType === "height" ||
-          measurementType === "tree height"
-        ) {
-          index.set(occurrenceRef, { ...existing, height: measurementValue });
+        if (typeof v.result === "object" && v.result !== null) {
+          // New bundled format: result object with $type (e.g. floraMeasurement)
+          const result = v.result as Record<string, unknown>;
+          const dbh =
+            typeof result.dbh === "string" ? result.dbh : undefined;
+          const height =
+            typeof result.totalHeight === "string"
+              ? result.totalHeight
+              : undefined;
+          index.set(occurrenceRef, {
+            ...existing,
+            ...(dbh !== undefined ? { dbh } : {}),
+            ...(height !== undefined ? { height } : {}),
+          });
+        } else if (typeof v.measurementType === "string") {
+          // Old per-measurement format: measurementType + measurementValue at top level
+          const measurementType = v.measurementType.toLowerCase();
+          const measurementValue =
+            typeof v.measurementValue === "string" ? v.measurementValue : null;
+          if (!measurementValue) continue;
+
+          if (measurementType === "dbh") {
+            index.set(occurrenceRef, { ...existing, dbh: measurementValue });
+          } else if (
+            measurementType === "height" ||
+            measurementType === "tree height"
+          ) {
+            index.set(occurrenceRef, { ...existing, height: measurementValue });
+          }
         }
       }
     }
