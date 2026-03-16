@@ -4,10 +4,10 @@ import { Agent } from "@atproto/api";
 import { getAtprotoSDK } from "@/lib/atproto/sdk";
 import { getAppSession } from "gainforest-sdk/oauth";
 import { writeTreeRecord } from "@/lib/upload/pds-writer";
-import type { OccurrenceInput, MeasurementInput } from "@/lib/upload/types";
+import type { FloraMeasurementBundle, OccurrenceInput } from "@/lib/upload/types";
 
 /**
- * Server action: write a single tree record (occurrence + measurements) to the PDS.
+ * Server action: write a single tree record (occurrence + optional bundled measurement) to the PDS.
  *
  * Restores the authenticated OAuth session from the server-side cookie and
  * delegates to writeTreeRecord. Returns a serialisable result so it can be
@@ -15,9 +15,9 @@ import type { OccurrenceInput, MeasurementInput } from "@/lib/upload/types";
  */
 export async function writeTreeRecordAction(row: {
   occurrence: OccurrenceInput;
-  measurements: MeasurementInput[];
+  floraMeasurement: FloraMeasurementBundle | null;
 }): Promise<
-  | { success: true; occurrenceUri: string; measurementUris: string[] }
+  | { success: true; occurrenceUri: string; measurementUri: string | null }
   | { success: false; error: string }
 > {
   try {

@@ -1,7 +1,11 @@
 import type { Agent } from "@atproto/api";
 import { TID } from "@atproto/common-web";
 
-import type { MeasurementInput, OccurrenceInput } from "@/lib/upload/types";
+import type {
+  FloraMeasurementBundle,
+  MeasurementInput,
+  OccurrenceInput,
+} from "@/lib/upload/types";
 
 const DWC_OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
 const DWC_MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
@@ -77,6 +81,8 @@ export async function writeOccurrenceToPds(
 }
 
 /**
+ * @deprecated Use writeMeasurementBundleToPds instead. Kept for migration script use.
+ *
  * Write dwc.measurement records linked to an occurrence to the ATProto PDS.
  *
  * @param agent - Authenticated ATProto Agent
@@ -126,20 +132,73 @@ export async function writeMeasurementsToPds(
 }
 
 /**
- * Convenience function: write a tree record (occurrence + measurements) to the PDS.
+ * Write a single bundled dwc.measurement record linked to an occurrence to the ATProto PDS.
+ * All flora measurements for the occurrence are stored in one record using the
+ * `app.gainforest.dwc.measurement#floraMeasurement` union type.
  *
  * @param agent - Authenticated ATProto Agent
  * @param did - The DID of the repo to write to
- * @param row - Object containing occurrence and measurements data
+ * @param occurrenceUri - AT-URI of the parent occurrence record
+ * @param floraMeasurement - Bundled flora measurement data
+ * @returns The URI of the created record
+ */
+export async function writeMeasurementBundleToPds(
+  agent: Agent,
+  did: string,
+  occurrenceUri: string,
+  floraMeasurement: FloraMeasurementBundle
+): Promise<{ uri: string }> {
+  const rkey = TID.nextStr();
+
+  // Build the result union object — only include fields that are defined and non-empty
+  const result: Record<string, unknown> = {
+    $type: "app.gainforest.dwc.measurement#floraMeasurement",
+  };
+
+  if (floraMeasurement.dbh) {
+    result.dbh = floraMeasurement.dbh;
+  }
+  if (floraMeasurement.totalHeight) {
+    result.totalHeight = floraMeasurement.totalHeight;
+  }
+  if (floraMeasurement.diameter) {
+    result.basalDiameter = floraMeasurement.diameter;
+  }
+  if (floraMeasurement.canopyCoverPercent) {
+    result.canopyCoverPercent = floraMeasurement.canopyCoverPercent;
+  }
+
+  const record: Record<string, unknown> = {
+    occurrenceRef: occurrenceUri,
+    result,
+    createdAt: new Date().toISOString(),
+  };
+
+  const response = await agent.com.atproto.repo.putRecord({
+    repo: did,
+    collection: DWC_MEASUREMENT_COLLECTION,
+    rkey,
+    record,
+  });
+
+  return { uri: response.data.uri };
+}
+
+/**
+ * Convenience function: write a tree record (occurrence + optional bundled measurement) to the PDS.
+ *
+ * @param agent - Authenticated ATProto Agent
+ * @param did - The DID of the repo to write to
+ * @param row - Object containing occurrence and optional flora measurement bundle
  * @param projectRef - Optional AT-URI reference to the project record
- * @returns The occurrence URI and all measurement URIs
+ * @returns The occurrence URI and the measurement URI (or null if no measurements)
  */
 export async function writeTreeRecord(
   agent: Agent,
   did: string,
-  row: { occurrence: OccurrenceInput; measurements: MeasurementInput[] },
+  row: { occurrence: OccurrenceInput; floraMeasurement: FloraMeasurementBundle | null },
   projectRef?: string
-): Promise<{ occurrenceUri: string; measurementUris: string[] }> {
+): Promise<{ occurrenceUri: string; measurementUri: string | null }> {
   const { uri: occurrenceUri } = await writeOccurrenceToPds(
     agent,
     did,
@@ -147,14 +206,16 @@ export async function writeTreeRecord(
     projectRef
   );
 
-  const measurementResults = await writeMeasurementsToPds(
+  if (!row.floraMeasurement) {
+    return { occurrenceUri, measurementUri: null };
+  }
+
+  const { uri: measurementUri } = await writeMeasurementBundleToPds(
     agent,
     did,
     occurrenceUri,
-    row.measurements
+    row.floraMeasurement
   );
 
-  const measurementUris = measurementResults.map((r) => r.uri);
-
-  return { occurrenceUri, measurementUris };
+  return { occurrenceUri, measurementUri };
 }
