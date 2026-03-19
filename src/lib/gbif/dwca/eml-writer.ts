@@ -15,7 +15,8 @@ export function escapeXml(str: string): string {
 
 /**
  * Generates the eml.xml metadata file for a Darwin Core Archive.
- * Uses the GBIF-validated license pattern (ulink + citetitle structure).
+ * Uses the GBIF EML profile 1.2 schema and validated license pattern
+ * (ulink + citetitle structure).
  */
 export function writeEmlXml(input: DwcaEmlInput): string {
   const packageId = input.datasetId ?? crypto.randomUUID()
@@ -26,11 +27,16 @@ export function writeEmlXml(input: DwcaEmlInput): string {
   const licenseUrl = GBIF_LICENSES[input.license]
   const licenseTitle = GBIF_LICENSE_TITLES[input.license]
 
+  // Parse contact name into given/surname for EML individualName
+  const nameParts = input.contactName.trim().split(/\s+/)
+  const surName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : input.contactName
+  const givenName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : ''
+
   // Keywords section — always include 'Occurrence' as default
   const allKeywords = ['Occurrence', ...(input.keywords ?? [])]
   const keywordsXml = allKeywords
     .map((kw) => `      <keyword>${escapeXml(kw)}</keyword>`)
-    .join('\n')
+    .join('\n') + '\n      <keywordThesaurus>GBIF Dataset Type Vocabulary: http://rs.gbif.org/vocabulary/gbif/dataset_type_2015-07-10.xml</keywordThesaurus>'
 
   // Geographic coverage — only if all 4 bounds provided
   const hasGeoBounds =
@@ -72,17 +78,25 @@ ${[geoCoverageXml, temporalCoverageXml].filter(Boolean).join('\n')}
     : ''
 
   return `<?xml version='1.0' encoding='utf-8'?>
-<eml:eml xmlns:eml='https://eml.ecoinformatics.org/eml-2.1.1'
+<eml:eml xmlns:eml='eml://ecoinformatics.org/eml-2.1.1'
          xmlns:dc='http://purl.org/dc/terms/'
          xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
-         xsi:schemaLocation='https://eml.ecoinformatics.org/eml-2.1.1 https://eml.ecoinformatics.org/eml.xsd'
+         xsi:schemaLocation='eml://ecoinformatics.org/eml-2.1.1 http://rs.gbif.org/schema/eml-gbif-profile/1.2/eml.xsd'
          packageId='${escapeXml(packageId)}' system='http://gbif.org' scope='system'>
   <dataset>
     <title xml:lang='eng'>${escapeXml(input.datasetTitle)}</title>
     <creator>
+      <individualName>
+        <givenName>${escapeXml(givenName)}</givenName>
+        <surName>${escapeXml(surName)}</surName>
+      </individualName>
       <organizationName>${escapeXml(input.organizationName)}</organizationName>
     </creator>
     <metadataProvider>
+      <individualName>
+        <givenName>${escapeXml(givenName)}</givenName>
+        <surName>${escapeXml(surName)}</surName>
+      </individualName>
       <organizationName>${escapeXml(input.organizationName)}</organizationName>
     </metadataProvider>
     <pubDate>${escapeXml(pubDate)}</pubDate>
@@ -98,6 +112,10 @@ ${keywordsXml}
       </para>
     </intellectualRights>
 ${coverageXml ? coverageXml + '\n' : ''}    <contact>
+      <individualName>
+        <givenName>${escapeXml(givenName)}</givenName>
+        <surName>${escapeXml(surName)}</surName>
+      </individualName>
       <organizationName>${escapeXml(input.organizationName)}</organizationName>
       <electronicMailAddress>${escapeXml(input.contactEmail)}</electronicMailAddress>
     </contact>

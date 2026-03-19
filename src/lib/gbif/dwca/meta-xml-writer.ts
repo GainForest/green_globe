@@ -42,8 +42,9 @@ export function writeMetaXml(options: WriteMetaXmlOptions): string {
     lines.push('    <files><location>occurrence.txt</location></files>')
     lines.push("    <id index='0'/>")
 
-    // occurrenceColumns[0] is 'occurrenceID' (the id column), fields start at index 1
-    for (let i = 1; i < occurrenceColumns.length; i++) {
+    // Declare all columns as fields (including index 0 = occurrenceID).
+    // GBIF requires occurrenceID both as <id> AND as <field> for unique identification.
+    for (let i = 0; i < occurrenceColumns.length; i++) {
       const col = occurrenceColumns[i]
       const termUri = DWCA_TERM_URIS[col]
       if (termUri !== undefined) {

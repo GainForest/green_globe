@@ -15,7 +15,7 @@ describe('writeEmlXml', () => {
   it('1. minimal input produces valid EML structure', () => {
     const result = writeEmlXml(minimalInput)
 
-    expect(result).toContain("xmlns:eml='https://eml.ecoinformatics.org/eml-2.1.1'")
+    expect(result).toContain("xmlns:eml='eml://ecoinformatics.org/eml-2.1.1'")
     expect(result).toContain("<title xml:lang='eng'>Test Dataset</title>")
     expect(result).toContain('<organizationName>Test Org</organizationName>')
     expect(result).toContain('<para>A test dataset abstract.</para>')
