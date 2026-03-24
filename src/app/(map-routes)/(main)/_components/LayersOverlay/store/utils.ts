@@ -66,7 +66,7 @@ const normalizeAtprotoLayer = (raw: RawLayerRecord): Layer => {
   return {
     name: typeof v.name === "string" ? v.name : "",
     type,
-    endpoint: typeof v.uri === "string" ? v.uri : "",
+    endpoint: typeof v.uri === "string" ? cleanEndpoint(v.uri) : "",
     category: typeof v.category === "string" ? v.category : "",
     description: typeof v.description === "string" ? v.description : "",
     legend,
