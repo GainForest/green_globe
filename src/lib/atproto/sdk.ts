@@ -8,15 +8,22 @@ import {
 
 export const OAUTH_SCOPE = "atproto transition:generic";
 
-// Create Supabase client with service role key (server-side only!)
-// Cast to work around version mismatch between SDK's bundled supabase and ours
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-) as unknown as Parameters<typeof createSupabaseSessionStore>[0];
-
 // Unique identifier for this app in the shared Supabase tables
 const APP_ID = "greenglobe";
+
+// Lazily initialised Supabase client (server-side only!).
+// Must not run at module scope — env vars are unavailable at build time.
+// Cast to work around version mismatch between SDK's bundled supabase and ours.
+let _supabase: Parameters<typeof createSupabaseSessionStore>[0] | undefined;
+
+function getSupabaseClient(): Parameters<typeof createSupabaseSessionStore>[0] {
+  if (_supabase) return _supabase;
+  _supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  ) as unknown as Parameters<typeof createSupabaseSessionStore>[0];
+  return _supabase;
+}
 
 // Environment detection
 const isDev = process.env.NODE_ENV === "development";
@@ -112,8 +119,8 @@ export function getAtprotoSDK(): ReturnType<typeof createATProtoSDK> {
       pds: `https://${allowedPDSDomains[0]}`,
     },
     storage: {
-      sessionStore: createSupabaseSessionStore(supabase, APP_ID),
-      stateStore: createSupabaseStateStore(supabase, APP_ID),
+      sessionStore: createSupabaseSessionStore(getSupabaseClient(), APP_ID),
+      stateStore: createSupabaseStateStore(getSupabaseClient(), APP_ID),
     },
   });
 
