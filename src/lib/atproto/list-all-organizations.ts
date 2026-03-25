@@ -1,4 +1,5 @@
 import ClimateAIAgent from "@/lib/atproto/agent";
+import { APPROVED_ORGANIZATION_DIDS } from "@/config/approved-organizations";
 
 export type IndexedOrganization = {
   did: string;
@@ -32,9 +33,14 @@ export async function listAllOrganizations(options?: {
     cursor = reposResponse.data.cursor;
   } while (cursor);
 
+  // Step 1.5: Filter to only approved organization DIDs (allowlist from Airtable)
+  const approvedRepos = repos.filter((repo) =>
+    APPROVED_ORGANIZATION_DIDS.has(repo.did)
+  );
+
   // Step 2: For each repo, fetch org info and/or coordinates via raw ATProto agent
   const results = await Promise.all(
-    repos.map(async (repo): Promise<IndexedOrganization | null> => {
+    approvedRepos.map(async (repo): Promise<IndexedOrganization | null> => {
       try {
         const org: IndexedOrganization = { did: repo.did };
 
