@@ -2,7 +2,7 @@ import type { HyperindexQueryResponse } from "./types";
 
 export const HYPERINDEX_ENDPOINT = "https://api.hi.gainforest.app/graphql";
 
-const MAX_PAGES = 200;
+const MAX_PAGES = 100;
 
 export async function queryHyperindex<T>(
   query: string,
@@ -36,7 +36,8 @@ export async function queryAllPages<TNode>(
   query: string,
   variables: Record<string, unknown>,
   connectionPath: string,
-): Promise<TNode[]> {
+  maxRecords: number = 5000,
+): Promise<TNode[] | null> {
   const nodes: TNode[] = [];
   let currentVariables = { ...variables };
   let pageCount = 0;
@@ -57,6 +58,14 @@ export async function queryAllPages<TNode>(
 
     if (!connection || !connection.edges) {
       break;
+    }
+
+    // On first page, check totalCount — bail if collection is too large
+    if (pageCount === 0 && connection.totalCount != null && connection.totalCount > maxRecords) {
+      console.warn(
+        `[Hyperindex] Collection ${connectionPath} has ${connection.totalCount} records (limit: ${maxRecords}). Returning null to trigger fallback.`,
+      );
+      return null;
     }
 
     if (connection.edges.length === 0) {
@@ -89,3 +98,4 @@ export async function queryAllPages<TNode>(
 
   return nodes;
 }
+

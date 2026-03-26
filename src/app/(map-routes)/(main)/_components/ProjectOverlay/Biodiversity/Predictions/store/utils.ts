@@ -276,6 +276,8 @@ export const fetchPlantsFromATProto = async (
       ),
     ]);
 
+    if (!occurrenceNodes) return null;
+
     const records = occurrenceNodes.map(toRawOccurrenceRecord);
 
     for (const record of records) {
@@ -310,6 +312,8 @@ export const fetchAnimalsFromATProto = async (
       { did, kingdom: "Animalia", first: 100 },
       "appGainforestDwcOccurrence",
     );
+
+    if (!occurrenceNodes) return null;
 
     const records = occurrenceNodes.map(toRawOccurrenceRecord);
     const animals: BiodiversityAnimal[] = [];

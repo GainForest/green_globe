@@ -21,27 +21,6 @@ import type {
   HyperindexMeasurementNode,
 } from "@/lib/hyperindex/types";
 
-// ── Raw record shapes ──────────────────────────────────────────────────────────
-
-type RawOccurrenceValue = {
-  basisOfRecord?: unknown;
-  scientificName?: unknown;
-  vernacularName?: unknown;
-  decimalLatitude?: unknown;
-  decimalLongitude?: unknown;
-  dynamicProperties?: unknown;
-  associatedMedia?: unknown;
-  eventDate?: unknown;
-  siteRef?: unknown;
-  [k: string]: unknown;
-};
-
-type RawOccurrenceRecord = {
-  uri: string;
-  cid: string;
-  value: RawOccurrenceValue;
-};
-
 // ── Dynamic properties ─────────────────────────────────────────────────────────
 
 type ParsedDynamicProperties = {
@@ -85,6 +64,7 @@ const fetchMeasurementIndex = async (
     { did, first: 100 },
     "appGainforestDwcMeasurement",
   );
+  if (!nodes) return new Map();
   const records = nodes.map(toRawMeasurementRecord);
 
   const index: MeasurementsByOccurrence = new Map();
@@ -153,11 +133,15 @@ export const fetchMeasuredTreeOccurrences = async (
       MEASURED_TREE_OCCURRENCES_QUERY,
       { did, first: 100 },
       "appGainforestDwcOccurrence",
-    ).then((nodes): RawOccurrenceRecord[] => nodes.map(toRawOccurrenceRecord)),
+    ),
   ]);
 
+  if (!occurrences) return null;
+
+  const occurrenceRecords = occurrences.map(toRawOccurrenceRecord);
+
   // Filter to measured tree occurrences
-  const measuredTreeRecords = occurrences.filter((record) => {
+  const measuredTreeRecords = occurrenceRecords.filter((record) => {
     const v = record.value;
     if (
       typeof v.basisOfRecord !== "string" ||

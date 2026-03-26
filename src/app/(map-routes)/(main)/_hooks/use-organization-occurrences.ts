@@ -299,8 +299,13 @@ const fetchAllOccurrenceRecords = async (
             { did, kingdom: "Animalia", first: 100 },
             "appGainforestDwcOccurrence",
           ),
-        ]).then(([plants, animalsNodes]) => [...plants, ...animalsNodes]),
+        ]).then(([plants, animalsNodes]) => {
+          if (!plants || !animalsNodes) return null;
+          return [...plants, ...animalsNodes];
+        }),
   ]);
+
+  if (!occurrenceNodes) return { trees: [], herbs: [], animals: [] };
 
   const records = occurrenceNodes.map(toRawOccurrenceRecord);
 
