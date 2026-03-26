@@ -12,10 +12,7 @@ export type HyperindexOccurrenceNode = {
   dynamicProperties: string | null;
   occurrenceID: string | null;
   associatedMedia: string | null;
-  conservationStatus: string | null; // JSON string or null — Hyperindex flattens embedded objects to string
-  plantTraits: string | null; // same
   imageEvidence: { file: { ref: string; mimeType: string; size: number } } | null;
-  siteRef: string | null;
 };
 
 export type HyperindexMeasurementNode = {

@@ -1,23 +1,6 @@
 import type { HyperindexMeasurementNode, HyperindexOccurrenceNode } from './types';
 
 /**
- * Safely parse a value that may be a JSON string or already an object.
- * Returns null on parse failure or if the input is null/undefined.
- */
-function safeParseJson(value: string | object | null | undefined): unknown {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return null;
-    }
-  }
-  // Already an object — pass through
-  return value;
-}
-
-/**
  * Maps a Hyperindex occurrence node to the RawOccurrenceRecord shape used by
  * normalizePlantRecord, normalizeAnimalRecord, and measured-tree mapping code.
  *
@@ -61,10 +44,10 @@ export function toRawOccurrenceRecord(node: HyperindexOccurrenceNode): {
       eventDate: node.eventDate,
       occurrenceID: node.occurrenceID,
       associatedMedia: node.associatedMedia,
-      conservationStatus: safeParseJson(node.conservationStatus),
-      plantTraits: safeParseJson(node.plantTraits),
+      conservationStatus: null,
+      plantTraits: null,
       imageEvidence: node.imageEvidence ?? undefined,
-      siteRef: node.siteRef,
+      siteRef: null,
     },
   };
 }

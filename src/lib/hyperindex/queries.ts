@@ -24,8 +24,6 @@ export const MEASURED_TREE_OCCURRENCES_QUERY = `
           dynamicProperties
           occurrenceID
           associatedMedia
-          conservationStatus
-          plantTraits
           imageEvidence {
             file {
               ref
@@ -33,7 +31,6 @@ export const MEASURED_TREE_OCCURRENCES_QUERY = `
               size
             }
           }
-          siteRef
         }
         cursor
       }
@@ -106,8 +103,6 @@ export const OCCURRENCES_BY_KINGDOM_QUERY = `
           dynamicProperties
           occurrenceID
           associatedMedia
-          conservationStatus
-          plantTraits
           imageEvidence {
             file {
               ref
@@ -115,7 +110,6 @@ export const OCCURRENCES_BY_KINGDOM_QUERY = `
               size
             }
           }
-          siteRef
         }
         cursor
       }
@@ -155,8 +149,6 @@ export const PLANT_PREDICTIONS_QUERY = `
           dynamicProperties
           occurrenceID
           associatedMedia
-          conservationStatus
-          plantTraits
           imageEvidence {
             file {
               ref
@@ -164,7 +156,6 @@ export const PLANT_PREDICTIONS_QUERY = `
               size
             }
           }
-          siteRef
         }
         cursor
       }
