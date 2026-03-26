@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import ClimateAIAgent from "@/lib/atproto/agent";
 import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import type {
@@ -13,8 +12,10 @@ import {
   fetchMultimediaIndex,
   type MultimediaIndex,
 } from "@/lib/atproto/ac-multimedia";
-
-const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
+import { queryAllPages } from "@/lib/hyperindex/client";
+import { OCCURRENCES_BY_KINGDOM_QUERY } from "@/lib/hyperindex/queries";
+import { toRawOccurrenceRecord } from "@/lib/hyperindex/adapters";
+import type { HyperindexOccurrenceNode } from "@/lib/hyperindex/types";
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
@@ -277,63 +278,72 @@ const fetchAllOccurrenceRecords = async (
   const herbs: BiodiversityPlant[] = [];
   const animals: BiodiversityAnimal[] = [];
 
-  // Fetch multimedia index in parallel with the first page of occurrences
-  const multimediaIndex = await fetchMultimediaIndex(did);
+  // Fetch multimedia index in parallel with occurrences
+  const [multimediaIndex, occurrenceNodes] = await Promise.all([
+    fetchMultimediaIndex(did),
+    filter?.kingdom
+      ? queryAllPages<HyperindexOccurrenceNode>(
+          OCCURRENCES_BY_KINGDOM_QUERY,
+          { did, kingdom: filter.kingdom, first: 100 },
+          "appGainforestDwcOccurrence",
+        )
+      : // No kingdom filter: fetch plants and animals in parallel, merge
+        Promise.all([
+          queryAllPages<HyperindexOccurrenceNode>(
+            OCCURRENCES_BY_KINGDOM_QUERY,
+            { did, kingdom: "Plantae", first: 100 },
+            "appGainforestDwcOccurrence",
+          ),
+          queryAllPages<HyperindexOccurrenceNode>(
+            OCCURRENCES_BY_KINGDOM_QUERY,
+            { did, kingdom: "Animalia", first: 100 },
+            "appGainforestDwcOccurrence",
+          ),
+        ]).then(([plants, animalsNodes]) => {
+          if (!plants || !animalsNodes) return null;
+          return [...plants, ...animalsNodes];
+        }),
+  ]);
 
-  let cursor: string | undefined;
+  if (!occurrenceNodes) return { trees: [], herbs: [], animals: [] };
 
-  do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-      repo: did,
-      collection: OCCURRENCE_COLLECTION,
-      limit: 100,
-      cursor,
-    });
+  const records = occurrenceNodes.map(toRawOccurrenceRecord);
 
-    const page = response.data.records as RawOccurrenceRecord[] | undefined;
-    if (page?.length) {
-      for (const record of page) {
-        const kingdom =
-          typeof record.value.kingdom === "string"
-            ? record.value.kingdom
-            : undefined;
-
-        // Apply kingdom filter if provided
-        if (filter?.kingdom && kingdom !== filter.kingdom) continue;
-
-        // Apply basisOfRecord filter if provided
-        if (filter?.basisOfRecord) {
-          const basisOfRecord =
-            typeof record.value.basisOfRecord === "string"
-              ? record.value.basisOfRecord
-              : undefined;
-          if (basisOfRecord !== filter.basisOfRecord) continue;
-        }
-
-        if (kingdom === "Plantae") {
-          const plant = normalizePlantRecord(
-            record,
-            did,
-            multimediaIndex,
-            record.uri,
-          );
-          if (plant) {
-            const { _dataType, ...plantData } = plant;
-            if (_dataType === "herbs") {
-              herbs.push(plantData);
-            } else {
-              trees.push(plantData);
-            }
-          }
-        } else if (kingdom === "Animalia") {
-          const animal = normalizeAnimalRecord(record);
-          if (animal) animals.push(animal);
-        }
-      }
+  for (const record of records) {
+    // Apply basisOfRecord filter if provided (client-side)
+    if (filter?.basisOfRecord) {
+      const basisOfRecord =
+        typeof record.value.basisOfRecord === "string"
+          ? record.value.basisOfRecord
+          : undefined;
+      if (basisOfRecord !== filter.basisOfRecord) continue;
     }
 
-    cursor = response.data.cursor ?? undefined;
-  } while (cursor);
+    const kingdom =
+      typeof record.value.kingdom === "string"
+        ? record.value.kingdom
+        : undefined;
+
+    if (kingdom === "Plantae") {
+      const plant = normalizePlantRecord(
+        record,
+        did,
+        multimediaIndex,
+        record.uri,
+      );
+      if (plant) {
+        const { _dataType, ...plantData } = plant;
+        if (_dataType === "herbs") {
+          herbs.push(plantData);
+        } else {
+          trees.push(plantData);
+        }
+      }
+    } else if (kingdom === "Animalia") {
+      const animal = normalizeAnimalRecord(record);
+      if (animal) animals.push(animal);
+    }
+  }
 
   return { trees, herbs, animals };
 };
