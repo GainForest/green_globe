@@ -1,18 +1,25 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import ClimateAIAgent from "@/lib/atproto/agent";
 import type {
   MeasuredTreesGeoJSON,
   NormalizedTreeFeature,
 } from "../_components/ProjectOverlay/store/types";
 import { getTreeSpeciesName } from "../_components/Map/sources-and-layers/measured-trees";
 import { fetchMultimediaByOccurrence } from "@/lib/atproto/ac-multimedia";
-
-// ── Constants ──────────────────────────────────────────────────────────────────
-
-const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
-const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
+import { queryAllPages } from "@/lib/hyperindex/client";
+import {
+  MEASURED_TREE_OCCURRENCES_QUERY,
+  MEASUREMENTS_BY_DID_QUERY,
+} from "@/lib/hyperindex/queries";
+import {
+  toRawOccurrenceRecord,
+  toRawMeasurementRecord,
+} from "@/lib/hyperindex/adapters";
+import type {
+  HyperindexOccurrenceNode,
+  HyperindexMeasurementNode,
+} from "@/lib/hyperindex/types";
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
@@ -33,21 +40,6 @@ type RawOccurrenceRecord = {
   uri: string;
   cid: string;
   value: RawOccurrenceValue;
-};
-
-type RawMeasurementValue = {
-  occurrenceRef?: unknown;
-  measurementType?: unknown;   // old format
-  measurementValue?: unknown;  // old format
-  measurementUnit?: unknown;   // old format
-  result?: unknown;            // new format — will be object with $type
-  [k: string]: unknown;
-};
-
-type RawMeasurementRecord = {
-  uri: string;
-  cid: string;
-  value: RawMeasurementValue;
 };
 
 // ── Dynamic properties ─────────────────────────────────────────────────────────
@@ -88,62 +80,53 @@ type MeasurementsByOccurrence = Map<
 const fetchMeasurementIndex = async (
   did: string,
 ): Promise<MeasurementsByOccurrence> => {
+  const nodes = await queryAllPages<HyperindexMeasurementNode>(
+    MEASUREMENTS_BY_DID_QUERY,
+    { did, first: 100 },
+    "appGainforestDwcMeasurement",
+  );
+  const records = nodes.map(toRawMeasurementRecord);
+
   const index: MeasurementsByOccurrence = new Map();
-  let cursor: string | undefined;
+  for (const record of records) {
+    const v = record.value;
+    const occurrenceRef =
+      typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
+    if (!occurrenceRef) continue;
 
-  do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-      repo: did,
-      collection: MEASUREMENT_COLLECTION,
-      limit: 100,
-      cursor,
-    });
+    const existing = index.get(occurrenceRef) ?? {};
 
-    const page = response.data.records as RawMeasurementRecord[] | undefined;
-    if (page?.length) {
-      for (const record of page) {
-        const v = record.value;
-        const occurrenceRef =
-          typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
-        if (!occurrenceRef) continue;
+    if (typeof v.result === "object" && v.result !== null) {
+      // New bundled format: result object with $type (e.g. floraMeasurement)
+      const result = v.result as Record<string, unknown>;
+      const dbh =
+        typeof result.dbh === "string" ? result.dbh : undefined;
+      const height =
+        typeof result.totalHeight === "string"
+          ? result.totalHeight
+          : undefined;
+      index.set(occurrenceRef, {
+        ...existing,
+        ...(dbh !== undefined ? { dbh } : {}),
+        ...(height !== undefined ? { height } : {}),
+      });
+    } else if (typeof v.measurementType === "string") {
+      // Old per-measurement format: measurementType + measurementValue at top level
+      const measurementType = v.measurementType.toLowerCase();
+      const measurementValue =
+        typeof v.measurementValue === "string" ? v.measurementValue : null;
+      if (!measurementValue) continue;
 
-        const existing = index.get(occurrenceRef) ?? {};
-
-        if (typeof v.result === "object" && v.result !== null) {
-          // New bundled format: result object with $type (e.g. floraMeasurement)
-          const result = v.result as Record<string, unknown>;
-          const dbh =
-            typeof result.dbh === "string" ? result.dbh : undefined;
-          const height =
-            typeof result.totalHeight === "string"
-              ? result.totalHeight
-              : undefined;
-          index.set(occurrenceRef, {
-            ...existing,
-            ...(dbh !== undefined ? { dbh } : {}),
-            ...(height !== undefined ? { height } : {}),
-          });
-        } else if (typeof v.measurementType === "string") {
-          // Old per-measurement format: measurementType + measurementValue at top level
-          const measurementType = v.measurementType.toLowerCase();
-          const measurementValue =
-            typeof v.measurementValue === "string" ? v.measurementValue : null;
-          if (!measurementValue) continue;
-
-          if (measurementType === "dbh") {
-            index.set(occurrenceRef, { ...existing, dbh: measurementValue });
-          } else if (
-            measurementType === "height" ||
-            measurementType === "tree height"
-          ) {
-            index.set(occurrenceRef, { ...existing, height: measurementValue });
-          }
-        }
+      if (measurementType === "dbh") {
+        index.set(occurrenceRef, { ...existing, dbh: measurementValue });
+      } else if (
+        measurementType === "height" ||
+        measurementType === "tree height"
+      ) {
+        index.set(occurrenceRef, { ...existing, height: measurementValue });
       }
     }
-
-    cursor = response.data.cursor ?? undefined;
-  } while (cursor);
+  }
 
   return index;
 };
@@ -166,30 +149,11 @@ export const fetchMeasuredTreeOccurrences = async (
   const [measurementIndex, multimediaIndex, occurrences] = await Promise.all([
     fetchMeasurementIndex(did),
     fetchMultimediaByOccurrence(did),
-    (async () => {
-      const records: RawOccurrenceRecord[] = [];
-      let cursor: string | undefined;
-
-      do {
-        const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-          repo: did,
-          collection: OCCURRENCE_COLLECTION,
-          limit: 100,
-          cursor,
-        });
-
-        const page = response.data.records as
-          | RawOccurrenceRecord[]
-          | undefined;
-        if (page?.length) {
-          records.push(...page);
-        }
-
-        cursor = response.data.cursor ?? undefined;
-      } while (cursor);
-
-      return records;
-    })(),
+    queryAllPages<HyperindexOccurrenceNode>(
+      MEASURED_TREE_OCCURRENCES_QUERY,
+      { did, first: 100 },
+      "appGainforestDwcOccurrence",
+    ).then((nodes): RawOccurrenceRecord[] => nodes.map(toRawOccurrenceRecord)),
   ]);
 
   // Filter to measured tree occurrences
