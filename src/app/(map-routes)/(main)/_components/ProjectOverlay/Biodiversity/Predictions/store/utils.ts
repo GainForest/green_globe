@@ -2,15 +2,19 @@ import { toKebabCase } from "@/lib/utils";
 import type { BiodiversityTraits } from "./types";
 import { BiodiversityAnimal, BiodiversityPlant } from "./types";
 import * as d3 from "d3";
-import ClimateAIAgent from "@/lib/atproto/agent";
 import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import {
   fetchMultimediaIndex,
   type MultimediaIndex,
 } from "@/lib/atproto/ac-multimedia";
-
-const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
+import { queryAllPages } from "@/lib/hyperindex/client";
+import {
+  PLANT_PREDICTIONS_QUERY,
+  OCCURRENCES_BY_KINGDOM_QUERY,
+} from "@/lib/hyperindex/queries";
+import { toRawOccurrenceRecord } from "@/lib/hyperindex/adapters";
+import type { HyperindexOccurrenceNode } from "@/lib/hyperindex/types";
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
@@ -262,54 +266,29 @@ export const fetchPlantsFromATProto = async (
     const trees: BiodiversityPlant[] = [];
     const herbs: BiodiversityPlant[] = [];
 
-    // Fetch multimedia index in parallel with occurrences
-    const multimediaIndex = await fetchMultimediaIndex(did);
+    // Fetch multimedia index and plant occurrences in parallel
+    const [multimediaIndex, occurrenceNodes] = await Promise.all([
+      fetchMultimediaIndex(did),
+      queryAllPages<HyperindexOccurrenceNode>(
+        PLANT_PREDICTIONS_QUERY,
+        { did, first: 100 },
+        "appGainforestDwcOccurrence",
+      ),
+    ]);
 
-    let cursor: string | undefined;
+    const records = occurrenceNodes.map(toRawOccurrenceRecord);
 
-    do {
-      const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-        repo: did,
-        collection: OCCURRENCE_COLLECTION,
-        limit: 100,
-        cursor,
-      });
-
-      const page = response.data.records as RawOccurrenceRecord[] | undefined;
-      if (page?.length) {
-        for (const record of page) {
-          const kingdom =
-            typeof record.value.kingdom === "string"
-              ? record.value.kingdom
-              : undefined;
-          if (kingdom !== "Plantae") continue;
-
-          // Skip measured trees — they are HumanObservation records, not species predictions
-          const basisOfRecord =
-            typeof record.value.basisOfRecord === "string"
-              ? record.value.basisOfRecord
-              : undefined;
-          if (basisOfRecord === "HumanObservation") continue;
-
-          const plant = normalizePlantRecord(
-            record,
-            did,
-            multimediaIndex,
-            record.uri,
-          );
-          if (plant) {
-            const { _dataType, ...plantData } = plant;
-            if (_dataType === "herbs") {
-              herbs.push(plantData);
-            } else {
-              trees.push(plantData);
-            }
-          }
+    for (const record of records) {
+      const plant = normalizePlantRecord(record, did, multimediaIndex, record.uri);
+      if (plant) {
+        const { _dataType, ...plantData } = plant;
+        if (_dataType === "herbs") {
+          herbs.push(plantData);
+        } else {
+          trees.push(plantData);
         }
       }
-
-      cursor = response.data.cursor ?? undefined;
-    } while (cursor);
+    }
 
     return { trees, herbs };
   } catch (e) {
@@ -326,33 +305,19 @@ export const fetchAnimalsFromATProto = async (
   did: string,
 ): Promise<BiodiversityAnimal[] | null> => {
   try {
+    const occurrenceNodes = await queryAllPages<HyperindexOccurrenceNode>(
+      OCCURRENCES_BY_KINGDOM_QUERY,
+      { did, kingdom: "Animalia", first: 100 },
+      "appGainforestDwcOccurrence",
+    );
+
+    const records = occurrenceNodes.map(toRawOccurrenceRecord);
     const animals: BiodiversityAnimal[] = [];
-    let cursor: string | undefined;
 
-    do {
-      const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-        repo: did,
-        collection: OCCURRENCE_COLLECTION,
-        limit: 100,
-        cursor,
-      });
-
-      const page = response.data.records as RawOccurrenceRecord[] | undefined;
-      if (page?.length) {
-        for (const record of page) {
-          const kingdom =
-            typeof record.value.kingdom === "string"
-              ? record.value.kingdom
-              : undefined;
-          if (kingdom !== "Animalia") continue;
-
-          const animal = normalizeAnimalRecord(record);
-          if (animal) animals.push(animal);
-        }
-      }
-
-      cursor = response.data.cursor ?? undefined;
-    } while (cursor);
+    for (const record of records) {
+      const animal = normalizeAnimalRecord(record);
+      if (animal) animals.push(animal);
+    }
 
     return animals;
   } catch (e) {
