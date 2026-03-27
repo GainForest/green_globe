@@ -1,20 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import ClimateAIAgent from "@/lib/atproto/agent";
 import type {
   MeasuredTreesGeoJSON,
   NormalizedTreeFeature,
 } from "../_components/ProjectOverlay/store/types";
 import { getTreeSpeciesName } from "../_components/Map/sources-and-layers/measured-trees";
 import { fetchMultimediaByOccurrence } from "@/lib/atproto/ac-multimedia";
-import ClimateAIAgent from "@/lib/atproto/agent";
 
-// ── Collection constants ───────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
 const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
 
-// ── Raw record types ───────────────────────────────────────────────────────────
+// ── Raw record shapes ──────────────────────────────────────────────────────────
 
 type RawOccurrenceValue = {
   basisOfRecord?: unknown;
@@ -37,10 +37,10 @@ type RawOccurrenceRecord = {
 
 type RawMeasurementValue = {
   occurrenceRef?: unknown;
-  measurementType?: unknown;
-  measurementValue?: unknown;
-  measurementUnit?: unknown;
-  result?: unknown;
+  measurementType?: unknown;   // old format
+  measurementValue?: unknown;  // old format
+  measurementUnit?: unknown;   // old format
+  result?: unknown;            // new format — will be object with $type
   [k: string]: unknown;
 };
 
@@ -163,38 +163,37 @@ export const fetchMeasuredTreeOccurrences = async (
   did: string,
 ): Promise<MeasuredTreesGeoJSON | null> => {
   // Fetch measurements and AC multimedia records in parallel with occurrences
-  const [measurementIndex, multimediaIndex, occurrenceRecords] =
-    await Promise.all([
-      fetchMeasurementIndex(did),
-      fetchMultimediaByOccurrence(did),
-      (async () => {
-        const records: RawOccurrenceRecord[] = [];
-        let cursor: string | undefined;
+  const [measurementIndex, multimediaIndex, occurrences] = await Promise.all([
+    fetchMeasurementIndex(did),
+    fetchMultimediaByOccurrence(did),
+    (async () => {
+      const records: RawOccurrenceRecord[] = [];
+      let cursor: string | undefined;
 
-        do {
-          const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-            repo: did,
-            collection: OCCURRENCE_COLLECTION,
-            limit: 100,
-            cursor,
-          });
+      do {
+        const response = await ClimateAIAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: OCCURRENCE_COLLECTION,
+          limit: 100,
+          cursor,
+        });
 
-          const page = response.data.records as
-            | RawOccurrenceRecord[]
-            | undefined;
-          if (page?.length) {
-            records.push(...page);
-          }
+        const page = response.data.records as
+          | RawOccurrenceRecord[]
+          | undefined;
+        if (page?.length) {
+          records.push(...page);
+        }
 
-          cursor = response.data.cursor ?? undefined;
-        } while (cursor);
+        cursor = response.data.cursor ?? undefined;
+      } while (cursor);
 
-        return records;
-      })(),
-    ]);
+      return records;
+    })(),
+  ]);
 
   // Filter to measured tree occurrences
-  const measuredTreeRecords = occurrenceRecords.filter((record) => {
+  const measuredTreeRecords = occurrences.filter((record) => {
     const v = record.value;
     if (
       typeof v.basisOfRecord !== "string" ||
