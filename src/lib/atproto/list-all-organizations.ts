@@ -41,9 +41,10 @@ export async function listAllOrganizations(options?: {
   includeCoordinates?: boolean;
 }): Promise<IndexedOrganization[]> {
   // Step 1: Fetch all public org info records from Hyperindex (1 call)
+  // Use first:200 to ensure all orgs are included (currently 119 public orgs)
   const infoResponse = await hyperindexClient.request<{
     appGainforestOrganizationInfo: Connection<HiOrganizationInfo>;
-  }>(ALL_ORGANIZATION_INFOS, { first: 100 });
+  }>(ALL_ORGANIZATION_INFOS, { first: 200 });
 
   const allInfos = infoResponse.appGainforestOrganizationInfo.edges;
 
@@ -108,7 +109,7 @@ async function buildCoordinateMap(
   // Step 1: Fetch all defaultSite pointers (1 Hyperindex call)
   const defaultSiteResponse = await hyperindexClient.request<{
     appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
-  }>(ALL_DEFAULT_SITES, { first: 100 });
+    }>(ALL_DEFAULT_SITES, { first: 200 });
 
   const defaultSiteMap = new Map<string, string>();
   for (const edge of defaultSiteResponse.appGainforestOrganizationDefaultSite
