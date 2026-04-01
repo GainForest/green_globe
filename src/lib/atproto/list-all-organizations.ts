@@ -9,6 +9,7 @@ import {
 } from "@/lib/hyperindex/queries";
 import type {
   Connection,
+  Edge,
   HiOrganizationInfo,
   HiOrganizationDefaultSite,
   HiCertifiedLocation,
@@ -40,13 +41,9 @@ export async function listAllOrganizations(options?: {
   includeInfo?: boolean;
   includeCoordinates?: boolean;
 }): Promise<IndexedOrganization[]> {
-  // Step 1: Fetch all public org info records from Hyperindex (1 call)
-  // Use first:200 to ensure all orgs are included (currently 119 public orgs)
-  const infoResponse = await hyperindexClient.request<{
-    appGainforestOrganizationInfo: Connection<HiOrganizationInfo>;
-  }>(ALL_ORGANIZATION_INFOS, { first: 200 });
-
-  const allInfos = infoResponse.appGainforestOrganizationInfo.edges;
+  // Step 1: Fetch all public org info records from Hyperindex
+  // Hyperindex caps at 100 per page, so we paginate to get all records
+  const allInfos = await fetchAllOrgInfos();
 
   // Step 2: Filter to approved DIDs
   const approvedInfos = allInfos.filter((edge) =>
@@ -87,6 +84,36 @@ export async function listAllOrganizations(options?: {
   }
 
   return results;
+}
+
+// ── Paginated Hyperindex fetchers ───────────────────────────────────────────────
+
+/**
+ * Fetches all public org info records from Hyperindex, paginating through
+ * all pages (Hyperindex caps at 100 per page).
+ */
+async function fetchAllOrgInfos(): Promise<Edge<HiOrganizationInfo>[]> {
+  const allEdges: Edge<HiOrganizationInfo>[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const response: { appGainforestOrganizationInfo: Connection<HiOrganizationInfo> } =
+      await hyperindexClient.request(ALL_ORGANIZATION_INFOS, {
+        first: 100,
+        after: cursor,
+      });
+
+    const connection = response.appGainforestOrganizationInfo;
+    allEdges.push(...connection.edges);
+
+    if (connection.pageInfo.hasNextPage) {
+      cursor = connection.pageInfo.endCursor;
+    } else {
+      break;
+    }
+  } while (cursor);
+
+  return allEdges;
 }
 
 // ── Coordinate resolution ──────────────────────────────────────────────────────

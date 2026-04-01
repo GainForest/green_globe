@@ -7,10 +7,11 @@ import { gql } from "graphql-request";
  * Used by /api/list-organizations to replace the PDS listRepos + N×getRecord chain.
  */
 export const ALL_ORGANIZATION_INFOS = gql`
-  query AllOrganizationInfos($first: Int!) {
+  query AllOrganizationInfos($first: Int!, $after: String) {
     appGainforestOrganizationInfo(
       where: { visibility: { eq: "Public" } }
       first: $first
+      after: $after
       sortBy: displayName
       sortDirection: ASC
     ) {
@@ -25,6 +26,10 @@ export const ALL_ORGANIZATION_INFOS = gql`
         }
       }
       totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
     }
   }
 `;
