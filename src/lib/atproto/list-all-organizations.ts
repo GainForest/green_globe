@@ -1,4 +1,5 @@
 import ClimateAIAgent from "@/lib/atproto/agent";
+import { PDS_ENDPOINT } from "@/config/atproto";
 import { APPROVED_ORGANIZATION_DIDS } from "@/config/approved-organizations";
 import { hyperindexClient } from "@/lib/hyperindex/client";
 import {
@@ -10,6 +11,8 @@ import type {
   HiOrganizationInfo,
   HiOrganizationDefaultSite,
 } from "@/lib/hyperindex/types";
+import { centroid } from "@turf/turf";
+import type { FeatureCollection, GeoJsonProperties, Geometry } from "geojson";
 
 export type IndexedOrganization = {
   did: string;
@@ -23,8 +26,8 @@ export type IndexedOrganization = {
  * Fetches all approved, public organizations and optionally their coordinates.
  *
  * Uses Hyperindex GraphQL API as the primary data source for organization info
- * (1 call for all orgs instead of N×getRecord). Falls back to the PDS for
- * coordinates since defaultSite.site AT-URIs still reference organization.site.
+ * and defaultSite pointers (2 calls for all orgs). Coordinates are resolved
+ * from the default site's location record on the PDS.
  *
  * Only organizations with visibility 'Public' that appear in the
  * APPROVED_ORGANIZATION_DIDS allowlist are returned.
@@ -55,15 +58,15 @@ export async function listAllOrganizations(options?: {
     }>(ALL_DEFAULT_SITES, { first: 100 });
 
     defaultSiteMap = new Map();
-    for (const edge of defaultSiteResponse.appGainforestOrganizationDefaultSite
-      .edges) {
+    for (const edge of defaultSiteResponse
+      .appGainforestOrganizationDefaultSite.edges) {
       if (edge.node.site) {
         defaultSiteMap.set(edge.node.did, edge.node.site);
       }
     }
   }
 
-  // Step 4: Resolve coordinates for each org (PDS calls for site records)
+  // Step 4: Resolve coordinates for each org
   const results = await Promise.all(
     approvedInfos.map(async (edge): Promise<IndexedOrganization | null> => {
       const info = edge.node;
@@ -78,8 +81,7 @@ export async function listAllOrganizations(options?: {
         try {
           const siteAtURI = defaultSiteMap.get(info.did);
           if (siteAtURI) {
-            const coordinates =
-              await resolveCoordinatesFromSiteURI(info.did, siteAtURI);
+            const coordinates = await resolveCoordinates(info.did, siteAtURI);
             if (coordinates) {
               org.lat = coordinates.lat;
               org.lon = coordinates.lon;
@@ -97,38 +99,110 @@ export async function listAllOrganizations(options?: {
   return results.filter((r): r is IndexedOrganization => r !== null);
 }
 
+// ── Coordinate resolution ──────────────────────────────────────────────────────
+
 /**
  * Resolves coordinates from a site AT-URI.
  *
- * The defaultSite.site field currently contains AT-URIs pointing to
- * app.gainforest.organization.site records on the PDS. These records
- * have direct lat/lon fields.
- *
- * TODO: Once defaultSite.site AT-URIs are updated to point to
- * app.certified.location records, update this function to parse
- * GeoJSON blobs instead.
+ * Handles both:
+ * - app.certified.location — downloads GeoJSON blob, computes centroid
+ * - app.gainforest.organization.site (legacy) — uses direct lat/lon fields
  */
-async function resolveCoordinatesFromSiteURI(
+async function resolveCoordinates(
   did: string,
   siteAtURI: string
 ): Promise<{ lat: number; lon: number } | null> {
-  // Parse the AT-URI to extract the rkey after the collection segment
-  const siteCollectionId = siteAtURI.split(
-    "app.gainforest.organization.site/"
-  )[1];
+  if (siteAtURI.includes("app.certified.location")) {
+    return resolveFromCertifiedLocation(did, siteAtURI);
+  }
+  if (siteAtURI.includes("app.gainforest.organization.site")) {
+    return resolveFromLegacySite(did, siteAtURI);
+  }
+  return null;
+}
 
-  if (!siteCollectionId) return null;
+/**
+ * Resolves coordinates from an app.certified.location record.
+ *
+ * Fetches the record to get the GeoJSON blob CID, downloads the blob,
+ * parses the GeoJSON, and computes the centroid.
+ */
+async function resolveFromCertifiedLocation(
+  did: string,
+  atURI: string
+): Promise<{ lat: number; lon: number } | null> {
+  const rkey = atURI.split("/").pop();
+  if (!rkey) return null;
+
+  // Fetch the location record from PDS
+  const record = await ClimateAIAgent.com.atproto.repo.getRecord({
+    repo: did,
+    collection: "app.certified.location",
+    rkey,
+  });
+
+  if (!record.success) return null;
+
+  const location = (record.data.value as Record<string, unknown>)
+    .location as Record<string, unknown> | undefined;
+  if (!location) return null;
+
+  // Extract blob CID from the location field
+  const blob = location.blob as
+    | { ref?: { $link?: string }; mimeType?: string }
+    | undefined;
+  const cid = blob?.ref?.$link;
+  if (!cid) return null;
+
+  // Download the GeoJSON blob
+  const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${cid}`;
+  const blobResponse = await fetch(blobUrl);
+  if (!blobResponse.ok) return null;
+
+  const geojson = (await blobResponse.json()) as FeatureCollection<
+    Geometry,
+    GeoJsonProperties
+  >;
+
+  // Compute centroid
+  try {
+    const center = centroid(geojson);
+    const [lon, lat] = center.geometry.coordinates;
+    return { lat, lon };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves coordinates from a legacy app.gainforest.organization.site record.
+ * These records have direct lat/lon string fields.
+ *
+ * Only used for the ~3 remaining orgs whose defaultSite hasn't been migrated.
+ */
+async function resolveFromLegacySite(
+  did: string,
+  atURI: string
+): Promise<{ lat: number; lon: number } | null> {
+  const rkey = atURI.split("app.gainforest.organization.site/")[1];
+  if (!rkey) return null;
 
   const siteData = await ClimateAIAgent.com.atproto.repo.getRecord({
     repo: did,
     collection: "app.gainforest.organization.site",
-    rkey: siteCollectionId,
+    rkey,
   });
 
   if (!siteData.success) return null;
 
-  const { lat, lon } = siteData.data.value as { lat?: number; lon?: number };
-  if (lat === undefined || lon === undefined) return null;
+  const value = siteData.data.value as {
+    lat?: string | number;
+    lon?: string | number;
+  };
+  const lat = Number(value.lat);
+  const lon = Number(value.lon);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   return { lat, lon };
 }
