@@ -1,5 +1,15 @@
 import ClimateAIAgent from "@/lib/atproto/agent";
 import { APPROVED_ORGANIZATION_DIDS } from "@/config/approved-organizations";
+import { hyperindexClient } from "@/lib/hyperindex/client";
+import {
+  ALL_ORGANIZATION_INFOS,
+  ALL_DEFAULT_SITES,
+} from "@/lib/hyperindex/queries";
+import type {
+  Connection,
+  HiOrganizationInfo,
+  HiOrganizationDefaultSite,
+} from "@/lib/hyperindex/types";
 
 export type IndexedOrganization = {
   did: string;
@@ -10,81 +20,77 @@ export type IndexedOrganization = {
 };
 
 /**
- * Enumerates all organizations on the climateai.org PDS and fetches their
- * info and/or coordinates via the ATProto agent.
+ * Fetches all approved, public organizations and optionally their coordinates.
  *
- * Only organizations with visibility 'Public' are returned. Repos that lack
- * an org info record (test accounts, etc.) are silently skipped.
+ * Uses Hyperindex GraphQL API as the primary data source for organization info
+ * (1 call for all orgs instead of N×getRecord). Falls back to the PDS for
+ * coordinates since defaultSite.site AT-URIs still reference organization.site.
+ *
+ * Only organizations with visibility 'Public' that appear in the
+ * APPROVED_ORGANIZATION_DIDS allowlist are returned.
  */
 export async function listAllOrganizations(options?: {
   includeInfo?: boolean;
   includeCoordinates?: boolean;
 }): Promise<IndexedOrganization[]> {
-  // Step 1: List all repos on the PDS with cursor-based pagination
-  const repos: { did: string }[] = [];
-  let cursor: string | undefined = undefined;
+  // Step 1: Fetch all public org info records from Hyperindex (1 call)
+  const infoResponse = await hyperindexClient.request<{
+    appGainforestOrganizationInfo: Connection<HiOrganizationInfo>;
+  }>(ALL_ORGANIZATION_INFOS, { first: 100 });
 
-  do {
-    const reposResponse = await ClimateAIAgent.com.atproto.sync.listRepos({
-      limit: 500,
-      cursor,
-    });
-    repos.push(...reposResponse.data.repos);
-    cursor = reposResponse.data.cursor;
-  } while (cursor);
+  const allInfos = infoResponse.appGainforestOrganizationInfo.edges;
 
-  // Step 1.5: Filter to only approved organization DIDs (allowlist from Airtable)
-  const approvedRepos = repos.filter((repo) =>
-    APPROVED_ORGANIZATION_DIDS.has(repo.did)
+  // Step 2: Filter to approved DIDs and build organization records
+  const approvedInfos = allInfos.filter((edge) =>
+    APPROVED_ORGANIZATION_DIDS.has(edge.node.did)
   );
 
-  // Step 2: For each repo, fetch org info and/or coordinates via raw ATProto agent
+  // Step 3: If coordinates are needed, fetch all defaultSite records in one call
+  // and build a DID → site-AT-URI lookup map
+  let defaultSiteMap: Map<string, string> | null = null;
+
+  if (options?.includeCoordinates) {
+    const defaultSiteResponse = await hyperindexClient.request<{
+      appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
+    }>(ALL_DEFAULT_SITES, { first: 100 });
+
+    defaultSiteMap = new Map();
+    for (const edge of defaultSiteResponse.appGainforestOrganizationDefaultSite
+      .edges) {
+      if (edge.node.site) {
+        defaultSiteMap.set(edge.node.did, edge.node.site);
+      }
+    }
+  }
+
+  // Step 4: Resolve coordinates for each org (PDS calls for site records)
   const results = await Promise.all(
-    approvedRepos.map(async (repo): Promise<IndexedOrganization | null> => {
-      try {
-        const org: IndexedOrganization = { did: repo.did };
+    approvedInfos.map(async (edge): Promise<IndexedOrganization | null> => {
+      const info = edge.node;
+      const org: IndexedOrganization = { did: info.did };
 
-        // Always fetch org info to apply the visibility filter — returns
-        // success=false if the record doesn't exist (test accounts, etc.).
-        const infoRecord = await ClimateAIAgent.com.atproto.repo.getRecord({
-          repo: repo.did,
-          collection: "app.gainforest.organization.info",
-          rkey: "self",
-        });
-        if (!infoRecord.success) return null;
-        const info = infoRecord.data.value as {
-          displayName?: string;
-          country?: string;
-          visibility?: string;
-          [key: string]: unknown;
-        };
+      if (options?.includeInfo) {
+        org.name = info.displayName;
+        org.country = info.country;
+      }
 
-        // Filter: only include Public orgs regardless of what the caller requested
-        if (info.visibility !== "Public") return null;
-
-        // Only populate info fields when the caller explicitly asked for them
-        if (options?.includeInfo) {
-          org.name = info.displayName;
-          org.country = info.country;
-        }
-
-        if (options?.includeCoordinates) {
-          try {
-            const coordinates = await getOrganizationCoordinates(repo.did);
+      if (options?.includeCoordinates && defaultSiteMap) {
+        try {
+          const siteAtURI = defaultSiteMap.get(info.did);
+          if (siteAtURI) {
+            const coordinates =
+              await resolveCoordinatesFromSiteURI(info.did, siteAtURI);
             if (coordinates) {
               org.lat = coordinates.lat;
               org.lon = coordinates.lon;
             }
-          } catch {
-            // No default location — skip coordinates silently
           }
+        } catch {
+          // No default location — skip coordinates silently
         }
-
-        return org;
-      } catch {
-        // Repo has no org info record (test accounts, etc.) — skip silently
-        return null;
       }
+
+      return org;
     })
   );
 
@@ -92,29 +98,20 @@ export async function listAllOrganizations(options?: {
 }
 
 /**
- * Resolves the default site coordinates for an organization.
+ * Resolves coordinates from a site AT-URI.
  *
- * Flow: getRecord(defaultSite) → parse AT-URI → getRecord(site) → extract lat/lon
+ * The defaultSite.site field currently contains AT-URIs pointing to
+ * app.gainforest.organization.site records on the PDS. These records
+ * have direct lat/lon fields.
  *
- * Uses the ClimateAIAgent directly since the SDK's hypercerts.location.*
- * methods target app.certified.location, while the existing PDS data stores
- * coordinates in app.gainforest.organization.site with direct lat/lon fields.
+ * TODO: Once defaultSite.site AT-URIs are updated to point to
+ * app.certified.location records, update this function to parse
+ * GeoJSON blobs instead.
  */
-async function getOrganizationCoordinates(
-  did: string
+async function resolveCoordinatesFromSiteURI(
+  did: string,
+  siteAtURI: string
 ): Promise<{ lat: number; lon: number } | null> {
-  const defaultSiteData = await ClimateAIAgent.com.atproto.repo.getRecord({
-    repo: did,
-    collection: "app.gainforest.organization.defaultSite",
-    rkey: "self",
-  });
-
-  const siteAtURI = defaultSiteData.success
-    ? (defaultSiteData.data.value as { site?: string }).site
-    : null;
-
-  if (!siteAtURI) return null;
-
   // Parse the AT-URI to extract the rkey after the collection segment
   const siteCollectionId = siteAtURI.split(
     "app.gainforest.organization.site/"
