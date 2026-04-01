@@ -67,6 +67,8 @@
     "dayjs": "^1.11.13",
     "framer-motion": "^12.4.10",
     "gainforest-sdk": "file:./vendor/gainforest-sdk-nextjs-0.1.1.tgz",
+    "graphql": "^16.13.2",
+    "graphql-request": "^7.4.0",
     "immer": "^10.1.1",
     "jose": "^5.10.0",
     "jszip": "^3.10.1",
