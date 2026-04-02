@@ -8,11 +8,13 @@ import type {
 } from "../_components/ProjectOverlay/store/types";
 import { getTreeSpeciesName } from "../_components/Map/sources-and-layers/measured-trees";
 import { fetchMultimediaByOccurrence } from "@/lib/atproto/ac-multimedia";
+import { hyperindexClient } from "@/lib/hyperindex/client";
+import { OCCURRENCES_BY_DID_WITH_DYNAMIC } from "@/lib/hyperindex/queries";
+import type { Connection, HiDwcOccurrence } from "@/lib/hyperindex/types";
+
+const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-
-const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
-const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
@@ -31,23 +33,12 @@ type RawOccurrenceValue = {
 
 type RawOccurrenceRecord = {
   uri: string;
-  cid: string;
+  cid?: string;
   value: RawOccurrenceValue;
 };
 
-type RawMeasurementValue = {
-  occurrenceRef?: unknown;
-  measurementType?: unknown;   // old format
-  measurementValue?: unknown;  // old format
-  measurementUnit?: unknown;   // old format
-  result?: unknown;            // new format — will be object with $type
-  [k: string]: unknown;
-};
-
-type RawMeasurementRecord = {
-  uri: string;
-  cid: string;
-  value: RawMeasurementValue;
+type OccurrenceResponse = {
+  appGainforestDwcOccurrence: Connection<HiDwcOccurrence>;
 };
 
 // ── Dynamic properties ─────────────────────────────────────────────────────────
@@ -83,7 +74,12 @@ type MeasurementsByOccurrence = Map<
 >;
 
 /**
- * Fetch all dwc.measurement records for an org and index them by occurrenceRef URI.
+ * Fetch all dwc.measurement records for an org from the PDS and index them by
+ * occurrenceRef URI.
+ *
+ * We intentionally keep measurements on the PDS for now because Hyperindex's
+ * generic records() query cannot filter by DID and the typed measurement query
+ * still reflects the old flat schema instead of the bundled `result` format.
  */
 const fetchMeasurementIndex = async (
   did: string,
@@ -99,7 +95,10 @@ const fetchMeasurementIndex = async (
       cursor,
     });
 
-    const page = response.data.records as RawMeasurementRecord[] | undefined;
+    const page = response.data.records as
+      | Array<{ value: Record<string, unknown> }>
+      | undefined;
+
     if (page?.length) {
       for (const record of page) {
         const v = record.value;
@@ -148,6 +147,54 @@ const fetchMeasurementIndex = async (
   return index;
 };
 
+const mapOccurrenceNodeToRawRecord = (
+  node: HiDwcOccurrence,
+): RawOccurrenceRecord => ({
+  uri: node.uri,
+  cid: node.cid,
+  value: {
+    basisOfRecord: node.basisOfRecord,
+    scientificName: node.scientificName,
+    vernacularName: node.vernacularName,
+    decimalLatitude: node.decimalLatitude,
+    decimalLongitude: node.decimalLongitude,
+    dynamicProperties: node.dynamicProperties,
+    associatedMedia: node.associatedMedia,
+    eventDate: node.eventDate,
+  },
+});
+
+const fetchMeasuredTreeOccurrenceRecords = async (
+  did: string,
+): Promise<RawOccurrenceRecord[]> => {
+  const records: RawOccurrenceRecord[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const response: OccurrenceResponse = await hyperindexClient.request(
+      OCCURRENCES_BY_DID_WITH_DYNAMIC,
+      {
+        did,
+        first: 100,
+        after: cursor,
+        basisOfRecord: "HumanObservation",
+        dynamicContains: "measuredTree",
+      }
+    );
+
+    const connection = response.appGainforestDwcOccurrence;
+    records.push(
+      ...connection.edges.map((edge) => mapOccurrenceNodeToRawRecord(edge.node))
+    );
+
+    cursor = connection.pageInfo.hasNextPage
+      ? connection.pageInfo.endCursor
+      : null;
+  } while (cursor);
+
+  return records;
+};
+
 // ── Main fetcher ───────────────────────────────────────────────────────────────
 
 /**
@@ -162,34 +209,11 @@ const fetchMeasurementIndex = async (
 export const fetchMeasuredTreeOccurrences = async (
   did: string,
 ): Promise<MeasuredTreesGeoJSON | null> => {
-  // Fetch measurements and AC multimedia records in parallel with occurrences
+  // Fetch measurements, AC multimedia, and measured-tree occurrences in parallel.
   const [measurementIndex, multimediaIndex, occurrences] = await Promise.all([
     fetchMeasurementIndex(did),
     fetchMultimediaByOccurrence(did),
-    (async () => {
-      const records: RawOccurrenceRecord[] = [];
-      let cursor: string | undefined;
-
-      do {
-        const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-          repo: did,
-          collection: OCCURRENCE_COLLECTION,
-          limit: 100,
-          cursor,
-        });
-
-        const page = response.data.records as
-          | RawOccurrenceRecord[]
-          | undefined;
-        if (page?.length) {
-          records.push(...page);
-        }
-
-        cursor = response.data.cursor ?? undefined;
-      } while (cursor);
-
-      return records;
-    })(),
+    fetchMeasuredTreeOccurrenceRecords(did),
   ]);
 
   // Filter to measured tree occurrences

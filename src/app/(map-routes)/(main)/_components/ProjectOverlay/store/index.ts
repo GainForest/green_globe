@@ -15,93 +15,69 @@ import {
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
 import ClimateAIAgent from "@/lib/atproto/agent";
 import { fetchMeasuredTreeOccurrences } from "../../../_hooks/use-organization-measured-trees";
+import { hyperindexClient } from "@/lib/hyperindex/client";
+import {
+  DEFAULT_SITE_BY_DID,
+  LOCATIONS_BY_DID,
+} from "@/lib/hyperindex/queries";
+import type {
+  Connection,
+  HiCertifiedLocation,
+  HiOrganizationDefaultSite,
+} from "@/lib/hyperindex/types";
 
 // ---------------------------------------------------------------------------
 // ATProto collections
 // ---------------------------------------------------------------------------
-const SITE_COLLECTION = "app.gainforest.organization.site";
-const DEFAULT_SITE_COLLECTION = "app.gainforest.organization.defaultSite";
-const DEFAULT_SITE_RKEY = "self";
-
-// ---------------------------------------------------------------------------
-// Raw PDS record shapes
-// ---------------------------------------------------------------------------
-type RawSiteValue = {
-  name?: unknown;
-  lat?: unknown;
-  lon?: unknown;
-  area?: unknown;
-  shapefile?: unknown;
-  trees?: unknown;
-  createdAt?: unknown;
-  [k: string]: unknown;
-};
-
-type RawSiteRecord = {
-  uri: string;
-  cid: string;
-  value: RawSiteValue;
-};
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-const extractRkey = (uri: string): string => {
-  const parts = uri.split("/");
-  return parts[parts.length - 1] ?? uri;
+type LocationsResponse = {
+  appCertifiedLocation: Connection<HiCertifiedLocation>;
 };
 
-const normalizeAtprotoSite = (raw: RawSiteRecord): AtprotoSite => ({
-  uri: raw.uri,
-  rkey: extractRkey(raw.uri),
-  name: typeof raw.value.name === "string" ? raw.value.name : "",
-  lat: typeof raw.value.lat === "string" ? raw.value.lat : "",
-  lon: typeof raw.value.lon === "string" ? raw.value.lon : "",
-  area: typeof raw.value.area === "string" ? raw.value.area : "",
-  shapefile: raw.value.shapefile ?? null,
-  trees: raw.value.trees,
-  createdAt:
-    typeof raw.value.createdAt === "string" ? raw.value.createdAt : undefined,
+type DefaultSiteResponse = {
+  appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
+};
+
+const normalizeCertifiedLocation = (location: HiCertifiedLocation): AtprotoSite => ({
+  uri: location.uri,
+  rkey: location.rkey,
+  name:
+    typeof location.name === "string" && location.name.trim().length > 0
+      ? location.name
+      : location.rkey,
+  lat: "",
+  lon: "",
+  area: "",
+  shapefile:
+    "blob" in location.location ? { blob: location.location.blob } : location.location.uri,
+  trees: undefined,
+  createdAt: location.createdAt,
 });
 
 const fetchAllAtprotoSites = async (did: string): Promise<AtprotoSite[]> => {
-  const records: AtprotoSite[] = [];
-  let cursor: string | undefined;
-
-  do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-      repo: did,
-      collection: SITE_COLLECTION,
-      limit: 100,
-      cursor,
-    });
-
-    const page = response.data.records as RawSiteRecord[] | undefined;
-    if (page?.length) {
-      records.push(...page.map(normalizeAtprotoSite));
+  const response: LocationsResponse = await hyperindexClient.request(
+    LOCATIONS_BY_DID,
+    {
+      did,
+      first: 100,
     }
+  );
 
-    cursor = response.data.cursor ?? undefined;
-  } while (cursor);
-
-  return records;
+  return response.appCertifiedLocation.edges.map((edge) =>
+    normalizeCertifiedLocation(edge.node)
+  );
 };
 
 const fetchDefaultSiteUri = async (did: string): Promise<string | null> => {
-  try {
-    const response = await ClimateAIAgent.com.atproto.repo.getRecord({
-      repo: did,
-      collection: DEFAULT_SITE_COLLECTION,
-      rkey: DEFAULT_SITE_RKEY,
-    });
-    const value = response.data.value as { site?: unknown } | undefined;
-    if (typeof value?.site === "string") {
-      return value.site;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  const response: DefaultSiteResponse = await hyperindexClient.request(
+    DEFAULT_SITE_BY_DID,
+    { did }
+  );
+
+  const defaultSite = response.appGainforestOrganizationDefaultSite.edges[0]?.node;
+  return typeof defaultSite?.site === "string" ? defaultSite.site : null;
 };
 
 /** PDS truncates handles to 18 chars. Map truncated slugs to their full S3 names. */

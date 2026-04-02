@@ -39,12 +39,50 @@ export const ALL_ORGANIZATION_INFOS = gql`
  * Each record links an org DID to its default site AT-URI.
  */
 export const ALL_DEFAULT_SITES = gql`
-  query AllDefaultSites($first: Int!) {
-    appGainforestOrganizationDefaultSite(first: $first) {
+  query AllDefaultSites($first: Int!, $after: String) {
+    appGainforestOrganizationDefaultSite(first: $first, after: $after) {
       edges {
         node {
           did
           site
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+/**
+ * Fetch a certified location directly by its AT-URI.
+ *
+ * This is more precise than querying all locations for a DID and then matching
+ * client-side, and it avoids pagination risks for orgs with >100 locations.
+ */
+export const CERTIFIED_LOCATION_BY_URI = gql`
+  query CertifiedLocationByUri($uri: String!) {
+    appCertifiedLocationByUri(uri: $uri) {
+      uri
+      rkey
+      did
+      name
+      description
+      locationType
+      lpVersion
+      srs
+      createdAt
+      location {
+        ... on OrgHypercertsDefsUri {
+          uri
+        }
+        ... on OrgHypercertsDefsSmallBlob {
+          blob {
+            ref
+            mimeType
+            size
+          }
         }
       }
     }
@@ -90,6 +128,40 @@ export const ORGANIZATION_MEMBERS = gql`
   }
 `;
 
+/**
+ * Fetch raw organization.member records via the generic records() query.
+ *
+ * We use this instead of the typed appGainforestOrganizationMember query for
+ * the members UI because the typed resolver currently has two issues:
+ * - `bio` is flattened into a serialized string (instead of exposing richtext)
+ * - `profileImage` resolves to null for records that do have images
+ *
+ * The generic records() query preserves the raw record value so the client can
+ * normalize `bio.text` and `profileImage` safely.
+ */
+export const ORGANIZATION_MEMBER_RECORDS = gql`
+  query OrganizationMemberRecords($first: Int!, $after: String) {
+    records(
+      collection: "app.gainforest.organization.member"
+      first: $first
+      after: $after
+    ) {
+      edges {
+        node {
+          uri
+          did
+          value
+        }
+      }
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
 // ── Organization layers (generic query for full field fidelity) ─────────────────
 
 /**
@@ -101,10 +173,11 @@ export const ORGANIZATION_MEMBERS = gql`
  * The generic query returns the full record value as JSON.
  */
 export const ALL_LAYER_RECORDS = gql`
-  query AllLayerRecords($first: Int!) {
+  query AllLayerRecords($first: Int!, $after: String) {
     records(
       collection: "app.gainforest.organization.layer"
       first: $first
+      after: $after
     ) {
       edges {
         node {
@@ -114,6 +187,10 @@ export const ALL_LAYER_RECORDS = gql`
         }
       }
       totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
     }
   }
 `;
@@ -177,6 +254,61 @@ export const OCCURRENCES_BY_DID = gql`
 `;
 
 /**
+ * Fetch occurrences for a specific org and kingdom.
+ *
+ * Used by the active biodiversity predictions flow. Basis-of-record filtering is
+ * intentionally handled client-side so we preserve existing semantics exactly
+ * (plants exclude HumanObservation; animals do not).
+ */
+export const OCCURRENCES_BY_DID_AND_KINGDOM = gql`
+  query OccurrencesByDidAndKingdom(
+    $did: String!
+    $first: Int!
+    $after: String
+    $kingdom: String!
+  ) {
+    appGainforestDwcOccurrence(
+      where: {
+        did: { eq: $did }
+        kingdom: { eq: $kingdom }
+      }
+      first: $first
+      after: $after
+      sortBy: createdAt
+      sortDirection: DESC
+    ) {
+      edges {
+        node {
+          uri
+          cid
+          rkey
+          did
+          scientificName
+          vernacularName
+          kingdom
+          basisOfRecord
+          occurrenceID
+          dynamicProperties
+          imageEvidence {
+            file {
+              ref
+              mimeType
+              size
+            }
+          }
+          associatedMedia
+        }
+      }
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+/**
  * Fetch occurrences with dynamicProperties containing a substring.
  * Used for measured trees (dynamicProperties contains "measuredTree").
  */
@@ -213,7 +345,6 @@ export const OCCURRENCES_BY_DID_WITH_DYNAMIC = gql`
           dynamicProperties
           associatedMedia
           basisOfRecord
-          siteRef
         }
       }
       totalCount
@@ -261,6 +392,36 @@ export const MEASUREMENTS_BY_DID = gql`
   }
 `;
 
+/**
+ * Fetch raw dwc.measurement records via the generic records() query.
+ *
+ * We use the generic query for measured trees because the typed
+ * appGainforestDwcMeasurement resolver still reflects the old flat schema and
+ * does not expose the new bundled `result` field.
+ */
+export const MEASUREMENT_RECORDS = gql`
+  query MeasurementRecords($first: Int!, $after: String) {
+    records(
+      collection: "app.gainforest.dwc.measurement"
+      first: $first
+      after: $after
+    ) {
+      edges {
+        node {
+          uri
+          did
+          value
+        }
+      }
+      totalCount
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
 // ── AC Multimedia ──────────────────────────────────────────────────────────────
 
 /**
@@ -286,7 +447,11 @@ export const MULTIMEDIA_BY_DID = gql`
           format
           accessUri
           caption
-          file
+          file {
+            ref
+            mimeType
+            size
+          }
         }
       }
       totalCount

@@ -223,6 +223,41 @@ export type HiDwcMeasurement = {
   measurementRemarks?: string;
 };
 
+export type HiMeasurementResult = {
+  $type?: string;
+  dbh?: string;
+  totalHeight?: string;
+  basalDiameter?: string;
+  canopyCoverPercent?: string;
+  measurements?: unknown[];
+  additionalMeasurements?: unknown[];
+  [k: string]: unknown;
+};
+
+export type HiMeasurementRecordValue = {
+  $type?: string;
+  createdAt?: string;
+  occurrenceID?: string;
+  occurrenceRef?: string;
+  result?: HiMeasurementResult;
+  measurementType?: string;
+  measurementValue?: string;
+  measurementUnit?: string;
+  measurementID?: string;
+  measurementAccuracy?: string;
+  measurementMethod?: string;
+  measurementDeterminedBy?: string;
+  measurementDeterminedDate?: string;
+  measurementRemarks?: string;
+  [k: string]: unknown;
+};
+
+export type HiGenericMeasurementRecord = {
+  uri: string;
+  did: string;
+  value: HiMeasurementRecordValue;
+};
+
 // ── app.gainforest.ac.multimedia ────────────────────────────────────────────────
 
 export type HiAcMultimedia = {

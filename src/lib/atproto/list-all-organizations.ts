@@ -5,7 +5,7 @@ import { hyperindexClient } from "@/lib/hyperindex/client";
 import {
   ALL_ORGANIZATION_INFOS,
   ALL_DEFAULT_SITES,
-  LOCATIONS_BY_DID,
+  CERTIFIED_LOCATION_BY_URI,
 } from "@/lib/hyperindex/queries";
 import type {
   Connection,
@@ -30,8 +30,8 @@ export type IndexedOrganization = {
  *
  * Uses Hyperindex GraphQL API as the primary data source:
  * - 1 call for all org info records
- * - 1 call for all defaultSite pointers
- * - 1 call per org for location records (to get GeoJSON blob CIDs)
+ * - paginated calls for all defaultSite pointers
+ * - 1 call per org for certified location lookup by AT-URI
  * - 1 PDS call per org to download the GeoJSON blob (binary content)
  *
  * Only organizations with visibility 'Public' that appear in the
@@ -116,38 +116,61 @@ async function fetchAllOrgInfos(): Promise<Edge<HiOrganizationInfo>[]> {
   return allEdges;
 }
 
+/**
+ * Fetches all defaultSite records from Hyperindex, paginating through all pages.
+ */
+async function fetchAllDefaultSites(): Promise<
+  Edge<HiOrganizationDefaultSite>[]
+> {
+  const allEdges: Edge<HiOrganizationDefaultSite>[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const response: {
+      appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
+    } = await hyperindexClient.request(ALL_DEFAULT_SITES, {
+      first: 100,
+      after: cursor,
+    });
+
+    const connection = response.appGainforestOrganizationDefaultSite;
+    allEdges.push(...connection.edges);
+
+    if (connection.pageInfo.hasNextPage) {
+      cursor = connection.pageInfo.endCursor;
+    } else {
+      break;
+    }
+  } while (cursor);
+
+  return allEdges;
+}
+
 // ── Coordinate resolution ──────────────────────────────────────────────────────
 
 /**
  * Builds a DID → {lat, lon} map for the given organization DIDs.
  *
  * Flow:
- * 1. Fetch all defaultSite records from Hyperindex (1 call) → DID→locationURI map
- * 2. For each DID, fetch its locations from Hyperindex (parallel) → get blob CIDs
- * 3. Match the defaultSite URI to the correct location record
- * 4. Decode the blob CID from Hyperindex's Go-serialized format
- * 5. Download GeoJSON blobs from PDS (parallel) → compute centroids
+ * 1. Fetch all defaultSite records from Hyperindex (paginated) → DID→siteURI map
+ * 2. Route each site URI explicitly by collection:
+ *    - app.certified.location → Hyperindex by-URI lookup + blob download
+ *    - app.gainforest.organization.site → legacy PDS record fallback
+ * 3. Compute map-point coordinates for each organization
  */
 async function buildCoordinateMap(
   approvedDids: string[]
 ): Promise<Map<string, { lat: number; lon: number }>> {
   const coordMap = new Map<string, { lat: number; lon: number }>();
 
-  // Step 1: Fetch all defaultSite pointers (1 Hyperindex call)
-  const defaultSiteResponse = await hyperindexClient.request<{
-    appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
-    }>(ALL_DEFAULT_SITES, { first: 200 });
-
   const defaultSiteMap = new Map<string, string>();
-  for (const edge of defaultSiteResponse.appGainforestOrganizationDefaultSite
-    .edges) {
+  for (const edge of await fetchAllDefaultSites()) {
     if (edge.node.site) {
       defaultSiteMap.set(edge.node.did, edge.node.site);
     }
   }
 
-  // Step 2: For each approved org that has a defaultSite, fetch its locations
-  // from Hyperindex in parallel to get blob CIDs
+  // Step 2: Resolve coordinates for each org using explicit URI routing.
   const didsWithDefault = approvedDids.filter((did) =>
     defaultSiteMap.has(did)
   );
@@ -156,16 +179,10 @@ async function buildCoordinateMap(
     didsWithDefault.map(async (did) => {
       const siteUri = defaultSiteMap.get(did)!;
       try {
-        const coords = await resolveCoordinatesFromHyperindex(did, siteUri);
+        const coords = await resolveCoordinatesFromSiteUri(did, siteUri);
         return { did, coords };
       } catch {
-        // Try legacy PDS fallback for orgs still on organization.site
-        try {
-          const coords = await resolveFromLegacySite(did, siteUri);
-          return { did, coords };
-        } catch {
-          return { did, coords: null };
-        }
+        return { did, coords: null };
       }
     })
   );
@@ -180,33 +197,45 @@ async function buildCoordinateMap(
 }
 
 /**
- * Resolves coordinates for an org using Hyperindex for metadata + PDS for blob.
+ * Resolves coordinates from a defaultSite AT-URI by routing explicitly based on
+ * the collection path embedded in the URI.
+ */
+async function resolveCoordinatesFromSiteUri(
+  did: string,
+  siteUri: string
+): Promise<{ lat: number; lon: number } | null> {
+  if (siteUri.includes("app.certified.location")) {
+    return resolveCoordinatesFromCertifiedLocationUri(siteUri);
+  }
+
+  if (siteUri.includes("app.gainforest.organization.site")) {
+    return resolveFromLegacySite(did, siteUri);
+  }
+
+  return null;
+}
+
+/**
+ * Resolves coordinates for a certified location using Hyperindex for metadata +
+ * PDS for the GeoJSON blob.
  *
- * 1. Fetches location records for the DID from Hyperindex (1 call)
- * 2. Finds the location matching the defaultSite URI
+ * 1. Fetches the exact location from Hyperindex by AT-URI (1 call)
+ * 2. Extracts the blob CID from the location record
  * 3. Decodes the blob CID from Hyperindex's Go-serialized ref format
  * 4. Downloads the GeoJSON blob from PDS (1 call)
  * 5. Computes centroid with Turf.js
  */
-async function resolveCoordinatesFromHyperindex(
-  did: string,
-  defaultSiteUri: string
+async function resolveCoordinatesFromCertifiedLocationUri(
+  locationUri: string
 ): Promise<{ lat: number; lon: number } | null> {
-  if (!defaultSiteUri.includes("app.certified.location")) {
-    return null; // Not a certified location — will fall back to legacy
-  }
-
-  // Fetch all locations for this DID from Hyperindex
   const response = await hyperindexClient.request<{
-    appCertifiedLocation: Connection<HiCertifiedLocation>;
-  }>(LOCATIONS_BY_DID, { did, first: 100 });
+    appCertifiedLocationByUri: HiCertifiedLocation | null;
+  }>(CERTIFIED_LOCATION_BY_URI, { uri: locationUri });
 
-  const locations = response.appCertifiedLocation.edges.map((e) => e.node);
-  if (!locations.length) return null;
-
-  // Find the location matching the defaultSite URI
-  const targetLocation = locations.find((loc) => loc.uri === defaultSiteUri);
+  const targetLocation = response.appCertifiedLocationByUri;
   if (!targetLocation) return null;
+
+  const did = targetLocation.did;
 
   // Extract blob CID — decode from Hyperindex's Go-serialized format
   const blobRef = extractBlobRef(targetLocation.location);
@@ -311,6 +340,12 @@ function decodeBlobCid(ref: string): string | null {
 
   // Already a proper CID
   if (ref.startsWith("baf")) return ref;
+
+  // Hyperindex may serialize refs as: "map[$link:baf... ]"
+  const linkMatch = ref.match(/\$link:([a-z0-9]+)/i);
+  if (linkMatch) {
+    return linkMatch[1];
+  }
 
   // Go map serialization format: "map[Content:BASE64 Number:NN]"
   const match = ref.match(/Content:([A-Za-z0-9+/=]+)/);

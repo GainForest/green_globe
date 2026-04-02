@@ -2,15 +2,15 @@ import { toKebabCase } from "@/lib/utils";
 import type { BiodiversityTraits } from "./types";
 import { BiodiversityAnimal, BiodiversityPlant } from "./types";
 import * as d3 from "d3";
-import ClimateAIAgent from "@/lib/atproto/agent";
+import { hyperindexClient } from "@/lib/hyperindex/client";
+import { OCCURRENCES_BY_DID_AND_KINGDOM } from "@/lib/hyperindex/queries";
+import type { Connection, HiDwcOccurrence } from "@/lib/hyperindex/types";
 import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import {
   fetchMultimediaIndex,
   type MultimediaIndex,
 } from "@/lib/atproto/ac-multimedia";
-
-const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
 
 // ── Raw record shapes ──────────────────────────────────────────────────────────
 
@@ -50,8 +50,12 @@ type RawOccurrenceValue = {
 
 type RawOccurrenceRecord = {
   uri: string;
-  cid: string;
+  cid?: string;
   value: RawOccurrenceValue;
+};
+
+type OccurrenceResponse = {
+  appGainforestDwcOccurrence: Connection<HiDwcOccurrence>;
 };
 
 // ── Dynamic properties parsed from JSON string ─────────────────────────────────
@@ -166,23 +170,16 @@ const normalizePlantRecord = (
   );
   const traits = mapPlantTraits(v.plantTraits);
 
-  // Resolve image URL: prefer AC multimedia record, then imageEvidence blob, then string URLs
+  // Resolve image URL: prefer AC multimedia record, then imageEvidence blob, then placeholder.
   let imageUrl: string | undefined;
   const acBlobUrl = multimediaIndex.get(occurrenceUri);
   if (acBlobUrl) {
     imageUrl = acBlobUrl;
   } else {
-    // Fallback: imageEvidence blob on occurrence (backward compat during migration)
     const imageEvidenceRef = v.imageEvidence?.file?.ref;
     const blobCid = extractCid(imageEvidenceRef);
     if (blobCid) {
       imageUrl = buildBlobUrl(PDS_ENDPOINT, did, blobCid);
-    } else {
-      const speciesImageUrl =
-        typeof v.speciesImageUrl === "string" ? v.speciesImageUrl : undefined;
-      const thumbnailUrl =
-        typeof v.thumbnailUrl === "string" ? v.thumbnailUrl : undefined;
-      imageUrl = speciesImageUrl ?? thumbnailUrl;
     }
   }
 
@@ -250,6 +247,53 @@ const normalizeAnimalRecord = (
 
 // ── ATProto fetch functions (plain async, no React hooks) ──────────────────────
 
+const mapOccurrenceNodeToRawRecord = (
+  node: HiDwcOccurrence,
+): RawOccurrenceRecord => ({
+  uri: node.uri,
+  cid: node.cid,
+  value: {
+    kingdom: node.kingdom,
+    scientificName: node.scientificName,
+    vernacularName: node.vernacularName,
+    occurrenceID: node.occurrenceID,
+    imageEvidence: node.imageEvidence,
+    dynamicProperties: node.dynamicProperties,
+    basisOfRecord: node.basisOfRecord,
+  },
+});
+
+const fetchOccurrencesByKingdom = async (
+  did: string,
+  kingdom: "Plantae" | "Animalia",
+): Promise<RawOccurrenceRecord[]> => {
+  const records: RawOccurrenceRecord[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const response: OccurrenceResponse = await hyperindexClient.request(
+      OCCURRENCES_BY_DID_AND_KINGDOM,
+      {
+        did,
+        first: 100,
+        after: cursor,
+        kingdom,
+      },
+    );
+
+    const connection = response.appGainforestDwcOccurrence;
+    records.push(
+      ...connection.edges.map((edge) => mapOccurrenceNodeToRawRecord(edge.node)),
+    );
+
+    cursor = connection.pageInfo.hasNextPage
+      ? connection.pageInfo.endCursor
+      : null;
+  } while (cursor);
+
+  return records;
+};
+
 /**
  * Fetch Plantae occurrence records from ATProto for a given org DID.
  * Returns { trees, herbs } split by dynamicProperties.dataType.
@@ -262,54 +306,33 @@ export const fetchPlantsFromATProto = async (
     const trees: BiodiversityPlant[] = [];
     const herbs: BiodiversityPlant[] = [];
 
-    // Fetch multimedia index in parallel with occurrences
-    const multimediaIndex = await fetchMultimediaIndex(did);
+    const [multimediaIndex, occurrences] = await Promise.all([
+      fetchMultimediaIndex(did),
+      fetchOccurrencesByKingdom(did, "Plantae"),
+    ]);
 
-    let cursor: string | undefined;
+    for (const record of occurrences) {
+      const basisOfRecord =
+        typeof record.value.basisOfRecord === "string"
+          ? record.value.basisOfRecord
+          : undefined;
+      if (basisOfRecord === "HumanObservation") continue;
 
-    do {
-      const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-        repo: did,
-        collection: OCCURRENCE_COLLECTION,
-        limit: 100,
-        cursor,
-      });
-
-      const page = response.data.records as RawOccurrenceRecord[] | undefined;
-      if (page?.length) {
-        for (const record of page) {
-          const kingdom =
-            typeof record.value.kingdom === "string"
-              ? record.value.kingdom
-              : undefined;
-          if (kingdom !== "Plantae") continue;
-
-          // Skip measured trees — they are HumanObservation records, not species predictions
-          const basisOfRecord =
-            typeof record.value.basisOfRecord === "string"
-              ? record.value.basisOfRecord
-              : undefined;
-          if (basisOfRecord === "HumanObservation") continue;
-
-          const plant = normalizePlantRecord(
-            record,
-            did,
-            multimediaIndex,
-            record.uri,
-          );
-          if (plant) {
-            const { _dataType, ...plantData } = plant;
-            if (_dataType === "herbs") {
-              herbs.push(plantData);
-            } else {
-              trees.push(plantData);
-            }
-          }
+      const plant = normalizePlantRecord(
+        record,
+        did,
+        multimediaIndex,
+        record.uri,
+      );
+      if (plant) {
+        const { _dataType, ...plantData } = plant;
+        if (_dataType === "herbs") {
+          herbs.push(plantData);
+        } else {
+          trees.push(plantData);
         }
       }
-
-      cursor = response.data.cursor ?? undefined;
-    } while (cursor);
+    }
 
     return { trees, herbs };
   } catch (e) {
@@ -327,32 +350,12 @@ export const fetchAnimalsFromATProto = async (
 ): Promise<BiodiversityAnimal[] | null> => {
   try {
     const animals: BiodiversityAnimal[] = [];
-    let cursor: string | undefined;
+    const occurrences = await fetchOccurrencesByKingdom(did, "Animalia");
 
-    do {
-      const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-        repo: did,
-        collection: OCCURRENCE_COLLECTION,
-        limit: 100,
-        cursor,
-      });
-
-      const page = response.data.records as RawOccurrenceRecord[] | undefined;
-      if (page?.length) {
-        for (const record of page) {
-          const kingdom =
-            typeof record.value.kingdom === "string"
-              ? record.value.kingdom
-              : undefined;
-          if (kingdom !== "Animalia") continue;
-
-          const animal = normalizeAnimalRecord(record);
-          if (animal) animals.push(animal);
-        }
-      }
-
-      cursor = response.data.cursor ?? undefined;
-    } while (cursor);
+    for (const record of occurrences) {
+      const animal = normalizeAnimalRecord(record);
+      if (animal) animals.push(animal);
+    }
 
     return animals;
   } catch (e) {
