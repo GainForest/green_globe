@@ -59,15 +59,16 @@ const LayersOverlay = () => {
   const setMapView = useMapStore((actions) => actions.setCurrentView);
   const setMapBounds = useMapStore((actions) => actions.setMapBounds);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (categorizedDynamicLayers.length === 0) {
       fetchCategorizedDynamicLayers();
     }
-  }, [categorizedDynamicLayers]);
+  }, []);
 
   useEffect(() => {
     fetchProjectSpecificLayers();
-  }, [projectData]);
+  }, [projectData?.id]);
 
   const handleZoomToProjectSpecificLayer = useCallback(
     (layerEndpoint: string) => {

@@ -77,6 +77,18 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
       ...initialState,
 
       setToggledOnLayerIds: (layers, navigate) => {
+        // Bail out when the toggled set hasn't actually changed.
+        // useStoreUrlSync calls this on every URL change; without this guard
+        // the .map() calls below create new object references every time,
+        // causing cascading re-renders across all layers-store subscribers.
+        const current = get().toggledOnLayerIds;
+        if (
+          layers.length === current.size &&
+          layers.every((l) => current.has(l))
+        ) {
+          return;
+        }
+
         const layersSet = new Set(layers);
         set((state) => {
           // Update the categorized dynamic layers

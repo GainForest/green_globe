@@ -1,8 +1,8 @@
-import { LayersAPIResponse, Layer, LegendEntry } from "./types";
+import ClimateAIAgent from "@/lib/atproto/agent";
 import { toKebabCase } from "@/lib/utils";
-import { hyperindexClient } from "@/lib/hyperindex/client";
-import { ALL_LAYER_RECORDS } from "@/lib/hyperindex/queries";
-import type { Connection } from "@/lib/hyperindex/types";
+import type { Layer, LayersAPIResponse, LegendEntry } from "./types";
+
+const LAYER_COLLECTION = "app.gainforest.organization.layer";
 
 const VALID_LAYER_TYPES = new Set([
   "geojson_points",
@@ -17,8 +17,8 @@ const VALID_LAYER_TYPES = new Set([
   "satellite_overlay",
 ]);
 
-// RawLayerValue uses unknown fields because layer records are fetched through
-// Hyperindex's generic records() query, which returns raw JSON values. The SDK's
+// RawLayerValue uses unknown fields because layer records are fetched from the
+// PDS via listRecords(), which returns raw record values. The SDK's
 // AppGainforestOrganizationLayer type (Main$3) is stale and only declares the
 // original five fields; the full field set lives in lexicon-api/types/app/
 // gainforest/organization/layer.ts (regenerated via `bun run codegen:lexicon-api`).
@@ -39,18 +39,8 @@ type RawLayerValue = {
 
 type RawLayerRecord = {
   uri: string;
-  did?: string;
+  cid?: string;
   value: RawLayerValue;
-};
-
-type HyperindexLayerRecordNode = {
-  uri: string;
-  did: string;
-  value: RawLayerValue;
-};
-
-type LayerRecordsResponse = {
-  records: Connection<HyperindexLayerRecordNode>;
 };
 
 const normalizeAtprotoLayer = (raw: RawLayerRecord): Layer => {
@@ -120,34 +110,36 @@ export const fetchLayers = async (): Promise<Layer[]> => {
 };
 
 /**
- * Fetch project-specific layers from Hyperindex generic records().
+ * Fetch project-specific layers from the PDS repo directly.
  * Returns null if the organization has no layer records (caller should fall back to S3).
  */
-const fetchLayersFromHyperindex = async (did: string): Promise<Layer[] | null> => {
+const fetchLayersFromAtproto = async (did: string): Promise<Layer[] | null> => {
   try {
     const records: RawLayerRecord[] = [];
-    let cursor: string | null = null;
+    let cursor: string | undefined;
+    const seenCursors = new Set<string>();
 
     do {
-      const response: LayerRecordsResponse = await hyperindexClient.request(
-        ALL_LAYER_RECORDS,
-        {
-          first: 100,
-          after: cursor,
-        }
-      );
+      const response = await ClimateAIAgent.com.atproto.repo.listRecords({
+        repo: did,
+        collection: LAYER_COLLECTION,
+        limit: 100,
+        cursor,
+      });
 
-      const page = response.records.edges
-        .map((edge) => edge.node)
-        .filter((record) => record.did === did);
+      const page = response.data.records as RawLayerRecord[] | undefined;
 
-      if (page.length) {
+      if (page?.length) {
         records.push(...page);
       }
 
-      cursor = response.records.pageInfo.hasNextPage
-        ? response.records.pageInfo.endCursor
-        : null;
+      const nextCursor = response.data.cursor ?? undefined;
+      if (!nextCursor || !page?.length || seenCursors.has(nextCursor)) {
+        break;
+      }
+
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
     } while (cursor);
 
     if (records.length === 0) {
@@ -156,7 +148,7 @@ const fetchLayersFromHyperindex = async (did: string): Promise<Layer[] | null> =
 
     return records.map(normalizeAtprotoLayer);
   } catch (error) {
-    console.error("Error fetching Hyperindex layer records", error);
+    console.error("Error fetching ATProto layer records", error);
     return null;
   }
 };
@@ -193,19 +185,19 @@ const fetchLayersFromS3 = async (slug: string): Promise<Layer[] | null> => {
 };
 
 /**
- * Fetch project-specific layers, preferring Hyperindex records and falling back
- * to S3 layerData.json when no layer records exist for the organization.
+ * Fetch project-specific layers, preferring PDS records and falling back to S3
+ * layerData.json when no layer records exist for the organization.
  *
- * @param did  - The organization DID (used for Hyperindex filtering)
+ * @param did  - The organization DID (used for PDS lookup)
  * @param slug - The project slug (used for S3 fallback path)
  */
 export const fetchProjectSpecificLayers = async (
   did: string,
   slug: string
 ): Promise<Layer[] | null> => {
-  const hyperindexLayers = await fetchLayersFromHyperindex(did);
-  if (hyperindexLayers !== null) {
-    return hyperindexLayers;
+  const atprotoLayers = await fetchLayersFromAtproto(did);
+  if (atprotoLayers !== null) {
+    return atprotoLayers;
   }
   return fetchLayersFromS3(slug);
 };
