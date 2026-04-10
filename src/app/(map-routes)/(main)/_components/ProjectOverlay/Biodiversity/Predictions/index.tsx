@@ -11,12 +11,14 @@ import ErrorMessage from "../../ErrorMessage";
 
 const Predictions = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
+  const projectSlug = useProjectOverlayStore((state) => state.projectSlug);
   const { data, dataStatus, fetchData, page, setPage } =
     useBiodiversityPredictionsStore();
 
   useEffect(() => {
+    if (!projectId || !projectSlug) return;
     fetchData();
-  }, [projectId, fetchData]);
+  }, [projectId, projectSlug, fetchData]);
 
   // If some data for a page is missing, set the page to null
   useEffect(() => {

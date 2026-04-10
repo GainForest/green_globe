@@ -43,6 +43,13 @@ const unwrapSmallBlob = (value: unknown): unknown => {
   return value;
 };
 
+const parseAtUri = (uri: string) => {
+  const withoutScheme = uri.replace(/^at:\/\//, "");
+  const [repo, collection, rkey] = withoutScheme.split("/");
+  if (!repo || !collection || !rkey) return null;
+  return { repo, collection, rkey };
+};
+
 // ---------------------------------------------------------------------------
 // fetchSiteShapefile — fetch GeoJSON boundary from ATProto blob or external URI
 // ---------------------------------------------------------------------------
@@ -82,20 +89,26 @@ export const fetchSiteShapefile = async (
 
     // Case 2: AT-URI string (at://did/collection/rkey) — must be checked BEFORE
     // the generic string check so it is not mistakenly fetched as an HTTP URL.
-    // Resolve the record, extract the shapefile blob CID, then fetch the blob.
+    // Resolve the record, extract the geometry/blob source, then fetch the blob.
     if (typeof resolvedShapefile === "string" && resolvedShapefile.startsWith("at://")) {
-      const rkey = resolvedShapefile.split("/").pop() ?? "";
-      const recordUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.gainforest.organization.site&rkey=${encodeURIComponent(rkey)}`;
+      const parsed = parseAtUri(resolvedShapefile);
+      if (!parsed) return null;
+
+      const recordUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(parsed.repo)}&collection=${encodeURIComponent(parsed.collection)}&rkey=${encodeURIComponent(parsed.rkey)}`;
       const recordResponse = await fetch(recordUrl);
       if (!recordResponse.ok) return null;
       const record = (await recordResponse.json()) as {
-        value?: { shapefile?: unknown };
+        value?: { shapefile?: unknown; location?: unknown };
       };
-      const blobRef = record.value?.shapefile;
-      const resolvedCid = isBlobRef(blobRef) ? extractCid(blobRef.ref) : null;
+      const rawBlobSource = unwrapSmallBlob(
+        record.value?.location ?? record.value?.shapefile
+      );
+      const resolvedCid = isBlobRef(rawBlobSource)
+        ? extractCid(rawBlobSource.ref)
+        : null;
       if (!resolvedCid) return null;
       const cid = resolvedCid;
-      const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(parsed.repo)}&cid=${encodeURIComponent(cid)}`;
       const blobResponse = await fetch(blobUrl);
       if (!blobResponse.ok) {
         console.error(

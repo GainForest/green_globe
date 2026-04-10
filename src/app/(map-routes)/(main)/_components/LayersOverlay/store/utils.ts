@@ -1,6 +1,6 @@
-import { LayersAPIResponse, Layer, LegendEntry } from "./types";
-import { toKebabCase } from "@/lib/utils";
 import ClimateAIAgent from "@/lib/atproto/agent";
+import { toKebabCase } from "@/lib/utils";
+import type { Layer, LayersAPIResponse, LegendEntry } from "./types";
 
 const LAYER_COLLECTION = "app.gainforest.organization.layer";
 
@@ -17,8 +17,8 @@ const VALID_LAYER_TYPES = new Set([
   "satellite_overlay",
 ]);
 
-// RawLayerValue uses unknown fields because ATProto layer records are fetched
-// via com.atproto.repo.listRecords which returns untyped JSON. The SDK's
+// RawLayerValue uses unknown fields because layer records are fetched from the
+// PDS via listRecords(), which returns raw record values. The SDK's
 // AppGainforestOrganizationLayer type (Main$3) is stale and only declares the
 // original five fields; the full field set lives in lexicon-api/types/app/
 // gainforest/organization/layer.ts (regenerated via `bun run codegen:lexicon-api`).
@@ -110,13 +110,14 @@ export const fetchLayers = async (): Promise<Layer[]> => {
 };
 
 /**
- * Fetch project-specific layers from ATProto PDS.
+ * Fetch project-specific layers from the PDS repo directly.
  * Returns null if the organization has no layer records (caller should fall back to S3).
  */
-const fetchLayersFromATProto = async (did: string): Promise<Layer[] | null> => {
+const fetchLayersFromAtproto = async (did: string): Promise<Layer[] | null> => {
   try {
     const records: RawLayerRecord[] = [];
     let cursor: string | undefined;
+    const seenCursors = new Set<string>();
 
     do {
       const response = await ClimateAIAgent.com.atproto.repo.listRecords({
@@ -127,11 +128,18 @@ const fetchLayersFromATProto = async (did: string): Promise<Layer[] | null> => {
       });
 
       const page = response.data.records as RawLayerRecord[] | undefined;
+
       if (page?.length) {
         records.push(...page);
       }
 
-      cursor = response.data.cursor ?? undefined;
+      const nextCursor = response.data.cursor ?? undefined;
+      if (!nextCursor || !page?.length || seenCursors.has(nextCursor)) {
+        break;
+      }
+
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
     } while (cursor);
 
     if (records.length === 0) {
@@ -177,17 +185,17 @@ const fetchLayersFromS3 = async (slug: string): Promise<Layer[] | null> => {
 };
 
 /**
- * Fetch project-specific layers, preferring ATProto records and falling back
- * to S3 layerData.json when no ATProto records exist for the organization.
+ * Fetch project-specific layers, preferring PDS records and falling back to S3
+ * layerData.json when no layer records exist for the organization.
  *
- * @param did  - The organization DID (used for ATProto lookup)
+ * @param did  - The organization DID (used for PDS lookup)
  * @param slug - The project slug (used for S3 fallback path)
  */
 export const fetchProjectSpecificLayers = async (
   did: string,
   slug: string
 ): Promise<Layer[] | null> => {
-  const atprotoLayers = await fetchLayersFromATProto(did);
+  const atprotoLayers = await fetchLayersFromAtproto(did);
   if (atprotoLayers !== null) {
     return atprotoLayers;
   }

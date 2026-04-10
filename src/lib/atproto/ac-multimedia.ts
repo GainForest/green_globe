@@ -1,26 +1,8 @@
-import ClimateAIAgent from "@/lib/atproto/agent";
 import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
-
-// ── Constants ──────────────────────────────────────────────────────────────────
-
-const AC_MULTIMEDIA_COLLECTION = "app.gainforest.ac.multimedia";
-
-// ── Raw record shapes ──────────────────────────────────────────────────────────
-
-export type RawMultimediaValue = {
-  occurrenceRef?: unknown;
-  subjectPart?: unknown;
-  file?: { ref?: unknown; mimeType?: string };
-  accessUri?: unknown;
-  [k: string]: unknown;
-};
-
-export type RawMultimediaRecord = {
-  uri: string;
-  cid: string;
-  value: RawMultimediaValue;
-};
+import { hyperindexClient } from "@/lib/hyperindex/client";
+import { MULTIMEDIA_BY_DID } from "@/lib/hyperindex/queries";
+import type { Connection, HiAcMultimedia } from "@/lib/hyperindex/types";
 
 // ── Return types ───────────────────────────────────────────────────────────────
 
@@ -47,7 +29,34 @@ export type MultimediaByOccurrence = Map<
   }
 >;
 
-// ── Fetchers ───────────────────────────────────────────────────────────────────
+type MultimediaResponse = {
+  appGainforestAcMultimedia: Connection<HiAcMultimedia>;
+};
+
+const fetchAllMultimedia = async (did: string): Promise<HiAcMultimedia[]> => {
+  const records: HiAcMultimedia[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const response: MultimediaResponse = await hyperindexClient.request(
+      MULTIMEDIA_BY_DID,
+      {
+        did,
+        first: 100,
+        after: cursor,
+      }
+    );
+
+    const connection = response.appGainforestAcMultimedia;
+    records.push(...connection.edges.map((edge) => edge.node));
+
+    cursor = connection.pageInfo.hasNextPage
+      ? connection.pageInfo.endCursor
+      : null;
+  } while (cursor);
+
+  return records;
+};
 
 /**
  * Fetch all app.gainforest.ac.multimedia records for an org and index them
@@ -56,39 +65,22 @@ export type MultimediaByOccurrence = Map<
  * Used for species predictions where only one image per occurrence is needed.
  */
 export const fetchMultimediaIndex = async (
-  did: string,
+  did: string
 ): Promise<MultimediaIndex> => {
   const index: MultimediaIndex = new Map();
-  let cursor: string | undefined;
 
-  do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-      repo: did,
-      collection: AC_MULTIMEDIA_COLLECTION,
-      limit: 100,
-      cursor,
-    });
+  for (const record of await fetchAllMultimedia(did)) {
+    const occurrenceRef =
+      typeof record.occurrenceRef === "string" ? record.occurrenceRef : null;
+    if (!occurrenceRef) continue;
 
-    const page = response.data.records as RawMultimediaRecord[] | undefined;
-    if (page?.length) {
-      for (const record of page) {
-        const v = record.value;
-        const occurrenceRef =
-          typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
-        if (!occurrenceRef) continue;
+    const cid = extractCid(record.file?.ref);
+    if (!cid) continue;
 
-        const cid = extractCid(v.file?.ref);
-        if (!cid) continue;
-
-        // For species images, we only care about the first image per occurrence
-        if (!index.has(occurrenceRef)) {
-          index.set(occurrenceRef, buildBlobUrl(PDS_ENDPOINT, did, cid));
-        }
-      }
+    if (!index.has(occurrenceRef)) {
+      index.set(occurrenceRef, buildBlobUrl(PDS_ENDPOINT, did, cid));
     }
-
-    cursor = response.data.cursor ?? undefined;
-  } while (cursor);
+  }
 
   return index;
 };
@@ -100,42 +92,26 @@ export const fetchMultimediaIndex = async (
  * Used for measured trees where multiple photo angles (bark, leaf, etc.) are needed.
  */
 export const fetchMultimediaByOccurrence = async (
-  did: string,
+  did: string
 ): Promise<MultimediaByOccurrence> => {
   const index: MultimediaByOccurrence = new Map();
-  let cursor: string | undefined;
 
-  do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-      repo: did,
-      collection: AC_MULTIMEDIA_COLLECTION,
-      limit: 100,
-      cursor,
-    });
+  for (const record of await fetchAllMultimedia(did)) {
+    const occurrenceRef =
+      typeof record.occurrenceRef === "string" ? record.occurrenceRef : null;
+    if (!occurrenceRef) continue;
 
-    const page = response.data.records as RawMultimediaRecord[] | undefined;
-    if (page?.length) {
-      for (const record of page) {
-        const v = record.value;
-        const occurrenceRef =
-          typeof v.occurrenceRef === "string" ? v.occurrenceRef : null;
-        if (!occurrenceRef) continue;
+    const subjectPart =
+      typeof record.subjectPart === "string" ? record.subjectPart : null;
+    if (!subjectPart) continue;
 
-        const subjectPart =
-          typeof v.subjectPart === "string" ? v.subjectPart : null;
-        if (!subjectPart) continue;
+    const cid = extractCid(record.file?.ref);
+    if (!cid) continue;
 
-        const cid = extractCid(v.file?.ref);
-        if (!cid) continue;
-
-        const blobUrl = buildBlobUrl(PDS_ENDPOINT, did, cid);
-        const existing = index.get(occurrenceRef) ?? {};
-        index.set(occurrenceRef, { ...existing, [subjectPart]: blobUrl });
-      }
-    }
-
-    cursor = response.data.cursor ?? undefined;
-  } while (cursor);
+    const blobUrl = buildBlobUrl(PDS_ENDPOINT, did, cid);
+    const existing = index.get(occurrenceRef) ?? {};
+    index.set(occurrenceRef, { ...existing, [subjectPart]: blobUrl });
+  }
 
   return index;
 };
