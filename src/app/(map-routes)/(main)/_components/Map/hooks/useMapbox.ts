@@ -38,7 +38,10 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
   };
 
   useEffect(() => {
-    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOXGL_ACCESSTOKEN;
+    mapboxgl.accessToken =
+      process.env.NEXT_PUBLIC_MAPBOXGL_ACCESSTOKEN ??
+      process.env.NEXT_PUBLIC_MAPBOX_API_KEY ??
+      "";
     if (mapContainerRef.current === null) return;
 
     const map = new MapInterface({

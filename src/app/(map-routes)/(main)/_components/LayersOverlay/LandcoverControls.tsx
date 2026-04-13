@@ -41,7 +41,7 @@ const LandcoverControls = () => {
   }, []);
 
   return (
-    <div className="mb-6">
+    <div className="mb-6" data-testid="landcover-controls">
       <h3 className="text-sm text-muted-foreground font-semibold mb-1">
         Land Cover
       </h3>
@@ -53,6 +53,7 @@ const LandcoverControls = () => {
           <Label htmlFor="landcover">Global Land Cover (ESA 2021)</Label>
           <Switch
             id="landcover"
+            data-testid="layer-toggle-landcover"
             checked={thisLayerView}
             onCheckedChange={handleToggle}
           />

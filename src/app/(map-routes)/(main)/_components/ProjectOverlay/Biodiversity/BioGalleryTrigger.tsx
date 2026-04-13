@@ -7,16 +7,19 @@ const BioGalleryTrigger = ({
   description,
   count,
   imageSrc,
+  testId,
   onClick,
 }: {
   title: string;
   description: string;
   count: number;
   imageSrc: string;
+  testId?: string;
   onClick: () => void;
 }) => {
   return (
     <button
+      data-testid={testId}
       className="relative bg-background rounded-xl flex flex-col items-center overflow-hidden group"
       onClick={onClick}
     >

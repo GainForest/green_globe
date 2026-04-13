@@ -155,6 +155,7 @@ const Header = ({
       ref={headerRef}
     >
       <h1
+        data-testid="project-title"
         className="text-2xl font-bold text-balance"
         style={{
           textShadow: "0px 0px 16px rgb(0 0 0 / 1)",

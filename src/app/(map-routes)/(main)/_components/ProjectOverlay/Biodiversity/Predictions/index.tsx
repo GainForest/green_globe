@@ -61,7 +61,7 @@ const Predictions = () => {
   }
 
   return (
-    <article className="flex flex-col gap-2">
+    <article className="flex flex-col gap-2" data-testid="biodiversity-predictions">
       <AnimatePresence mode="popLayout">
         {page === null ? (
           <motion.div
@@ -93,6 +93,7 @@ const Predictions = () => {
                     title={"Plants"}
                     description="View all plant predictions"
                     imageSrc={"/assets/plants.jpg"}
+                    testId="predictions-plants-trigger"
                     onClick={() => {
                       setPage("plants");
                     }}
@@ -104,6 +105,7 @@ const Predictions = () => {
                     title={"Animals"}
                     description="View all animal predictions"
                     imageSrc={"/assets/animals.jpg"}
+                    testId="predictions-animals-trigger"
                     onClick={() => {
                       setPage("animals");
                     }}

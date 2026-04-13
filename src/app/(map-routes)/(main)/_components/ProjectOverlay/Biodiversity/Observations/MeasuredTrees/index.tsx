@@ -151,18 +151,20 @@ const MeasuredTrees = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="measured-trees-panel">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="font-bold">Filter by:</span>
-          <Combobox
-            options={filterOptions}
-            value={selectedFilter}
-            onChange={(val) => {
-              setSelectedFilter(val);
-            }}
-            className="max-w-[300px]"
-          />
+          <div data-testid="measured-trees-filter" className="max-w-[300px]">
+            <Combobox
+              options={filterOptions}
+              value={selectedFilter}
+              onChange={(val) => {
+                setSelectedFilter(val);
+              }}
+              className="w-full"
+            />
+          </div>
         </div>
 
         <ExportDialog
