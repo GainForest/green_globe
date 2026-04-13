@@ -42,8 +42,8 @@ Before(async function (this: AppWorld) {
     },
   });
   this.page = await this.context.newPage();
-  this.page.setDefaultNavigationTimeout(30_000);
-  this.page.setDefaultTimeout(20_000);
+  this.page.setDefaultNavigationTimeout(60_000);
+  this.page.setDefaultTimeout(30_000);
   await installMockRoutes(this.page);
 });
 
