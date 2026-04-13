@@ -34,11 +34,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build application
+        run: bun run build
+
       - name: Install Playwright Chromium
         run: bunx playwright install --with-deps chromium
 
       - name: Start application
-        run: bun run dev > /tmp/green-globe-e2e.log 2>&1 &
+        run: bunx next start -p 8910 > /tmp/green-globe-e2e.log 2>&1 &
 
       - name: Wait for health endpoint
         run: |
@@ -51,6 +54,11 @@ jobs:
           echo "Application did not become ready in time"
           cat /tmp/green-globe-e2e.log
           exit 1
+
+      - name: Warm homepage routes
+        run: |
+          curl -fsS "http://127.0.0.1:8910/?overlay-active-tab=search" > /dev/null
+          curl -fsS "http://127.0.0.1:8910/did:plc:acaciaconservdemo234567a?overlay-active-tab=project&project-views=biodiversity,predictions" > /dev/null
 
       - name: Run homepage E2E suite
         env:
