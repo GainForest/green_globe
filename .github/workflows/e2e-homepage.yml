@@ -1,6 +1,9 @@
 name: Homepage E2E
 
 on:
+  push:
+    branches:
+      - atproto-dev
   pull_request:
     branches:
       - atproto-dev
