@@ -3,7 +3,7 @@ import React from "react";
 
 const Observations = () => {
   return (
-    <div>
+    <div data-testid="biodiversity-observations">
       <MeasuredTrees />
     </div>
   );

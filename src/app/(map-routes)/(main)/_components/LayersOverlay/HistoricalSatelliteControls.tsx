@@ -37,7 +37,7 @@ const HistoricalSatelliteControls = () => {
   }, []);
 
   return (
-    <div className="mb-6">
+    <div className="mb-6" data-testid="historical-satellite-controls">
       <h3 className="text-sm text-muted-foreground font-semibold mb-1">
         Monthly Satellite Layer
       </h3>
@@ -49,6 +49,7 @@ const HistoricalSatelliteControls = () => {
           <Label htmlFor="historical-satellite">Historical Satellite</Label>
           <Switch
             id="historical-satellite"
+            data-testid="layer-toggle-historical-satellite"
             checked={thisLayerView}
             onCheckedChange={handleToggle}
           />
@@ -59,6 +60,7 @@ const HistoricalSatelliteControls = () => {
               Historical Satellite data for Tropical Regions only
             </span>
             <Slider
+              data-testid="historical-satellite-slider"
               min={0}
               max={monthsBetween}
               defaultValue={[

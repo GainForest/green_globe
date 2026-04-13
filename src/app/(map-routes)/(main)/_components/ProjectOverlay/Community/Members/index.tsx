@@ -34,9 +34,12 @@ const Members = () => {
       : sortedMembers.length;
 
   return (
-    <div>
+    <div data-testid="community-members">
       {sortedMembers.length === 0 ? (
-        <p className="bg-foreground/10 text-muted-foreground rounded-lg p-4 flex items-center gap-4">
+        <p
+          className="bg-foreground/10 text-muted-foreground rounded-lg p-4 flex items-center gap-4"
+          data-testid="community-empty-state"
+        >
           <CircleAlert size={32} className="shrink-0 opacity-50" />
           <span>
             No community members have been publicly registered to be displayed.
@@ -81,6 +84,7 @@ const Members = () => {
               return (
                 <div
                   className="flex flex-col divide-y bg-neutral-50 dark:bg-neutral-950 border border-border rounded-xl"
+                  data-testid="community-member-card"
                   key={member.uri}
                 >
                   <div className="p-4 flex items-center gap-4">

@@ -24,18 +24,20 @@ const ProjectSitesSection = () => {
   if (!projectSitesOptions || projectSitesOptions.length === 0) return null;
 
   return (
-    <section className="flex items-center gap-2">
+    <section className="flex items-center gap-2" data-testid="project-sites-section">
       <span className="text-muted-foreground font-bold">
         Project Site{projectSitesOptions.length > 1 ? "s" : ""}
       </span>
       {projectSitesOptions.length > 1 ?
-        <Combobox
-          options={projectSitesOptions}
-          value={siteId ?? undefined}
-          onChange={handleProjectSiteChange}
-          className="flex-1 max-w-[300px]"
-          searchIn="label"
-        />
+        <div data-testid="project-site-combobox" className="flex-1 max-w-[300px]">
+          <Combobox
+            options={projectSitesOptions}
+            value={siteId ?? undefined}
+            onChange={handleProjectSiteChange}
+            className="w-full"
+            searchIn="label"
+          />
+        </div>
       : <span className="text-muted-foreground flex-1 bg-accent px-2 py-1 rounded-md">
           {projectSitesOptions[0].label}
         </span>
@@ -68,9 +70,9 @@ const ProjectInfo = ({
   organization: AppGainforestOrganizationInfo.Record;
 }) => {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-testid="project-info">
       <ProjectSitesSection />
-      <section className="flex flex-col gap-0.5">
+      <section className="flex flex-col gap-0.5" data-testid="project-description">
         <span className="font-bold">Description</span>
         {typeof organization.longDescription === "string" ? (
           <p className="leading-snug">{organization.longDescription}</p>
@@ -82,7 +84,9 @@ const ProjectInfo = ({
           />
         ) : null}
       </section>
-      <ProjectObjectivesSection objectives={organization.objectives} />
+      <div data-testid="project-objectives">
+        <ProjectObjectivesSection objectives={organization.objectives} />
+      </div>
     </div>
   );
 };

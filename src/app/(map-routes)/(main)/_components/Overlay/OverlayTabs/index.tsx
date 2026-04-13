@@ -50,36 +50,38 @@ const OverlayTabs = ({ onTabClick }: { onTabClick?: () => void }) => {
   );
 
   return (
-    <SlidingTabs
-      activeKey={activeTab}
-      onTabChange={(key) =>
-        setActiveTab(key as OverlayTabsState["activeTab"], navigate)
-      }
-    >
-      <Underlay />
+    <div data-testid="overlay-tabs">
+      <SlidingTabs
+        activeKey={activeTab}
+        onTabChange={(key) =>
+          setActiveTab(key as OverlayTabsState["activeTab"], navigate)
+        }
+      >
+        <Underlay />
 
-      {buttons.map((button, index) => (
-        <React.Fragment key={button.key}>
-          <Tab tabKey={button.key} asChild>
-            <Button
-              variant="ghost"
-              className="flex-1"
-              onClick={() => {
-                setActiveTab(button.key, navigate);
-                onTabClick?.();
-              }}
-              disabled={button.shouldBeDisabled}
-            >
-              <button.icon /> {button.label}
-            </Button>
-          </Tab>
+        {buttons.map((button, index) => (
+          <React.Fragment key={button.key}>
+            <Tab tabKey={button.key} asChild>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => {
+                  setActiveTab(button.key, navigate);
+                  onTabClick?.();
+                }}
+                disabled={button.shouldBeDisabled}
+              >
+                <button.icon /> {button.label}
+              </Button>
+            </Tab>
 
-          {index !== buttons.length - 1 && (
-            <div className="h-5 w-[2px] bg-border rounded-full" />
-          )}
-        </React.Fragment>
-      ))}
-    </SlidingTabs>
+            {index !== buttons.length - 1 && (
+              <div className="h-5 w-[2px] bg-border rounded-full" />
+            )}
+          </React.Fragment>
+        ))}
+      </SlidingTabs>
+    </div>
   );
 };
 

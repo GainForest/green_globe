@@ -68,11 +68,13 @@ const SearchOverlay = () => {
       animate={animate}
       exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
       onAnimationComplete={onAnimationComplete}
+      data-testid="search-overlay"
       className=""
     >
       <div className="scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 p-4">
         <div className="flex items-center relative">
           <Input
+            data-testid="search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value, navigate)}
             placeholder="Search projects"
@@ -80,6 +82,7 @@ const SearchOverlay = () => {
           />
           {searchQuery.length > 0 && (
             <button
+              data-testid="clear-search"
               onClick={() => setSearchQuery("", navigate)}
               className="absolute right-2 h-6 w-6 p-1 rounded-full bg-background/40 flex items-center justify-center"
             >
@@ -113,6 +116,7 @@ const SearchOverlay = () => {
             initial={{ opacity: 0, filter: "blur(10px)" }}
             animate={{ opacity: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, filter: "blur(10px)" }}
+            data-testid="search-results"
             className="flex flex-col divide-y bg-neutral-50 dark:bg-neutral-950 border border-border rounded-xl mt-4 overflow-hidden"
           >
             {filteredOrganizations.map((organization) => {
@@ -128,6 +132,7 @@ const SearchOverlay = () => {
               return (
                 <div className="flex relative" key={organization.did}>
                   <button
+                    data-testid={`project-search-result-${organization.did}`}
                     //   className="rounded-none"
                     className={cn(
                       "flex-1 justify-start h-auto rounded-none p-3 text-left whitespace-normal bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-950 hover:dark:bg-neutral-900",

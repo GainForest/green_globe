@@ -52,6 +52,7 @@ const ProjectOverlay = () => {
   return (
     <motion.div
       id="project-overlay"
+      data-testid="project-overlay"
       initial={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
       animate={animate}
       exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}

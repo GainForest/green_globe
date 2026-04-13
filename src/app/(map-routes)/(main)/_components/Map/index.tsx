@@ -28,6 +28,7 @@ const Map = () => {
     <div
       style={{ height: "100%" }}
       ref={mapContainerRef}
+      data-testid="map-root"
       className="map-container flex-1"
     ></div>
   );
