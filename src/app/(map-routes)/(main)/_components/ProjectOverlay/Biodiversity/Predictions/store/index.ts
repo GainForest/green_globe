@@ -82,6 +82,7 @@ const useBiodiversityPredictionsStore = create<
         // Plants: use ATProto if it returned any records, otherwise fall back to S3
         let treesData: BiodiversityPlant[];
         let herbsData: BiodiversityPlant[];
+        let plantsFetchFailed = false;
 
         const atprotoHasPlants =
           atprotoPlants !== null &&
@@ -101,10 +102,13 @@ const useBiodiversityPredictionsStore = create<
           }
           treesData = s3Trees?.items ?? [];
           herbsData = s3Herbs?.items ?? [];
+          plantsFetchFailed =
+            atprotoPlants === null && s3Trees === null && s3Herbs === null;
         }
 
         // Animals: use ATProto if it returned any records, otherwise fall back to S3
         let animalsData: BiodiversityAnimal[];
+        let animalsFetchFailed = false;
 
         const atprotoHasAnimals =
           atprotoAnimals !== null && atprotoAnimals.length > 0;
@@ -118,6 +122,15 @@ const useBiodiversityPredictionsStore = create<
             return;
           }
           animalsData = s3Animals ?? [];
+          animalsFetchFailed = atprotoAnimals === null && s3Animals === null;
+        }
+
+        const hasAnyPredictionData =
+          treesData.length > 0 || herbsData.length > 0 || animalsData.length > 0;
+
+        if ((plantsFetchFailed || animalsFetchFailed) && !hasAnyPredictionData) {
+          set({ dataStatus: "error", data: null });
+          return;
         }
 
         set({

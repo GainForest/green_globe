@@ -84,7 +84,8 @@ export const installErrorRoute_CommunityMembersFails = async (
 /**
  * Makes the `OccurrencesByDidAndKingdom` GraphQL query return a 500 error so
  * that `Biodiversity/Predictions` enters the error state and renders
- * `<ErrorMessage>`.
+ * `<ErrorMessage>`. We also fail the legacy S3 fallbacks so the panel cannot
+ * silently degrade into the generic no-data state.
  *
  * The predictions panel fires two separate queries (Plantae + Animalia), so
  * this handler stays active for the whole scenario and intercepts either/both.
@@ -103,6 +104,18 @@ export const installErrorRoute_PredictionsFails = async (
           data: null,
         }),
       });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (
+      url.pathname.includes("/restor/") ||
+      url.pathname.includes("/predictions/")
+    ) {
+      await route.abort("failed");
       return;
     }
     await route.fallback();

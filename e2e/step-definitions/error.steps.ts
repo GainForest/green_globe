@@ -12,6 +12,17 @@ import type { AppWorld } from "../support/world.js";
 
 const ERROR_UI_TIMEOUT = 15_000;
 
+const expectErrorMessage = async (
+  world: AppWorld,
+  text: string | RegExp = "Something went wrong...",
+) => {
+  const errorMessage = getPage(world).getByTestId("error-message");
+  await expect(errorMessage).toBeVisible({
+    timeout: ERROR_UI_TIMEOUT,
+  });
+  await expect(errorMessage).toContainText(text);
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -85,27 +96,53 @@ Given(
 // Then steps — error state assertions
 // ---------------------------------------------------------------------------
 
-Then("the project error message is visible", async function (this: AppWorld) {
-  await expect(getPage(this).getByTestId("error-message")).toBeVisible({
-    timeout: ERROR_UI_TIMEOUT,
-  });
+Then("the project error state is visible", async function (this: AppWorld) {
+  const page = getPage(this);
+  await expect(page.getByTestId("project-overlay")).toBeVisible();
+  await expectErrorMessage(this, /Failed to load project\./);
+  await expect(page.getByTestId("error-message")).toContainText(
+    "Please check URL and retry.",
+  );
 });
 
-Then("the community error message is visible", async function (this: AppWorld) {
-  await expect(getPage(this).getByTestId("error-message")).toBeVisible({
-    timeout: ERROR_UI_TIMEOUT,
-  });
+Then("the community error state is visible", async function (this: AppWorld) {
+  const page = getPage(this);
+  await expect(page.getByTestId("project-overlay")).toBeVisible();
+  await expect(page.getByTestId("community-panel")).toBeVisible();
+  await expectErrorMessage(this);
 });
 
 Then(
-  "the biodiversity error message is visible",
+  "the biodiversity observations error state is visible",
   async function (this: AppWorld) {
-    await expect(getPage(this).getByTestId("error-message")).toBeVisible({
-      timeout: ERROR_UI_TIMEOUT,
-    });
+    const page = getPage(this);
+    await expect(page.getByTestId("project-overlay")).toBeVisible();
+    await expect(page.getByTestId("biodiversity-panel")).toBeVisible();
+    await expect(page.getByTestId("biodiversity-observations")).toBeVisible();
+    await expectErrorMessage(this);
+  },
+);
+
+Then(
+  "the biodiversity predictions error state is visible",
+  async function (this: AppWorld) {
+    const page = getPage(this);
+    await expect(page.getByTestId("project-overlay")).toBeVisible();
+    await expect(page.getByTestId("biodiversity-panel")).toBeVisible();
+    await expect(page.getByTestId("biodiversity-predictions-panel")).toBeVisible();
+    await expectErrorMessage(this);
+    await expect(page.getByTestId("predictions-empty-state")).toHaveCount(0);
   },
 );
 
 Then("the search empty state is visible", async function (this: AppWorld) {
-  await expect(getPage(this).getByTestId("search-empty-state")).toBeVisible();
+  const page = getPage(this);
+  await expect(page.getByTestId("search-input")).toBeVisible();
+  await expect(page.getByTestId("search-empty-state")).toBeVisible();
+  await expect(page.getByTestId("search-empty-state")).toContainText(
+    "No projects found",
+  );
+  await expect(
+    page.getByTestId(`project-search-result-${FIXTURE_PROJECT_ID}`),
+  ).toHaveCount(0);
 });
