@@ -183,7 +183,7 @@ const SearchOverlay = () => {
           </motion.div>
         )}
         {filteredOrganizations && filteredOrganizations.length === 0 && (
-          <div className="bg-foreground/[0.025] p-4 rounded-xl mt-4 flex flex-col items-center justify-center gap-4">
+          <div data-testid="search-empty-state" className="bg-foreground/[0.025] p-4 rounded-xl mt-4 flex flex-col items-center justify-center gap-4">
             <CircleAlert
               className="text-muted-foreground opacity-50"
               size={40}
