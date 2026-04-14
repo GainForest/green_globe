@@ -1,6 +1,5 @@
 import ClimateAIAgent from "@/lib/atproto/agent";
 import { PDS_ENDPOINT } from "@/config/atproto";
-import { APPROVED_ORGANIZATION_DIDS } from "@/config/approved-organizations";
 import { hyperindexClient } from "@/lib/hyperindex/client";
 import {
   ALL_ORGANIZATION_INFOS,
@@ -34,36 +33,29 @@ export type IndexedOrganization = {
  * - 1 call per org for certified location lookup by AT-URI
  * - 1 PDS call per org to download the GeoJSON blob (binary content)
  *
- * Only organizations with visibility 'Public' that appear in the
- * APPROVED_ORGANIZATION_DIDS allowlist are returned.
+ * Only organizations with visibility 'Public' are returned — this filter is
+ * applied at the Hyperindex query layer via `ALL_ORGANIZATION_INFOS`.
  */
 export async function listAllOrganizations(options?: {
   includeInfo?: boolean;
   includeCoordinates?: boolean;
 }): Promise<IndexedOrganization[]> {
-  // Step 1: Fetch all public org info records from Hyperindex
-  // Hyperindex caps at 100 per page, so we paginate to get all records
-  const allInfos = await fetchAllOrgInfos();
+  // Fetch all public org info records from Hyperindex.
+  // Hyperindex caps at 100 per page, so we paginate to get all records.
+  const orgInfos = await fetchAllOrgInfos();
 
-  // Step 2: Filter to approved DIDs
-  const approvedInfos = allInfos.filter((edge) =>
-    APPROVED_ORGANIZATION_DIDS.has(edge.node.did)
-  );
-
-  // Step 3: If coordinates are needed, fetch defaultSite pointers and
-  // build location lookup maps — all from Hyperindex
+  // If coordinates are needed, fetch defaultSite pointers and
+  // build location lookup maps — all from Hyperindex.
   let coordinateMap: Map<string, { lat: number; lon: number }> | null = null;
 
   if (options?.includeCoordinates) {
-    coordinateMap = await buildCoordinateMap(
-      approvedInfos.map((e) => e.node.did)
-    );
+    coordinateMap = await buildCoordinateMap(orgInfos.map((e) => e.node.did));
   }
 
-  // Step 4: Assemble results
+  // Assemble results.
   const results: IndexedOrganization[] = [];
 
-  for (const edge of approvedInfos) {
+  for (const edge of orgInfos) {
     const info = edge.node;
     const org: IndexedOrganization = { did: info.did };
 
