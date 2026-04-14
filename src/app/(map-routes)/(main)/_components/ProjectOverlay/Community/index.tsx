@@ -18,7 +18,7 @@ const Community = () => {
   //   }
   // }, [activeTab]);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-testid="community-panel">
       {/* <SlidingTabs activeKey={activeTab} className="gap-2">
         <Underlay />
         <Tab tabKey="members" asChild>
