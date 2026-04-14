@@ -121,17 +121,9 @@ export const generateNavigationStateFromURL = (
   }
 
   // Layers
-  const layersHistoricalSatelliteDate = params.get(
-    "layers-historical-satellite-date"
-  );
   const layersEnabledLayers = params.get("layers-enabled-layers");
   const layersLandcover = params.get("layers-landcover");
   const layers = {
-    "historical-satellite": layersHistoricalSatelliteDate
-      ? {
-          date: layersHistoricalSatelliteDate,
-        }
-      : DEFAULT_NAVIGATION_STATE.layers["historical-satellite"],
     "enabled-layers":
       layersEnabledLayers?.split(",") ??
       DEFAULT_NAVIGATION_STATE.layers["enabled-layers"],

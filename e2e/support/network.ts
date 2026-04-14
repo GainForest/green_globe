@@ -189,10 +189,6 @@ export const installMockRoutes = async (page: Page) => {
       return fulfillJson(route, ORGANIZATIONS_RESPONSE);
     }
 
-    if (url.pathname === "/api/planet-tiles") {
-      return fulfillPng(route);
-    }
-
     if (url.hostname === "api.mapbox.com") {
       if (url.pathname.includes("/styles/v1/")) {
         return fulfillJson(route, MAPBOX_STYLE);

@@ -4,7 +4,6 @@ import { Layers, LocateFixed } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
-import HistoricalSatelliteControls from "./HistoricalSatelliteControls";
 import useLayersOverlayStore from "./store";
 import useProjectOverlayStore from "../ProjectOverlay/store";
 import { toKebabCase } from "@/lib/utils";
@@ -102,9 +101,6 @@ const LayersOverlay = () => {
         <Layers size={20} />
         <span className="text-xl font-bold">Explore Layers</span>
       </div>
-
-      {/* Monthly Satellite Layer */}
-      <HistoricalSatelliteControls />
 
       {/* Land Cover Layer */}
       <LandcoverControls />

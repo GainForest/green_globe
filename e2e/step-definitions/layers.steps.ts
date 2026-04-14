@@ -49,14 +49,6 @@ When("the visitor enables the landcover layer", async function (this: AppWorld) 
   await ensureToggleIsEnabled(getPage(this).getByTestId("layer-toggle-landcover"));
 });
 
-When("the visitor enables the historical satellite layer", async function (
-  this: AppWorld,
-) {
-  await ensureToggleIsEnabled(
-    getPage(this).getByTestId("layer-toggle-historical-satellite"),
-  );
-});
-
 When("the visitor enables the project-specific layer {string}", async function (
   this: AppWorld,
   layerName: string,
@@ -64,10 +56,4 @@ When("the visitor enables the project-specific layer {string}", async function (
   await ensureToggleIsEnabled(
     getPage(this).getByTestId(`layer-toggle-${toKebabCase(layerName)}`),
   );
-});
-
-Then("the current URL contains a historical satellite month", async function (
-  this: AppWorld,
-) {
-  await expect(getPage(this)).toHaveURL(/layers-historical-satellite-date=\d{4}-\d{2}/);
 });

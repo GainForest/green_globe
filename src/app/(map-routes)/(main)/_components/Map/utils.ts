@@ -1,5 +1,4 @@
 import { Map, MapMouseEvent } from "mapbox-gl";
-import { addHistoricalSatelliteSourceAndLayers } from "./sources-and-layers/historical-satellite";
 import {
   addAllSitesSourceAndLayer,
   addHighlightedSiteSourceAndLayer,
@@ -14,11 +13,10 @@ import {
 } from "./sources-and-layers/measured-trees";
 import { addProjectMarkersSourceAndLayer } from "./sources-and-layers/project-markers";
 import { NormalizedTreeFeature } from "../ProjectOverlay/store/types";
-import { addLandcoverSourceAndLayer } from "./sources-and-layers/historical-satellite";
+import { addLandcoverSourceAndLayer } from "./sources-and-layers/landcover";
 import { HoveredTreeOverlayState } from "../HoveredTreeOverlay/store";
 
 export const addAllSourcesAndLayers = (map: Map) => {
-  addHistoricalSatelliteSourceAndLayers(map);
   addLandcoverSourceAndLayer(map);
   addAllSitesSourceAndLayer(map);
   addHighlightedSiteSourceAndLayer(map);

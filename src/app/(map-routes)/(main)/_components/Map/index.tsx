@@ -5,7 +5,6 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import { useHoveredTreeInfo } from "./hooks/useHoveredTreeInfo";
 import useProjectTrees from "./hooks/useProjectTrees";
-import useHistoricalSatelliteLayer from "./hooks/useHistoricalSatelliteLayer";
 import useMapbox from "./hooks/useMapbox";
 import useDynamicLayers from "./hooks/useDynamicLayers";
 import useBounds from "./hooks/useBounds";
@@ -20,7 +19,6 @@ const Map = () => {
   useHighlightedPolygon();
   useProjectTrees();
   useHoveredTreeInfo();
-  useHistoricalSatelliteLayer();
   useLandcoverLayer();
   useDynamicLayers();
 
