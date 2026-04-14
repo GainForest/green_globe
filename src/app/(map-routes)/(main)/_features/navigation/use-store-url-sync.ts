@@ -5,7 +5,6 @@ import useOverlayTabsStore from "../../_components/Overlay/OverlayTabs/store";
 import { generateNavigationStateFromURL } from "../../_features/navigation/utils";
 import useNavigationStore from "../../_features/navigation/store";
 import useLayersOverlayStore from "../../_components/LayersOverlay/store";
-import dayjs from "dayjs";
 import useSearchOverlayStore from "../../_components/SearchOverlay/store";
 import { updateDedicatedStoresFromViews } from "../../_features/navigation/utils/project";
 import useMapStore from "../../_components/Map/store";
@@ -66,35 +65,6 @@ const useStoreUrlSync = (
       useLayersOverlayStore.getState();
     setToggledOnLayerIds(layers["enabled-layers"]);
     setStaticLayerVisibility("landcover", layers["landcover"]);
-    const historicalSatelliteLayer = layers["historical-satellite"];
-    if (historicalSatelliteLayer) {
-      const historicalSatelliteState =
-        useLayersOverlayStore.getState().historicalSatelliteState;
-      const { minDate, maxDate } = historicalSatelliteState;
-      const { date: historicalSatelliteDateString } = historicalSatelliteLayer;
-      let isValidDate = false;
-      try {
-        const date = dayjs(historicalSatelliteDateString, "YYYY-MM");
-        if (
-          date.isValid() &&
-          (date.isAfter(minDate) || date.isSame(minDate)) &&
-          (date.isBefore(maxDate) || date.isSame(maxDate))
-        ) {
-          isValidDate = true;
-        }
-      } catch (error) {
-        console.error(error);
-        isValidDate = false;
-      }
-      if (isValidDate) {
-        setStaticLayerVisibility("historicalSatellite", true);
-        useLayersOverlayStore
-          .getState()
-          .setHistoricalSatelliteDate(
-            dayjs(historicalSatelliteDateString, "YYYY-MM")
-          );
-      }
-    }
 
     // Search
     const search = useNavigationStore.getState().search;
