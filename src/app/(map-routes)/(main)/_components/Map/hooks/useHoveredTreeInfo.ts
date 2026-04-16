@@ -86,7 +86,10 @@ export function useHoveredTreeInfo() {
 
     // Reset the hovered tree ID ref
     hoveredTreeIdRef.current = null;
-  }, []);
+
+    // Clear the overlay panel
+    setTreeInformation(null);
+  }, [setTreeInformation]);
 
   useEffect(() => {
     if (currentView !== "project" || !activeProjectId) return;

@@ -126,11 +126,12 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
         if (did === get().projectSpecificLayers.projectId) {
           return;
         }
+        const currentLayers = get().projectSpecificLayers.layers;
         set({
           projectSpecificLayers: {
             projectId: did,
             status: "loading",
-            layers: null,
+            layers: currentLayers?.map((l) => ({ ...l, visible: false })) ?? null,
           },
         });
         // Try ATProto first (by DID); fall back to S3 (by slug) when no records exist
