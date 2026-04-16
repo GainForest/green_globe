@@ -2,9 +2,8 @@ import { toKebabCase } from "@/lib/utils";
 import type { BiodiversityTraits } from "./types";
 import { BiodiversityAnimal, BiodiversityPlant } from "./types";
 import * as d3 from "d3";
-import { hyperindexClient } from "@/lib/hyperindex/client";
-import { OCCURRENCES_BY_DID_AND_KINGDOM } from "@/lib/hyperindex/queries";
-import type { Connection, HiDwcOccurrence } from "@/lib/hyperindex/types";
+import { Agent } from "@atproto/api";
+import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
 import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import {
@@ -54,9 +53,7 @@ type RawOccurrenceRecord = {
   value: RawOccurrenceValue;
 };
 
-type OccurrenceResponse = {
-  appGainforestDwcOccurrence: Connection<HiDwcOccurrence>;
-};
+const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
 
 // ── Dynamic properties parsed from JSON string ─────────────────────────────────
 
@@ -247,50 +244,49 @@ const normalizeAnimalRecord = (
 
 // ── ATProto fetch functions (plain async, no React hooks) ──────────────────────
 
-const mapOccurrenceNodeToRawRecord = (
-  node: HiDwcOccurrence,
-): RawOccurrenceRecord => ({
-  uri: node.uri,
-  cid: node.cid,
-  value: {
-    kingdom: node.kingdom,
-    scientificName: node.scientificName,
-    vernacularName: node.vernacularName,
-    occurrenceID: node.occurrenceID,
-    imageEvidence: node.imageEvidence,
-    dynamicProperties: node.dynamicProperties,
-    basisOfRecord: node.basisOfRecord,
-    conservationStatus: node.conservationStatus,
-    plantTraits: node.plantTraits,
-  },
-});
-
+/**
+ * Fetch occurrence records for a given org and kingdom directly from the PDS.
+ *
+ * Hyperindex's AppGainforestDwcOccurrence type does not expose conservationStatus
+ * or plantTraits, so we go to the PDS (listRecords) which returns the full
+ * record value including all embedded objects.  Kingdom filtering is applied
+ * client-side since listRecords does not support predicate filtering.
+ */
 const fetchOccurrencesByKingdom = async (
   did: string,
   kingdom: "Plantae" | "Animalia",
 ): Promise<RawOccurrenceRecord[]> => {
+  const pdsEndpoint = await resolvePdsEndpoint(did);
+  const agent = new Agent(pdsEndpoint);
   const records: RawOccurrenceRecord[] = [];
-  let cursor: string | null = null;
+  let cursor: string | undefined;
 
   do {
-    const response: OccurrenceResponse = await hyperindexClient.request(
-      OCCURRENCES_BY_DID_AND_KINGDOM,
-      {
-        did,
-        first: 100,
-        after: cursor,
-        kingdom,
-      },
-    );
+    const response = await agent.com.atproto.repo.listRecords({
+      repo: did,
+      collection: OCCURRENCE_COLLECTION,
+      limit: 100,
+      cursor,
+    });
 
-    const connection = response.appGainforestDwcOccurrence;
-    records.push(
-      ...connection.edges.map((edge) => mapOccurrenceNodeToRawRecord(edge.node)),
-    );
+    const page = response.data.records as
+      | Array<{ uri?: string; cid?: string; value?: Record<string, unknown> }>
+      | undefined;
 
-    cursor = connection.pageInfo.hasNextPage
-      ? connection.pageInfo.endCursor
-      : null;
+    if (page?.length) {
+      for (const record of page) {
+        if (typeof record.uri !== "string") continue;
+        const value = record.value ?? {};
+        if (value.kingdom !== kingdom) continue;
+        records.push({
+          uri: record.uri,
+          cid: typeof record.cid === "string" ? record.cid : undefined,
+          value,
+        });
+      }
+    }
+
+    cursor = response.data.cursor ?? undefined;
   } while (cursor);
 
   return records;
