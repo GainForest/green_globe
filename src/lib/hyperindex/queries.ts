@@ -298,6 +298,8 @@ export const OCCURRENCES_BY_DID_AND_KINGDOM = gql`
             }
           }
           associatedMedia
+          conservationStatus
+          plantTraits
         }
       }
       totalCount

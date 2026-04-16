@@ -260,6 +260,8 @@ const mapOccurrenceNodeToRawRecord = (
     imageEvidence: node.imageEvidence,
     dynamicProperties: node.dynamicProperties,
     basisOfRecord: node.basisOfRecord,
+    conservationStatus: node.conservationStatus,
+    plantTraits: node.plantTraits,
   },
 });
 
