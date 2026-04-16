@@ -2,6 +2,7 @@ import { Map, MapMouseEvent } from "mapbox-gl";
 import {
   addAllSitesSourceAndLayer,
   addHighlightedSiteSourceAndLayer,
+  addTreesLoadingOverlayLayer,
 } from "./sources-and-layers/project-sites";
 import {
   addMeasuredTreesSourceAndLayer,
@@ -20,6 +21,7 @@ export const addAllSourcesAndLayers = (map: Map) => {
   addLandcoverSourceAndLayer(map);
   addAllSitesSourceAndLayer(map);
   addHighlightedSiteSourceAndLayer(map);
+  addTreesLoadingOverlayLayer(map);
   addMeasuredTreesSourceAndLayer(map);
   addProjectMarkersSourceAndLayer(map);
 };

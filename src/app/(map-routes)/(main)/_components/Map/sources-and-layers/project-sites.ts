@@ -86,3 +86,15 @@ const allSitesFillLayer = (lineColor: string) => ({
     "fill-opacity": 0.05,
   },
 });
+
+export const addTreesLoadingOverlayLayer = (map: Map) => {
+  if (map.getSource("highlightedSite") && !map.getLayer("treesLoadingFill")) {
+    map.addLayer({
+      id: "treesLoadingFill",
+      type: "fill",
+      source: "highlightedSite",
+      layout: { visibility: "none" },
+      paint: { "fill-color": "#ffffff", "fill-opacity": 0 },
+    });
+  }
+};
