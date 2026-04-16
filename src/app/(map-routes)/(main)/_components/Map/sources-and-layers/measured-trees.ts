@@ -62,18 +62,32 @@ export const unclusteredTreesLayer: CircleLayerSpecification = {
   paint: {
     "circle-color": [
       "case",
+      ["boolean", ["feature-state", "selected"], false],
+      "#ec4899",
       ["boolean", ["feature-state", "hover"], false],
       "#0883fe",
       "#ff77c1",
     ],
     "circle-radius": [
       "case",
+      ["boolean", ["feature-state", "selected"], false],
+      10,
       ["boolean", ["feature-state", "hover"], false],
       8,
       4,
     ],
-    "circle-stroke-width": 1,
-    "circle-stroke-color": "#000000",
+    "circle-stroke-width": [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      3,
+      1,
+    ],
+    "circle-stroke-color": [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      "#ffffff",
+      "#000000",
+    ],
   },
 };
 

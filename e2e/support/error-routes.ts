@@ -125,13 +125,26 @@ export const installErrorRoute_PredictionsFails = async (
 /**
  * Makes the measured-tree observations query fail so the observations panel
  * enters its explicit error state and renders `<ErrorMessage>`.
+ *
+ * We fail two upstream calls:
+ *   1. The hyperindex GraphQL occurrence query (`OccurrencesByDid` /
+ *      `OccurrencesByDidWithDynamic`).
+ *   2. The PDS `listRecords` XRPC for `app.gainforest.dwc.measurement`.
+ *
+ * The app now tolerates hyperindex schema drift by catching the GraphQL
+ * error and falling back to PDS-only data. To still exercise the error UX
+ * end-to-end, we also fail the measurement listRecords call — its rejection
+ * propagates out of `fetchMeasurementIndex` and surfaces the error state.
  */
 export const installErrorRoute_MeasuredTreesFails = async (
   page: Page,
 ): Promise<void> => {
   await page.route("**/graphql", async (route) => {
     const { query = "" } = getGraphQLPayload(route);
-    if (query.includes("OccurrencesByDidWithDynamic")) {
+    if (
+      query.includes("OccurrencesByDidWithDynamic") ||
+      query.includes("OccurrencesByDid(")
+    ) {
       await route.fulfill({
         status: 500,
         contentType: "application/json",
@@ -144,4 +157,16 @@ export const installErrorRoute_MeasuredTreesFails = async (
     }
     await route.fallback();
   });
+
+  await page.route(
+    "**/xrpc/com.atproto.repo.listRecords**",
+    async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("collection") === "app.gainforest.dwc.measurement") {
+        await fulfillJsonError(route, "InternalServerError", 500);
+        return;
+      }
+      await route.fallback();
+    },
+  );
 };

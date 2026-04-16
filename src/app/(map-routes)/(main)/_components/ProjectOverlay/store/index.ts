@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { AtprotoSite, Project } from "./types";
+import { AtprotoSite, Project, ProjectPolygonAPIResponse } from "./types";
 import {
   fetchMeasuredTreesShapefile,
   fetchSiteShapefile,
@@ -13,7 +13,8 @@ import {
   convertFromGFTreeFeatureToNormalizedTreeFeature,
 } from "./ayyoweca-uganda";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
-import ClimateAIAgent from "@/lib/atproto/agent";
+import { Agent } from "@atproto/api";
+import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
 import { fetchMeasuredTreeOccurrences } from "../../../_hooks/use-organization-measured-trees";
 import { hyperindexClient } from "@/lib/hyperindex/client";
 import {
@@ -25,6 +26,7 @@ import type {
   HiCertifiedLocation,
   HiOrganizationDefaultSite,
 } from "@/lib/hyperindex/types";
+import usePreviewStore from "../../../_features/preview/store";
 
 // ---------------------------------------------------------------------------
 // ATProto collections
@@ -104,7 +106,9 @@ const SLUG_OVERRIDES: Record<string, string> = {
 
 const fetchOrganizationSlug = async (did: string): Promise<string | null> => {
   try {
-    const response = await ClimateAIAgent.com.atproto.repo.describeRepo({
+    const pdsEndpoint = await resolvePdsEndpoint(did);
+    const agent = new Agent(pdsEndpoint);
+    const response = await agent.com.atproto.repo.describeRepo({
       repo: did,
     });
     const handle = response.data.handle ?? null;
@@ -112,7 +116,10 @@ const fetchOrganizationSlug = async (did: string): Promise<string | null> => {
     const rawSlug = handle.split('.')[0] ?? null;
     if (!rawSlug) return null;
     return SLUG_OVERRIDES[rawSlug] ?? rawSlug;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[GG] fetchOrganizationSlug failed:", did, err);
+    }
     return null;
   }
 };
@@ -142,6 +149,88 @@ const buildCompatProject = (did: string, slug: string): Project => ({
   communityMembers: [],
   Wallet: null,
 });
+
+const applyPreviewFilters = (
+  data: MeasuredTreesGeoJSON | null,
+): MeasuredTreesGeoJSON | null => {
+  if (!data) {
+    return null;
+  }
+
+  const { datasetRef, treeUri } = usePreviewStore.getState();
+
+  if (!datasetRef && !treeUri) {
+    return data;
+  }
+
+  const datasetFiltered = datasetRef
+    ? data.features.filter((feature) => feature.properties.datasetRef === datasetRef)
+    : data.features;
+
+  const treeFiltered = treeUri
+    ? data.features.filter((feature) => feature.properties.occurrenceUri === treeUri)
+    : [];
+
+  const featureMap = new Map<string | number, (typeof data.features)[number]>();
+  for (const feature of datasetFiltered) {
+    featureMap.set(feature.id, feature);
+  }
+  for (const feature of treeFiltered) {
+    featureMap.set(feature.id, feature);
+  }
+
+  const features = [...featureMap.values()];
+
+  if (datasetRef && features.length === 0) {
+    return {
+      ...data,
+      features: treeFiltered,
+    };
+  }
+
+  return {
+    ...data,
+    features,
+  };
+};
+
+const setMapBoundsFromTrees = (data: MeasuredTreesGeoJSON | null) => {
+  if (!data || data.features.length === 0) {
+    return;
+  }
+
+  const { treeUri } = usePreviewStore.getState();
+  if (treeUri) {
+    const selectedFeature = data.features.find(
+      (feature) => feature.properties.occurrenceUri === treeUri,
+    );
+
+    if (selectedFeature) {
+      const [lon, lat] = selectedFeature.geometry.coordinates;
+      const offset = 0.0025;
+      useMapStore.getState().setMapBounds([
+        lon - offset,
+        lat - offset,
+        lon + offset,
+        lat + offset,
+      ]);
+      return;
+    }
+  }
+
+  const boundingBox = bbox(data).slice(0, 4) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  useMapStore.getState().setMapBounds(boundingBox);
+};
+
+const shouldUsePreviewBounds = (): boolean => {
+  const { embedMode, datasetRef, treeUri } = usePreviewStore.getState();
+  return embedMode || datasetRef !== null || treeUri !== null;
+};
 
 // ---------------------------------------------------------------------------
 // Store types
@@ -221,6 +310,7 @@ export type ProjectOverlayActions = {
     tab: ProjectOverlayState["activeTab"],
     navigate?: ReturnType<typeof useNavigation>
   ) => void;
+  refreshTrees: () => void;
   resetState: () => void;
   setIsMaximized: (isMaximized: ProjectOverlayState["isMaximized"]) => void;
 };
@@ -247,6 +337,74 @@ const useProjectOverlayStore = create<
   ProjectOverlayState & ProjectOverlayActions
 >((set, get) => {
   const isProjectStillActive = (id: string) => get().projectId === id;
+
+  const loadProjectTrees = async (
+    projectId: string,
+    projectSlug: string | null,
+    treesRef: unknown,
+    shouldFitToSite?: boolean,
+  ) => {
+    const slug = projectSlug ?? "";
+    const isAyyowecaUganda =
+      projectId ===
+      "49bbaba0d8980989ce9b3988a45c375a42206239d6bc930c2357035e670838e0";
+
+    try {
+      const occurrenceData = await fetchMeasuredTreeOccurrences(projectId);
+      if (!isProjectStillActive(projectId)) {
+        return;
+      }
+
+      if (occurrenceData !== null) {
+        const filteredOccurrenceData = applyPreviewFilters(occurrenceData);
+        set({ treesAsync: { _status: "success", data: filteredOccurrenceData } });
+
+        if (
+          filteredOccurrenceData &&
+          (shouldUsePreviewBounds() || !shouldFitToSite)
+        ) {
+          setMapBoundsFromTrees(filteredOccurrenceData);
+        }
+        return;
+      }
+
+      const rawData = await fetchMeasuredTreesShapefile(slug, treesRef, projectId);
+      if (!isProjectStillActive(projectId)) {
+        return;
+      }
+
+      let data: MeasuredTreesGeoJSON | null = rawData;
+
+      if (isAyyowecaUganda && rawData !== null) {
+        const gfTreeFeatures = rawData as unknown as {
+          type: "FeatureCollection";
+          features: GFTreeFeature[];
+        };
+        data = {
+          type: "FeatureCollection",
+          features: gfTreeFeatures.features.map(
+            convertFromGFTreeFeatureToNormalizedTreeFeature,
+          ),
+        };
+      }
+
+      const filteredData = applyPreviewFilters(data);
+      set({ treesAsync: { _status: "success", data: filteredData } });
+
+      if (
+        filteredData &&
+        (shouldUsePreviewBounds() || !shouldFitToSite)
+      ) {
+        setMapBoundsFromTrees(filteredData);
+      }
+    } catch (error) {
+      console.error("Error fetching measured trees", error);
+      if (!isProjectStillActive(projectId)) {
+        return;
+      }
+      set({ treesAsync: { _status: "error", data: null } });
+    }
+  };
 
   return {
     ...initialState,
@@ -366,94 +524,45 @@ const useProjectOverlayStore = create<
       if (!atprotoSites || !projectId) return;
 
       const selectedSite = atprotoSites.find((site) => site.uri === siteId);
-      if (!selectedSite) return;
 
       useMapStore.getState().setCurrentView("project");
 
-      fetchSiteShapefile(projectId, selectedSite.shapefile).then((data) => {
-        if (data === null) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const boundingBox = bbox(data as any).slice(0, 4) as [
-          number,
-          number,
-          number,
-          number
-        ];
-        if (zoomToSite) {
-          useMapStore.getState().setMapBounds(boundingBox);
-        }
-        navigate?.((draft) => {
-          if (draft.map.bounds !== null) {
-            draft.map.bounds = null;
-          }
-        });
-        // Cast to ProjectPolygonAPIResponse for Map store compatibility
-        // (both are GeoJSON FeatureCollections at runtime)
-        useMapStore
-          .getState()
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .setHighlightedPolygon(data as any);
-      });
-
       set({
-        activeSite: selectedSite,
+        activeSite: selectedSite ?? null,
         treesAsync: { _status: "loading", data: null },
       });
 
-      // Fetch measured trees for this site.
-      // Priority:
-      //   1. dwc.occurrence records (migrated orgs) — via fetchMeasuredTreeOccurrences
-      //   2. ATProto blob / S3 fallback (non-migrated orgs) — via fetchMeasuredTreesShapefile
-      const slug = projectSlug ?? "";
-      const treesRef = selectedSite.trees;
-
-      const isAyyowecaUganda =
-        projectId ===
-        "49bbaba0d8980989ce9b3988a45c375a42206239d6bc930c2357035e670838e0";
-
-      (async () => {
-        try {
-          // Path 1: Try dwc.occurrence records first (migrated orgs)
-          const occurrenceData = await fetchMeasuredTreeOccurrences(projectId);
-          if (!isProjectStillActive(projectId)) return;
-
-          if (occurrenceData !== null) {
-            // Org has been migrated — use occurrence data directly
-            set({ treesAsync: { _status: "success", data: occurrenceData } });
-            return;
+      if (selectedSite) {
+        fetchSiteShapefile(projectId, selectedSite.shapefile).then((data) => {
+          if (data === null) return;
+          const boundingBox = bbox(data as unknown as GeoJSON.FeatureCollection).slice(0, 4) as [
+            number,
+            number,
+            number,
+            number,
+          ];
+          if (zoomToSite && !shouldUsePreviewBounds()) {
+            useMapStore.getState().setMapBounds(boundingBox);
           }
-
-          // Path 2: Fall back to legacy GeoJSON blob / S3 path (non-migrated orgs)
-          const rawData = await fetchMeasuredTreesShapefile(
-            slug,
-            treesRef,
-            projectId
+          navigate?.((draft) => {
+            if (draft.map.bounds !== null && !shouldUsePreviewBounds()) {
+              draft.map.bounds = null;
+            }
+          });
+          useMapStore.getState().setHighlightedPolygon(
+            data as unknown as ProjectPolygonAPIResponse,
           );
-          if (!isProjectStillActive(projectId)) return;
+        });
+      } else {
+        useMapStore.getState().setHighlightedPolygon(null);
+      }
 
-          let data: MeasuredTreesGeoJSON | null = rawData;
-
-          if (isAyyowecaUganda && rawData !== null) {
-            // The Ayyoweca Uganda project uses a different GeoJSON schema
-            const gfTreeFeatures = rawData as unknown as {
-              type: "FeatureCollection";
-              features: GFTreeFeature[];
-            };
-            data = {
-              type: "FeatureCollection",
-              features: gfTreeFeatures.features.map(
-                convertFromGFTreeFeatureToNormalizedTreeFeature
-              ),
-            };
-          }
-
-          set({ treesAsync: { _status: "success", data } });
-        } catch (error) {
-          console.error("Error fetching measured trees", error);
-          if (!isProjectStillActive(projectId)) return;
-          set({ treesAsync: { _status: "error", data: null } });
-        }
-      })();
+      void loadProjectTrees(
+        projectId,
+        projectSlug,
+        selectedSite?.trees,
+        Boolean(selectedSite),
+      );
     },
     setActiveTab: (tab, navigate) => {
       set({ activeTab: tab });
@@ -462,6 +571,20 @@ const useProjectOverlayStore = create<
         if (!project) return;
         project.views = [tab];
       });
+    },
+    refreshTrees: () => {
+      const { projectId, projectSlug, activeSite, projectDataStatus } = get();
+      if (!projectId || projectDataStatus !== "success") {
+        return;
+      }
+
+      set({ treesAsync: { _status: "loading", data: null } });
+      void loadProjectTrees(
+        projectId,
+        projectSlug,
+        activeSite?.trees,
+        Boolean(activeSite),
+      );
     },
     setIsMaximized: (isMaximized) => {
       set({ isMaximized });

@@ -5,8 +5,8 @@ import {
   TreeFeature,
 } from "./types";
 import { getTreeSpeciesName } from "../../Map/sources-and-layers/measured-trees";
-import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid } from "@/lib/atproto/extract-cid";
+import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
 
 // ---------------------------------------------------------------------------
 // ATProto blob ref shape (subset of what the PDS returns)
@@ -76,7 +76,8 @@ export const fetchSiteShapefile = async (
       ? extractCid(resolvedShapefile.ref)
       : null;
     if (cid) {
-      const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const pdsEndpoint = await resolvePdsEndpoint(did);
+      const url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
       const response = await fetch(url);
       if (!response.ok) {
         console.error(
@@ -94,7 +95,8 @@ export const fetchSiteShapefile = async (
       const parsed = parseAtUri(resolvedShapefile);
       if (!parsed) return null;
 
-      const recordUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(parsed.repo)}&collection=${encodeURIComponent(parsed.collection)}&rkey=${encodeURIComponent(parsed.rkey)}`;
+      const pdsEndpoint = await resolvePdsEndpoint(parsed.repo);
+      const recordUrl = `${pdsEndpoint}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(parsed.repo)}&collection=${encodeURIComponent(parsed.collection)}&rkey=${encodeURIComponent(parsed.rkey)}`;
       const recordResponse = await fetch(recordUrl);
       if (!recordResponse.ok) return null;
       const record = (await recordResponse.json()) as {
@@ -108,7 +110,7 @@ export const fetchSiteShapefile = async (
         : null;
       if (!resolvedCid) return null;
       const cid = resolvedCid;
-      const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(parsed.repo)}&cid=${encodeURIComponent(cid)}`;
+      const blobUrl = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(parsed.repo)}&cid=${encodeURIComponent(cid)}`;
       const blobResponse = await fetch(blobUrl);
       if (!blobResponse.ok) {
         console.error(
@@ -193,7 +195,8 @@ export const fetchMeasuredTreesShapefile = async (
   if (treeCid && did) {
     const cid = treeCid;
     try {
-      const url = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const pdsEndpoint = await resolvePdsEndpoint(did);
+      const url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
       const response = await fetch(url);
       if (response.ok) {
         const result =
