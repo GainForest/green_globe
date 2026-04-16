@@ -24,7 +24,7 @@ export function useHoveredTreeInfo() {
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create a ref to track the currently hovered tree ID
-  const hoveredTreeIdRef = useRef<number | null>(null);
+  const hoveredTreeIdRef = useRef<string | number | null>(null);
 
   // Debounced version of setTreeInformation
   const debouncedSetTreesInformation = useCallback(
@@ -48,11 +48,12 @@ export function useHoveredTreeInfo() {
       const treeInformation = getTreeInformation(e, activeProjectId);
       debouncedSetTreesInformation(treeInformation);
 
-      if (hoveredTreeIdRef.current !== null) {
+      if (hoveredTreeIdRef.current != null) {
         map.setFeatureState(
           { source: "trees", id: hoveredTreeIdRef.current },
           { hover: false }
         );
+        hoveredTreeIdRef.current = null;
       }
 
       const hoveredTreeFeature = e.features.find((feature) => {
@@ -64,6 +65,10 @@ export function useHoveredTreeInfo() {
       }) as NormalizedTreeFeature | undefined;
 
       if (!hoveredTreeFeature) return;
+      // Mapbox's Supercluster pipeline can drop string feature ids, leaving
+      // `id` undefined on the rendered feature. setFeatureState throws on
+      // null/undefined ids, so skip the hover-state write when that happens.
+      if (hoveredTreeFeature.id == null) return;
       hoveredTreeIdRef.current = hoveredTreeFeature.id;
       map.setFeatureState(
         { source: "trees", id: hoveredTreeFeature.id },

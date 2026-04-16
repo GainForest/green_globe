@@ -237,6 +237,7 @@ export const OCCURRENCES_BY_DID = gql`
           eventDate
           occurrenceID
           dynamicProperties
+          datasetRef
           conservationStatus
           plantTraits
           imageEvidence
@@ -343,6 +344,7 @@ export const OCCURRENCES_BY_DID_WITH_DYNAMIC = gql`
           decimalLongitude
           eventDate
           dynamicProperties
+          datasetRef
           associatedMedia
           basisOfRecord
         }

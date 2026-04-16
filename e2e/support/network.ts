@@ -115,7 +115,10 @@ const handleGraphql = async (route: Route) => {
     }
   }
 
-  if (query.includes("query OccurrencesByDidWithDynamic")) {
+  if (
+    query.includes("query OccurrencesByDidWithDynamic") ||
+    query.includes("query OccurrencesByDid(")
+  ) {
     return fulfillJson(route, OBSERVATION_OCCURRENCES_RESPONSE);
   }
 

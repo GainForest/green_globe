@@ -194,6 +194,7 @@ export type HiDwcOccurrence = {
   associatedMedia?: string;
   // Extended
   dynamicProperties?: string;
+  datasetRef?: string;
   conservationStatus?: unknown;
   plantTraits?: unknown;
   // Linkage

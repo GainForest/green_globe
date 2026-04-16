@@ -1,5 +1,5 @@
-import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
+import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
 import { hyperindexClient } from "@/lib/hyperindex/client";
 import { MULTIMEDIA_BY_DID } from "@/lib/hyperindex/queries";
 import type { Connection, HiAcMultimedia } from "@/lib/hyperindex/types";
@@ -68,6 +68,7 @@ export const fetchMultimediaIndex = async (
   did: string
 ): Promise<MultimediaIndex> => {
   const index: MultimediaIndex = new Map();
+  const pdsEndpoint = await resolvePdsEndpoint(did);
 
   for (const record of await fetchAllMultimedia(did)) {
     const occurrenceRef =
@@ -78,7 +79,7 @@ export const fetchMultimediaIndex = async (
     if (!cid) continue;
 
     if (!index.has(occurrenceRef)) {
-      index.set(occurrenceRef, buildBlobUrl(PDS_ENDPOINT, did, cid));
+      index.set(occurrenceRef, buildBlobUrl(pdsEndpoint, did, cid));
     }
   }
 
@@ -95,6 +96,7 @@ export const fetchMultimediaByOccurrence = async (
   did: string
 ): Promise<MultimediaByOccurrence> => {
   const index: MultimediaByOccurrence = new Map();
+  const pdsEndpoint = await resolvePdsEndpoint(did);
 
   for (const record of await fetchAllMultimedia(did)) {
     const occurrenceRef =
@@ -108,7 +110,7 @@ export const fetchMultimediaByOccurrence = async (
     const cid = extractCid(record.file?.ref);
     if (!cid) continue;
 
-    const blobUrl = buildBlobUrl(PDS_ENDPOINT, did, cid);
+    const blobUrl = buildBlobUrl(pdsEndpoint, did, cid);
     const existing = index.get(occurrenceRef) ?? {};
     index.set(occurrenceRef, { ...existing, [subjectPart]: blobUrl });
   }

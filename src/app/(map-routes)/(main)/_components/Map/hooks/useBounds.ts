@@ -9,6 +9,7 @@ import useOverlayStore from "../../Overlay/store";
 const useBounds = () => {
   const bounds = useMapStore((state) => state.mapBounds);
   const mapRef = useMapStore((state) => state.mapRef);
+  const mapLoaded = useMapStore((state) => state.mapLoaded);
 
   const isOverlayOpen = useOverlayStore((state) => state.isOpen);
   const size = useOverlayStore((state) => state.size);
@@ -17,7 +18,7 @@ const useBounds = () => {
 
   useEffect(() => {
     const map = mapRef?.current;
-    if (!map || !bounds) return;
+    if (!mapLoaded || !map || !bounds) return;
 
     map.fitBounds(bounds, {
       padding: {
@@ -27,7 +28,7 @@ const useBounds = () => {
         right: 40,
       },
     });
-  }, [mapRef, bounds, shouldAddExtraLeftPadding]);
+  }, [mapLoaded, mapRef, bounds, shouldAddExtraLeftPadding]);
 };
 
 export default useBounds;

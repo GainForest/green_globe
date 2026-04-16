@@ -106,6 +106,10 @@ export type ProjectPolygonAPIResponse = {
 export type TreeFeatureProperties = {
   lat: number;
   lon: number;
+  occurrenceUri?: string;
+  datasetRef?: string;
+  siteRef?: string;
+  treeSource?: string;
   Height?: string;
   height?: string;
   diameter?: string;
@@ -142,7 +146,7 @@ export type TreeFeature = {
 };
 
 export type NormalizedTreeFeature = TreeFeature & {
-  id: number;
+  id: string | number;
   properties: TreeFeatureProperties & {
     type: "measured-tree";
   };
@@ -156,4 +160,3 @@ export type MeasuredTreesGeoJSON<
   type: "FeatureCollection";
   features: T[];
 };
-

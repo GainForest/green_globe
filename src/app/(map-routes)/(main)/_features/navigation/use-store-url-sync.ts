@@ -8,22 +8,36 @@ import useLayersOverlayStore from "../../_components/LayersOverlay/store";
 import useSearchOverlayStore from "../../_components/SearchOverlay/store";
 import { updateDedicatedStoresFromViews } from "../../_features/navigation/utils/project";
 import useMapStore from "../../_components/Map/store";
+import usePreviewStore from "../preview/store";
 
 const useStoreUrlSync = (
   queryParams: ReadonlyURLSearchParams,
   params: {
     projectId?: string;
+    embed?: boolean;
   }
 ) => {
-  const { projectId: projectIdParam } = params;
+  const { projectId: projectIdParam, embed = false } = params;
 
   // ⚠️⚠️⚠️ Make sure to update the dependencies, in case of changes to the props.
   useEffect(() => {
+    const nextPreviewState = {
+      embedMode: embed,
+      treeUri: queryParams.get("tree-uri"),
+      datasetRef: queryParams.get("dataset-ref"),
+    };
+    const previousPreviewState = usePreviewStore.getState();
+    const previewChanged =
+      previousPreviewState.embedMode !== nextPreviewState.embedMode ||
+      previousPreviewState.treeUri !== nextPreviewState.treeUri ||
+      previousPreviewState.datasetRef !== nextPreviewState.datasetRef;
+
     const navigationState = generateNavigationStateFromURL(
       projectIdParam ? `/${projectIdParam}` : "",
       queryParams
     );
     useNavigationStore.getState().updateNavigationState(navigationState);
+    usePreviewStore.getState().setPreviewState(nextPreviewState);
 
     // Overlay
     const overlay = useNavigationStore.getState().overlay;
@@ -40,7 +54,7 @@ const useStoreUrlSync = (
     const project = useNavigationStore.getState().project;
     let map = useNavigationStore.getState().map;
     if (project) {
-      const { projectId, setProjectId } = useProjectOverlayStore.getState();
+      const { projectId, setProjectId, refreshTrees } = useProjectOverlayStore.getState();
 
       // Project & Map bounds
       if (project["project-id"] !== projectId) {
@@ -57,6 +71,10 @@ const useStoreUrlSync = (
       }
 
       updateDedicatedStoresFromViews(project["views"]);
+
+      if (previewChanged && project["project-id"] === projectId) {
+        refreshTrees();
+      }
     }
 
     // Layers
@@ -80,7 +98,8 @@ const useStoreUrlSync = (
     if (map["bounds"] !== null && map["bounds"].length === 4) {
       setMapBounds(map["bounds"]);
     }
-  }, [projectIdParam, queryParams]);
+
+  }, [embed, projectIdParam, queryParams]);
 };
 
 export default useStoreUrlSync;
