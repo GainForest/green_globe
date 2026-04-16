@@ -30,11 +30,7 @@ const useTreesLoadingOverlay = () => {
       if (!startTime) startTime = timestamp;
       const t = (timestamp - startTime) / 1200;
       const opacity = 0.105 + 0.075 * Math.sin(t * Math.PI * 2);
-      mapRef?.current?.setPaintProperty(
-        "treesLoadingFill",
-        "fill-opacity",
-        opacity
-      );
+      map.setPaintProperty("treesLoadingFill", "fill-opacity", opacity);
       rafId = requestAnimationFrame(animate);
     };
 
@@ -42,7 +38,9 @@ const useTreesLoadingOverlay = () => {
 
     return () => {
       cancelAnimationFrame(rafId);
-      mapRef?.current?.setLayoutProperty("treesLoadingFill", "visibility", "none");
+      if (map.getLayer("treesLoadingFill")) {
+        map.setLayoutProperty("treesLoadingFill", "visibility", "none");
+      }
     };
   }, [isLoading, mapLoaded, mapRef]);
 };
