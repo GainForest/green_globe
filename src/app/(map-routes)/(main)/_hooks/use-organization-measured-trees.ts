@@ -49,6 +49,11 @@ type OccurrenceResponse = {
   appGainforestDwcOccurrence: Connection<HiDwcOccurrence>;
 };
 
+type HyperindexOccurrenceFetchResult = {
+  records: RawOccurrenceRecord[];
+  failed: boolean;
+};
+
 // ── Dynamic properties ─────────────────────────────────────────────────────────
 
 type ParsedDynamicProperties = {
@@ -171,14 +176,12 @@ const mapOccurrenceNodeToRawRecord = (
     dynamicProperties: node.dynamicProperties,
     associatedMedia: node.associatedMedia,
     eventDate: node.eventDate,
-    siteRef: node.siteRef,
-    datasetRef: node.datasetRef,
   },
 });
 
 const fetchMeasuredTreeOccurrenceRecords = async (
   did: string,
-): Promise<RawOccurrenceRecord[]> => {
+): Promise<HyperindexOccurrenceFetchResult> => {
   const records: RawOccurrenceRecord[] = [];
   let cursor: string | null = null;
 
@@ -205,20 +208,20 @@ const fetchMeasuredTreeOccurrenceRecords = async (
         ? connection.pageInfo.endCursor
         : null;
     } while (cursor);
+
+    return { records, failed: false };
   } catch (err) {
     // Hyperindex schema may lag the PDS (e.g. new fields not yet indexed).
-    // Degrade gracefully — the PDS listRecords fetch below still surfaces
-    // the data needed to render the tree.
+    // Degrade gracefully by letting the caller decide whether to fall back to
+    // the source-of-truth PDS occurrence records.
     if (process.env.NODE_ENV === "development") {
       console.warn(
         "[GG] hyperindex occurrences fetch failed, falling back to PDS:",
         err,
       );
     }
-    return [];
+    return { records: [], failed: true };
   }
-
-  return records;
 };
 
 const fetchPdsOccurrenceRecords = async (
@@ -431,6 +434,7 @@ const buildTreeFeature = (
     typeof v.vernacularName === "string" ? v.vernacularName : undefined;
   const eventDate =
     typeof v.eventDate === "string" ? v.eventDate : undefined;
+  const primaryPhotoUrl = trunkUrl ?? leafUrl ?? barkUrl ?? originalAwsUrl;
 
   // Measurements from index
   const measurements = measurementIndex.get(record.uri) ?? {};
@@ -453,8 +457,8 @@ const buildTreeFeature = (
     species: scientificName,
     commonName: vernacularName,
     dateMeasured: eventDate,
-    // PDS blob URLs (primary) — map to existing field names for backward compat
-    awsUrl: trunkUrl ?? originalAwsUrl,
+    // Prefer a PDS blob-backed tree angle before falling back to legacy URLs.
+    awsUrl: primaryPhotoUrl,
     koboUrl: originalKoboUrl,
     leafAwsUrl: leafUrl ?? undefined,
     leafKoboUrl: undefined,
@@ -521,27 +525,34 @@ export const fetchMeasuredTreeOccurrences = async (
 
   const selectedTreeAgent = await selectedTreeAgentPromise;
 
+  const previewPdsOccurrencesPromise = shouldFetchPdsPreviewOccurrences
+    ? fetchPdsOccurrenceRecords(agent, did)
+    : Promise.resolve<RawOccurrenceRecord[]>([]);
+
   // Fetch measurements, AC multimedia, and measured-tree occurrences in parallel.
   const [
     measurementIndex,
     multimediaIndex,
-    hyperindexOccurrences,
-    pdsOccurrences,
+    hyperindexOccurrenceResult,
+    previewPdsOccurrences,
     selectedPdsOccurrence,
   ] = await Promise.all([
     fetchMeasurementIndex(agent, did),
     fetchMultimediaByOccurrence(did),
     fetchMeasuredTreeOccurrenceRecords(did),
-    shouldFetchPdsPreviewOccurrences
-      ? fetchPdsOccurrenceRecords(agent, did)
-      : Promise.resolve([]),
+    previewPdsOccurrencesPromise,
     treeUri && selectedTreeAgent
       ? fetchPdsOccurrenceByUri(selectedTreeAgent, treeUri)
       : Promise.resolve(null),
   ]);
 
+  const pdsOccurrences =
+    shouldFetchPdsPreviewOccurrences || !hyperindexOccurrenceResult.failed
+      ? previewPdsOccurrences
+      : await fetchPdsOccurrenceRecords(agent, did);
+
   const occurrencesByUri = new Map<string, RawOccurrenceRecord>();
-  for (const occurrence of hyperindexOccurrences) {
+  for (const occurrence of hyperindexOccurrenceResult.records) {
     occurrencesByUri.set(occurrence.uri, occurrence);
   }
   for (const occurrence of pdsOccurrences) {

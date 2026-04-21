@@ -188,19 +188,15 @@ export type HiDwcOccurrence = {
   identifiedBy?: string;
   samplingProtocol?: string;
   // Evidence (embedded blobs — CID refs, not full binary)
-  imageEvidence?: { file?: { ref?: unknown; mimeType?: string } };
+  imageEvidence?: { file?: { ref?: unknown; mimeType?: string; size?: number } };
   audioEvidence?: unknown;
   videoEvidence?: unknown;
   associatedMedia?: string;
   // Extended
   dynamicProperties?: string;
-  datasetRef?: string;
-  conservationStatus?: unknown;
-  plantTraits?: unknown;
-  // Linkage
+  datasetName?: string;
   eventRef?: string;
   eventID?: string;
-  siteRef?: string;
 };
 
 // ── app.gainforest.dwc.measurement ──────────────────────────────────────────────
