@@ -22,26 +22,7 @@ const useTreesLoadingOverlay = () => {
     }
 
     map.setLayoutProperty("treesLoadingFill", "visibility", "visible");
-
-    let rafId: number;
-    let startTime: number | null = null;
-
-    const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const t = (timestamp - startTime) / 1200;
-      const opacity = 0.105 + 0.075 * Math.sin(t * Math.PI * 2);
-      map.setPaintProperty("treesLoadingFill", "fill-opacity", opacity);
-      rafId = requestAnimationFrame(animate);
-    };
-
-    rafId = requestAnimationFrame(animate);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      if (map.getLayer("treesLoadingFill")) {
-        map.setLayoutProperty("treesLoadingFill", "visibility", "none");
-      }
-    };
+    map.setPaintProperty("treesLoadingFill", "fill-opacity", 0.08);
   }, [isLoading, mapLoaded, mapRef]);
 };
 
