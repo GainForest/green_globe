@@ -237,12 +237,14 @@ export const OCCURRENCES_BY_DID = gql`
           eventDate
           occurrenceID
           dynamicProperties
-          datasetRef
-          conservationStatus
-          plantTraits
-          imageEvidence
+          imageEvidence {
+            file {
+              ref
+              mimeType
+              size
+            }
+          }
           associatedMedia
-          siteRef
         }
       }
       totalCount
@@ -344,7 +346,13 @@ export const OCCURRENCES_BY_DID_WITH_DYNAMIC = gql`
           decimalLongitude
           eventDate
           dynamicProperties
-          datasetRef
+          imageEvidence {
+            file {
+              ref
+              mimeType
+              size
+            }
+          }
           associatedMedia
           basisOfRecord
         }
