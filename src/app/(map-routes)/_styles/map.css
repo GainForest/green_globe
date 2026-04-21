@@ -16,22 +16,11 @@
   border-top-color: rgb(255 255 255 / 0.8) !important;
 }
 
-.trees-loading-shimmer {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.0) 20%,
-    rgba(255, 255, 255, 0.18) 50%,
-    rgba(255, 255, 255, 0.0) 80%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  animation: trees-loading-skeleton 1.8s ease-in-out infinite;
+.trees-shimmer-sweep {
+  animation: trees-shimmer-sweep 1.8s ease-in-out infinite;
 }
 
-@keyframes trees-loading-skeleton {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+@keyframes trees-shimmer-sweep {
+  0%   { transform: translateX(100vw); }
+  100% { transform: translateX(-100vw); }
 }

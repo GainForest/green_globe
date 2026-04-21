@@ -1,31 +1,38 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import useMapStore from "./store";
 import useProjectOverlayStore from "../ProjectOverlay/store";
-import bbox from "@turf/bbox";
 import type { Map as MapboxMap } from "mapbox-gl";
 import type { ProjectPolygonAPIResponse } from "../ProjectOverlay/store/types";
 
-type ScreenBounds = { top: number; left: number; width: number; height: number };
-
-const computeScreenBounds = (
+const computeClipRings = (
   map: MapboxMap,
   polygon: ProjectPolygonAPIResponse
-): ScreenBounds | null => {
-  const [minLng, minLat, maxLng, maxLat] = bbox(
-    polygon as unknown as GeoJSON.FeatureCollection
-  );
-  const sw = map.project([minLng, minLat]);
-  const ne = map.project([maxLng, maxLat]);
+): string[] => {
+  const collection = polygon as unknown as GeoJSON.FeatureCollection;
   const rect = map.getContainer().getBoundingClientRect();
+  const rings: string[] = [];
 
-  const top = rect.top + Math.min(sw.y, ne.y);
-  const left = rect.left + Math.min(sw.x, ne.x);
-  const width = Math.abs(ne.x - sw.x);
-  const height = Math.abs(ne.y - sw.y);
+  const projectRing = (ring: number[][]): string =>
+    ring
+      .map(([lng, lat]) => {
+        const { x, y } = map.project([lng, lat]);
+        return `${rect.left + x},${rect.top + y}`;
+      })
+      .join(" ");
 
-  if (width <= 0 || height <= 0) return null;
-  return { top, left, width, height };
+  for (const feature of collection.features ?? []) {
+    const geo = feature.geometry as GeoJSON.Geometry;
+    if (geo.type === "Polygon") {
+      rings.push(projectRing((geo as GeoJSON.Polygon).coordinates[0]));
+    } else if (geo.type === "MultiPolygon") {
+      for (const poly of (geo as GeoJSON.MultiPolygon).coordinates) {
+        rings.push(projectRing(poly[0]));
+      }
+    }
+  }
+
+  return rings;
 };
 
 const TreesLoadingOverlay = () => {
@@ -34,7 +41,7 @@ const TreesLoadingOverlay = () => {
   const highlightedPolygon = useMapStore((s) => s.highlightedPolygon);
   const treesAsync = useProjectOverlayStore((s) => s.treesAsync);
   const projectId = useProjectOverlayStore((s) => s.projectId);
-  const [bounds, setBounds] = useState<ScreenBounds | null>(null);
+  const [rings, setRings] = useState<string[]>([]);
 
   const isLoading =
     projectId !== undefined &&
@@ -43,10 +50,10 @@ const TreesLoadingOverlay = () => {
   const update = useCallback(() => {
     const map = mapRef?.current;
     if (!map || !highlightedPolygon) {
-      setBounds(null);
+      setRings([]);
       return;
     }
-    setBounds(computeScreenBounds(map, highlightedPolygon));
+    setRings(computeClipRings(map, highlightedPolygon));
   }, [mapRef, highlightedPolygon]);
 
   useEffect(() => {
@@ -59,15 +66,43 @@ const TreesLoadingOverlay = () => {
     };
   }, [mapLoaded, mapRef, update]);
 
-  if (!isLoading || !bounds) return null;
+  if (!isLoading || rings.length === 0) return null;
 
   return (
-    <div
-      className="pointer-events-none overflow-hidden"
-      style={{ position: "fixed", zIndex: 10, ...bounds }}
+    <svg
+      className="pointer-events-none"
+      style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 10 }}
     >
-      <div className="trees-loading-shimmer" />
-    </div>
+      <defs>
+        <linearGradient id="trees-shimmer-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+          <stop offset="40%" stopColor="rgba(255,255,255,0)" />
+          <stop offset="50%" stopColor="rgba(255,255,255,0.22)" />
+          <stop offset="60%" stopColor="rgba(255,255,255,0)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+        <clipPath id="trees-loading-clip">
+          {rings.map((pts, i) => (
+            <polygon key={i} points={pts} />
+          ))}
+        </clipPath>
+      </defs>
+
+      <rect
+        width="100%"
+        height="100%"
+        fill="rgba(255,255,255,0.07)"
+        clipPath="url(#trees-loading-clip)"
+      />
+
+      <rect
+        width="100%"
+        height="100%"
+        fill="url(#trees-shimmer-grad)"
+        clipPath="url(#trees-loading-clip)"
+        className="trees-shimmer-sweep"
+      />
+    </svg>
   );
 };
 
