@@ -60,8 +60,15 @@ describe("OccurrenceRowSchema", () => {
   });
 
   it("accepts various valid date formats", () => {
-    const dates = ["2024-03-15", "03/15/2024", "2024", "2024-03-15T10:30:00Z"];
-    for (const eventDate of dates) {
+    const dates = [
+      ["2024-03-15", "2024-03-15"],
+      ["03/15/2024", "2024-03-15"],
+      ["30/10/22 12:09", "2022-10-30"],
+      ["44846.60625", "2022-10-12"],
+      ["2024", "2024"],
+      ["2024-03-15T10:30:00Z", "2024-03-15"],
+    ] as const;
+    for (const [eventDate, normalized] of dates) {
       const result = OccurrenceRowSchema.safeParse({
         scientificName: "Quercus robur",
         eventDate,
@@ -69,6 +76,23 @@ describe("OccurrenceRowSchema", () => {
         decimalLongitude: "-0.1",
       });
       expect(result.success, `Expected date "${eventDate}" to be valid`).toBe(true);
+      if (result.success) {
+        expect(result.data.eventDate).toBe(normalized);
+      }
+    }
+  });
+
+  it("rejects ambiguous slash date formats", () => {
+    const result = OccurrenceRowSchema.safeParse({
+      scientificName: "Quercus robur",
+      eventDate: "03/04/2024",
+      decimalLatitude: "51.5",
+      decimalLongitude: "-0.1",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.map((i) => i.path[0]);
+      expect(paths).toContain("eventDate");
     }
   });
 

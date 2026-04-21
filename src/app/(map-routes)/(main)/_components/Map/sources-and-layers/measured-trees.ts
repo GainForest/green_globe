@@ -3,7 +3,7 @@ import {
   GeoJSONSourceSpecification,
   Map,
 } from "mapbox-gl";
-import dayjs from "dayjs";
+import { formatOccurrenceEventDate } from "@/lib/occurrence-event-date";
 import { TreeFeature } from "../../ProjectOverlay/store/types";
 
 export const treesSource: GeoJSONSourceSpecification = {
@@ -160,27 +160,11 @@ export const getTreeDateOfMeasurement = (tree: TreeFeature["properties"]) => {
   if (tree?.dateOfMeasurement) {
     return tree?.dateOfMeasurement;
   } else if (tree?.datePlanted) {
-    return dayjs(tree?.datePlanted).format("DD/MM/YYYY");
+    return formatOccurrenceEventDate(tree?.datePlanted);
   } else if (tree?.dateMeasured) {
-    return dayjs(tree?.dateMeasured).format("DD/MM/YYYY");
+    return formatOccurrenceEventDate(tree?.dateMeasured);
   } else if (tree["FCD-tree_records-tree_time"]) {
-    function formatDateTime(input: string) {
-      const [datePart, timePart] = input.split(" ");
-      const ddmmyyArr = datePart.split("/");
-      const [day, month] = ddmmyyArr;
-      let [, , year] = ddmmyyArr;
-      year = year.length === 2 ? `20${year}` : year;
-      const isoDateString = `${year}-${month}-${day}T${timePart}:00`;
-      const date = new Date(isoDateString);
-      const formattedDate = date.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-
-      return formattedDate;
-    }
-    return formatDateTime(tree["FCD-tree_records-tree_time"]);
+    return formatOccurrenceEventDate(tree["FCD-tree_records-tree_time"]);
   } else {
     return "unknown";
   }

@@ -19,6 +19,7 @@ import { assembleDwca } from "@/lib/gbif/dwca";
 import type { PdsOccurrenceRecord } from "@/lib/gbif/dwca/occurrence-writer";
 import type { PdsMeasurementRecord } from "@/lib/gbif/dwca/measurement-writer";
 import type { DwcaEmlInput } from "@/lib/gbif/dwca/types";
+import { normalizeOccurrenceEventDate } from "@/lib/occurrence-event-date";
 
 interface ExportDialogProps {
   selectedFilter: string;
@@ -126,7 +127,14 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
             kingdom: "Plantae",
             decimalLatitude: tree.lat != null ? String(tree.lat) : undefined,
             decimalLongitude: tree.lon != null ? String(tree.lon) : undefined,
-            eventDate: tree.dateMeasured,
+            eventDate:
+              normalizeOccurrenceEventDate(tree.dateMeasured) ??
+              normalizeOccurrenceEventDate(tree.dateOfMeasurement) ??
+              normalizeOccurrenceEventDate(tree.datePlanted) ??
+              normalizeOccurrenceEventDate(
+                tree["FCD-tree_records-tree_time"],
+              ) ??
+              undefined,
             associatedMedia: mediaUrls || undefined,
           };
         }

@@ -1,27 +1,28 @@
 import { z } from "zod";
+import { normalizeOccurrenceEventDate } from "@/lib/occurrence-event-date";
 import type { FloraMeasurementBundle, OccurrenceInput, ValidationResult } from "./types";
 
-const DATE_PATTERNS = [
-  /^\d{4}-\d{2}-\d{2}$/, // YYYY-MM-DD
-  /^\d{2}\/\d{2}\/\d{4}$/, // MM/DD/YYYY
-  /^\d{2}\/\d{2}\/\d{4}$/, // DD/MM/YYYY (same regex, both accepted)
-  /^\d{4}$/, // YYYY
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, // ISO 8601 datetime
-];
+const EventDateSchema = z
+  .string()
+  .min(1, "Event date is required")
+  .transform((value, ctx) => {
+    const normalized = normalizeOccurrenceEventDate(value);
 
-function isValidDate(value: string): boolean {
-  return DATE_PATTERNS.some((pattern) => pattern.test(value));
-}
+    if (!normalized) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Event date must be ISO 8601 or an unambiguous common date format",
+      });
+      return z.NEVER;
+    }
+
+    return normalized;
+  });
 
 export const OccurrenceRowSchema = z.object({
   scientificName: z.string().min(1, "Scientific name is required"),
-  eventDate: z
-    .string()
-    .min(1, "Event date is required")
-    .refine(isValidDate, {
-      message:
-        "Date must be in ISO 8601 or common format (YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, YYYY)",
-    }),
+  eventDate: EventDateSchema,
   decimalLatitude: z.coerce.number().min(-90).max(90),
   decimalLongitude: z.coerce.number().min(-180).max(180),
   basisOfRecord: z.string().optional().default("HumanObservation"),

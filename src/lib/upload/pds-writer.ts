@@ -6,6 +6,7 @@ import type {
   MeasurementInput,
   OccurrenceInput,
 } from "@/lib/upload/types";
+import { normalizeOccurrenceEventDate } from "@/lib/occurrence-event-date";
 
 const DWC_OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
 const DWC_MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
@@ -26,11 +27,18 @@ export async function writeOccurrenceToPds(
   projectRef?: string
 ): Promise<{ uri: string; rkey: string }> {
   const rkey = TID.nextStr();
+  const normalizedEventDate = normalizeOccurrenceEventDate(occurrence.eventDate);
+
+  if (!normalizedEventDate) {
+    throw new Error(
+      "Occurrence eventDate must be a valid, unambiguous date before writing to the PDS",
+    );
+  }
 
   const record: Record<string, unknown> = {
     basisOfRecord: occurrence.basisOfRecord ?? "HumanObservation",
     scientificName: occurrence.scientificName,
-    eventDate: occurrence.eventDate,
+    eventDate: normalizedEventDate,
     decimalLatitude: String(occurrence.decimalLatitude),
     decimalLongitude: String(occurrence.decimalLongitude),
     geodeticDatum: "EPSG:4326",
