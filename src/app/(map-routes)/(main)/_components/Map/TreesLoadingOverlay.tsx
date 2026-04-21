@@ -88,20 +88,16 @@ const TreesLoadingOverlay = () => {
         </clipPath>
       </defs>
 
-      <rect
-        width="100%"
-        height="100%"
-        fill="rgba(255,255,255,0.07)"
-        clipPath="url(#trees-loading-clip)"
-      />
-
-      <rect
-        width="100%"
-        height="100%"
-        fill="url(#trees-shimmer-grad)"
-        clipPath="url(#trees-loading-clip)"
-        className="trees-shimmer-sweep"
-      />
+      {/* clipPath on the group so the polygon clip is fixed while the gradient sweeps inside */}
+      <g clipPath="url(#trees-loading-clip)">
+        <rect width="100%" height="100%" fill="rgba(255,255,255,0.07)" />
+        <rect
+          width="100%"
+          height="100%"
+          fill="url(#trees-shimmer-grad)"
+          className="trees-shimmer-sweep"
+        />
+      </g>
     </svg>
   );
 };
