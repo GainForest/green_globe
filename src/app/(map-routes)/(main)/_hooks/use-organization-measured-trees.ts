@@ -434,6 +434,7 @@ const buildTreeFeature = (
     typeof v.vernacularName === "string" ? v.vernacularName : undefined;
   const eventDate =
     typeof v.eventDate === "string" ? v.eventDate : undefined;
+  const primaryPhotoUrl = trunkUrl ?? leafUrl ?? barkUrl ?? originalAwsUrl;
 
   // Measurements from index
   const measurements = measurementIndex.get(record.uri) ?? {};
@@ -456,8 +457,8 @@ const buildTreeFeature = (
     species: scientificName,
     commonName: vernacularName,
     dateMeasured: eventDate,
-    // PDS blob URLs (primary) — map to existing field names for backward compat
-    awsUrl: trunkUrl ?? originalAwsUrl,
+    // Prefer a PDS blob-backed tree angle before falling back to legacy URLs.
+    awsUrl: primaryPhotoUrl,
     koboUrl: originalKoboUrl,
     leafAwsUrl: leafUrl ?? undefined,
     leafKoboUrl: undefined,

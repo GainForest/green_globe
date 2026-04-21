@@ -193,22 +193,32 @@ export const getTreeDateOfMeasurement = (tree: TreeFeature["properties"]) => {
 const isPdsBlobUrl = (url: string): boolean =>
   url.includes("com.atproto.sync.getBlob");
 
+const appendUniquePhoto = (result: string[], url: string | undefined) => {
+  if (!url || url.trim() === "" || result.includes(url)) {
+    return;
+  }
+
+  result.push(url);
+};
+
 export const getTreePhotos = (
   tree: TreeFeature["properties"],
   activeProject: string,
   treeID: string
 ) => {
-  const result = [];
+  const result: string[] = [];
   if (tree?.tree_photo) {
     return [tree?.tree_photo];
   }
 
-  // PDS blob URL detection: if awsUrl is a PDS blob URL, use it directly
-  // (no S3 fallback needed — the blob is already on the PDS)
-  if (tree?.awsUrl && isPdsBlobUrl(tree.awsUrl)) {
-    result.push(tree.awsUrl);
-    if (tree?.leafAwsUrl) result.push(tree.leafAwsUrl);
-    if (tree?.barkAwsUrl) result.push(tree.barkAwsUrl);
+  // Prefer any PDS blob-backed tree angle before falling back to legacy URLs.
+  const primaryPdsPhoto = [tree?.awsUrl, tree?.leafAwsUrl, tree?.barkAwsUrl].find(
+    (url): url is string => typeof url === "string" && isPdsBlobUrl(url)
+  );
+  if (primaryPdsPhoto) {
+    appendUniquePhoto(result, primaryPdsPhoto);
+    appendUniquePhoto(result, tree?.leafAwsUrl);
+    appendUniquePhoto(result, tree?.barkAwsUrl);
     return result;
   }
 
@@ -224,21 +234,21 @@ export const getTreePhotos = (
     }
   }
   if (tree?.awsUrl) {
-    result.push(tree?.awsUrl);
+    appendUniquePhoto(result, tree?.awsUrl);
   } else if (tree?.koboUrl) {
-    result.push(tree?.koboUrl);
+    appendUniquePhoto(result, tree?.koboUrl);
   }
 
   if (tree?.leafAwsUrl) {
-    result.push(tree?.leafAwsUrl);
+    appendUniquePhoto(result, tree?.leafAwsUrl);
   } else if (tree?.leafKoboUrl) {
-    result.push(tree?.leafKoboUrl);
+    appendUniquePhoto(result, tree?.leafKoboUrl);
   }
 
   if (tree?.barkAwsUrl) {
-    result.push(tree?.barkAwsUrl);
+    appendUniquePhoto(result, tree?.barkAwsUrl);
   } else if (tree?.barkKoboUrl) {
-    result.push(tree?.barkKoboUrl);
+    appendUniquePhoto(result, tree?.barkKoboUrl);
   }
   if (result.length == 0) {
     result.push(
