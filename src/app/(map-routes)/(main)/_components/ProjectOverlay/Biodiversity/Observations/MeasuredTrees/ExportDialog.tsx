@@ -27,6 +27,22 @@ interface ExportDialogProps {
   heightGroups: { label: string; count: number; min: number; max: number }[];
 }
 
+const COMPLETE_EXPORT_HEADER_LABELS: Record<string, string> = {
+  awsUrl: "primaryPhotoUrl",
+  leafAwsUrl: "leafPhotoUrl",
+  barkAwsUrl: "barkPhotoUrl",
+  videoAwsUrl: "videoUrl",
+  soundAwsUrl: "audioUrl",
+  koboUrl: "legacyPhotoUrl",
+  leafKoboUrl: "legacyLeafPhotoUrl",
+  barkKoboUrl: "legacyBarkPhotoUrl",
+  videoKoboUrl: "legacyVideoUrl",
+  soundKoboUrl: "legacyAudioUrl",
+};
+
+const getCompleteExportHeaderLabel = (header: string) =>
+  COMPLETE_EXPORT_HEADER_LABELS[header] ?? header;
+
 const ExportDialog: React.FC<ExportDialogProps> = ({
   selectedFilter,
   projectTrees,
@@ -63,6 +79,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
       // Create header row
       const headers = Array.from(allKeys);
+      const previewHeaders = headers.map(getCompleteExportHeaderLabel);
 
       // Create preview rows (max 4)
       const rows = projectTrees.slice(0, 4).map((tree) => {
@@ -73,7 +90,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
         });
       });
 
-      return { headers, rows };
+      return { headers: previewHeaders, rows };
     } else {
       if (selectedFilter === "species") {
         const headers = ["Species", "Count"];
@@ -203,7 +220,8 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
         // Create header row
         const headers = Array.from(allKeys);
-        csvContent = headers.join(",") + "\n";
+        const csvHeaders = headers.map(getCompleteExportHeaderLabel);
+        csvContent = csvHeaders.join(",") + "\n";
 
         // Add data rows
         projectTrees.forEach((tree) => {
