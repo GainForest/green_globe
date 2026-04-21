@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import React from "react";
 import Link from "next/link";
-import AccountButton from "@/app/_components/account-button";
 
 const Header = () => {
   return (
@@ -24,7 +23,6 @@ const Header = () => {
             <Home />
           </Button>
         </Link>
-        <AccountButton />
       </div>
     </div>
   );
