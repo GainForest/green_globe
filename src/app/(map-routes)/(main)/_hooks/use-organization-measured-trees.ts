@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Agent } from "@atproto/api";
 import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
+import { normalizeOccurrenceEventDate } from "@/lib/occurrence-event-date";
 import type {
   MeasuredTreesGeoJSON,
   NormalizedTreeFeature,
@@ -434,6 +435,7 @@ const buildTreeFeature = (
     typeof v.vernacularName === "string" ? v.vernacularName : undefined;
   const eventDate =
     typeof v.eventDate === "string" ? v.eventDate : undefined;
+  const normalizedEventDate = normalizeOccurrenceEventDate(eventDate) ?? eventDate;
   const primaryPhotoUrl = trunkUrl ?? leafUrl ?? barkUrl ?? originalAwsUrl;
 
   // Measurements from index
@@ -456,7 +458,7 @@ const buildTreeFeature = (
     treeSource,
     species: scientificName,
     commonName: vernacularName,
-    dateMeasured: eventDate,
+    dateMeasured: normalizedEventDate,
     // Prefer a PDS blob-backed tree angle before falling back to legacy URLs.
     awsUrl: primaryPhotoUrl,
     koboUrl: originalKoboUrl,

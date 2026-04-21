@@ -1,3 +1,7 @@
+import {
+  formatOccurrenceEventDate,
+  normalizeOccurrenceEventDate,
+} from "@/lib/occurrence-event-date";
 import { NormalizedTreeFeature } from "./types";
 
 export type GFTreeProperties = {
@@ -72,14 +76,14 @@ export const convertFromGFTreeFeatureToNormalizedTreeFeature = (
       species: feature.properties.taxonomy?.species ?? "",
       commonName: feature.properties.taxonomy?.common_name ?? "",
       dateMeasured: feature.properties.measurements_in_cm?.date_measured
-        ? new Date(
-            feature.properties.measurements_in_cm.date_measured
-          ).toLocaleDateString("en-GB")
+        ? normalizeOccurrenceEventDate(
+            feature.properties.measurements_in_cm.date_measured,
+          ) ?? feature.properties.measurements_in_cm.date_measured
         : undefined,
       dateOfMeasurement: feature.properties.measurements_in_cm?.date_measured
-        ? new Date(
-            feature.properties.measurements_in_cm.date_measured
-          ).toLocaleDateString("en-GB")
+        ? formatOccurrenceEventDate(
+            feature.properties.measurements_in_cm.date_measured,
+          )
         : undefined,
       datePlanted: feature.properties.date_planted,
       "FCD-tree_records-tree_time": feature.properties.date_planted,
