@@ -110,6 +110,17 @@ const Tabs = () => {
   );
 };
 
+const formatAreaHectares = (areaHectares: number | null) => {
+  if (areaHectares === null || !Number.isFinite(areaHectares) || areaHectares <= 0) {
+    return null;
+  }
+
+  return areaHectares.toLocaleString(undefined, {
+    minimumFractionDigits: areaHectares < 1 ? 1 : 0,
+    maximumFractionDigits: areaHectares < 10 ? 2 : 0,
+  });
+};
+
 const Header = ({
   organization,
 }: {
@@ -119,8 +130,10 @@ const Header = ({
     Object.keys(countryToEmoji).includes(organization.country) ?
       countryToEmoji[organization.country as keyof typeof countryToEmoji]
     : null;
-  // @satyam TODO: Fix the area thing.
-  const area = Math.round(0 / 10000);
+  const activeSiteAreaHectares = useProjectOverlayStore(
+    (state) => state.activeSiteAreaHectares
+  );
+  const formattedArea = formatAreaHectares(activeSiteAreaHectares);
 
   const activeTab = useProjectOverlayStore((state) => state.activeTab);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -163,16 +176,21 @@ const Header = ({
       >
         {organization.displayName}
       </h1>
-      {countryDetails && (
+      {(countryDetails || formattedArea) && (
         <div className="flex items-center gap-2 flex-wrap mt-2">
-          <span className="px-2 py-1 bg-background/50 backdrop-blur-lg rounded-full text-sm">
-            {countryDetails.emoji}
-            &nbsp;&nbsp;
-            {countryDetails.name}
-          </span>
-          {Boolean(area) && (
+          {countryDetails && (
             <span className="px-2 py-1 bg-background/50 backdrop-blur-lg rounded-full text-sm">
-              <b>{area}</b> {area === 1 ? "hectare" : "hectares"}
+              {countryDetails.emoji}
+              &nbsp;&nbsp;
+              {countryDetails.name}
+            </span>
+          )}
+          {formattedArea && (
+            <span
+              data-testid="project-area"
+              className="px-2 py-1 bg-background/50 backdrop-blur-lg rounded-full text-sm"
+            >
+              <b>{formattedArea}</b> {formattedArea === "1" ? "hectare" : "hectares"}
             </span>
           )}
         </div>
