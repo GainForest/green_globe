@@ -12,6 +12,10 @@ const MAX_EXCEL_SERIAL = 80_000;
 
 type SlashDateOrder = "day-first" | "month-first" | "ambiguous";
 
+export type OccurrenceEventDateOptions = {
+  recoverLegacyDayFirstIsoDates?: boolean;
+};
+
 export type ParsedOccurrenceEventDate = {
   raw: string;
   display: string;
@@ -20,6 +24,7 @@ export type ParsedOccurrenceEventDate = {
     | "year"
     | "iso-date"
     | "iso-datetime"
+    | "iso-legacy-day-first"
     | "slash-day-first"
     | "slash-month-first"
     | "slash-ambiguous"
@@ -64,6 +69,22 @@ const isValidTime = (
 
 const expandTwoDigitYear = (year: number) =>
   year < 100 ? 2000 + year : year;
+
+const maybeRecoverLegacyDayFirstIsoDate = (
+  month: number,
+  day: number,
+  options?: OccurrenceEventDateOptions,
+): { month: number; day: number; recovered: boolean } => {
+  if (!options?.recoverLegacyDayFirstIsoDates || month > 12 || day > 12) {
+    return { month, day, recovered: false };
+  }
+
+  return {
+    month: day,
+    day: month,
+    recovered: month !== day,
+  };
+};
 
 const inferSlashDateOrder = (
   first: number,
@@ -123,6 +144,7 @@ const parseExcelSerialDate = (raw: string): ParsedOccurrenceEventDate | null => 
 
 export const parseOccurrenceEventDate = (
   rawValue: string | null | undefined,
+  options?: OccurrenceEventDateOptions,
 ): ParsedOccurrenceEventDate | null => {
   if (typeof rawValue !== "string") {
     return null;
@@ -147,16 +169,21 @@ export const parseOccurrenceEventDate = (
     const year = Number(isoDateMatch[1]);
     const month = Number(isoDateMatch[2]);
     const day = Number(isoDateMatch[3]);
+    const recoveredParts = maybeRecoverLegacyDayFirstIsoDate(
+      month,
+      day,
+      options,
+    );
 
-    if (!isValidDate(year, month, day)) {
+    if (!isValidDate(year, recoveredParts.month, recoveredParts.day)) {
       return null;
     }
 
     return {
       raw,
-      display: toDisplayDate(year, month, day),
-      iso: toIsoDate(year, month, day),
-      kind: "iso-date",
+      display: toDisplayDate(year, recoveredParts.month, recoveredParts.day),
+      iso: toIsoDate(year, recoveredParts.month, recoveredParts.day),
+      kind: recoveredParts.recovered ? "iso-legacy-day-first" : "iso-date",
     };
   }
 
@@ -168,16 +195,24 @@ export const parseOccurrenceEventDate = (
     const hour = Number(isoDateTimeMatch[4]);
     const minute = Number(isoDateTimeMatch[5]);
     const second = isoDateTimeMatch[6] ? Number(isoDateTimeMatch[6]) : 0;
+    const recoveredParts = maybeRecoverLegacyDayFirstIsoDate(
+      month,
+      day,
+      options,
+    );
 
-    if (!isValidDate(year, month, day) || !isValidTime(hour, minute, second)) {
+    if (
+      !isValidDate(year, recoveredParts.month, recoveredParts.day) ||
+      !isValidTime(hour, minute, second)
+    ) {
       return null;
     }
 
     return {
       raw,
-      display: toDisplayDate(year, month, day),
-      iso: toIsoDate(year, month, day),
-      kind: "iso-datetime",
+      display: toDisplayDate(year, recoveredParts.month, recoveredParts.day),
+      iso: toIsoDate(year, recoveredParts.month, recoveredParts.day),
+      kind: recoveredParts.recovered ? "iso-legacy-day-first" : "iso-datetime",
     };
   }
 
@@ -221,8 +256,10 @@ export const parseOccurrenceEventDate = (
 
 export const formatOccurrenceEventDate = (
   rawValue: string | null | undefined,
-): string => parseOccurrenceEventDate(rawValue)?.display ?? "unknown";
+  options?: OccurrenceEventDateOptions,
+): string => parseOccurrenceEventDate(rawValue, options)?.display ?? "unknown";
 
 export const normalizeOccurrenceEventDate = (
   rawValue: string | null | undefined,
-): string | null => parseOccurrenceEventDate(rawValue)?.iso ?? null;
+  options?: OccurrenceEventDateOptions,
+): string | null => parseOccurrenceEventDate(rawValue, options)?.iso ?? null;

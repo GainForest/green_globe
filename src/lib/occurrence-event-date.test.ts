@@ -24,6 +24,19 @@ describe("parseOccurrenceEventDate", () => {
     });
   });
 
+  it("can recover legacy day-first dates that were serialized as ambiguous ISO dates", () => {
+    expect(
+      parseOccurrenceEventDate("2022-11-10", {
+        recoverLegacyDayFirstIsoDates: true,
+      }),
+    ).toEqual({
+      raw: "2022-11-10",
+      display: "11/10/2022",
+      iso: "2022-10-11",
+      kind: "iso-legacy-day-first",
+    });
+  });
+
   it("parses day-first slash datetimes from legacy measured-tree data", () => {
     expect(parseOccurrenceEventDate("30/10/22 12:09")).toEqual({
       raw: "30/10/22 12:09",
@@ -70,6 +83,14 @@ describe("normalizeOccurrenceEventDate", () => {
     expect(normalizeOccurrenceEventDate("2024")).toBe("2024");
   });
 
+  it("can swap ambiguous ISO month/day pairs for legacy day-first datasets", () => {
+    expect(
+      normalizeOccurrenceEventDate("2022-11-10", {
+        recoverLegacyDayFirstIsoDates: true,
+      }),
+    ).toBe("2022-10-11");
+  });
+
   it("returns null for ambiguous slash dates", () => {
     expect(normalizeOccurrenceEventDate("03/04/2024")).toBeNull();
   });
@@ -78,6 +99,14 @@ describe("normalizeOccurrenceEventDate", () => {
 describe("formatOccurrenceEventDate", () => {
   it("formats supported dates for UI display", () => {
     expect(formatOccurrenceEventDate("30/10/22 12:09")).toBe("30/10/2022");
+  });
+
+  it("can format recovered legacy ISO dates in dd/mm/yyyy order", () => {
+    expect(
+      formatOccurrenceEventDate("2022-11-10", {
+        recoverLegacyDayFirstIsoDates: true,
+      }),
+    ).toBe("11/10/2022");
   });
 
   it("falls back to unknown for invalid values", () => {

@@ -3,7 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Agent } from "@atproto/api";
 import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
-import { normalizeOccurrenceEventDate } from "@/lib/occurrence-event-date";
+import {
+  normalizeOccurrenceEventDate,
+  parseOccurrenceEventDate,
+} from "@/lib/occurrence-event-date";
 import type {
   MeasuredTreesGeoJSON,
   NormalizedTreeFeature,
@@ -391,6 +394,7 @@ const buildTreeFeature = (
   record: RawOccurrenceRecord,
   measurementIndex: MeasurementsByOccurrence,
   multimediaIndex: MultimediaByOccurrence,
+  recoverLegacyDayFirstIsoDates: boolean,
 ): NormalizedTreeFeature | null => {
   const v = record.value;
 
@@ -435,7 +439,10 @@ const buildTreeFeature = (
     typeof v.vernacularName === "string" ? v.vernacularName : undefined;
   const eventDate =
     typeof v.eventDate === "string" ? v.eventDate : undefined;
-  const normalizedEventDate = normalizeOccurrenceEventDate(eventDate) ?? eventDate;
+  const normalizedEventDate =
+    normalizeOccurrenceEventDate(eventDate, {
+      recoverLegacyDayFirstIsoDates,
+    }) ?? eventDate;
   const primaryPhotoUrl = trunkUrl ?? leafUrl ?? barkUrl ?? originalAwsUrl;
 
   // Measurements from index
@@ -601,9 +608,20 @@ export const fetchMeasuredTreeOccurrences = async (
 
   if (recordsToBuild.length === 0) return null;
 
+  const recoverLegacyDayFirstIsoDates = recordsToBuild.some((record) => {
+    const eventDate =
+      typeof record.value.eventDate === "string" ? record.value.eventDate : undefined;
+    return parseOccurrenceEventDate(eventDate)?.kind === "slash-day-first";
+  });
+
   const features = recordsToBuild
     .map((record) =>
-      buildTreeFeature(record, measurementIndex, multimediaIndex),
+      buildTreeFeature(
+        record,
+        measurementIndex,
+        multimediaIndex,
+        recoverLegacyDayFirstIsoDates,
+      ),
     )
     .filter((f): f is NormalizedTreeFeature => f !== null);
 
