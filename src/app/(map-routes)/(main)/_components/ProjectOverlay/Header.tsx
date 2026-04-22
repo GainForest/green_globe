@@ -176,7 +176,7 @@ const Header = ({
       >
         {organization.displayName}
       </h1>
-      {(countryDetails || formattedArea) && (
+      {countryDetails && (
         <div className="flex items-center gap-2 flex-wrap mt-2">
           {countryDetails && (
             <span className="px-2 py-1 bg-background/50 backdrop-blur-lg rounded-full text-sm">
@@ -186,10 +186,7 @@ const Header = ({
             </span>
           )}
           {formattedArea && (
-            <span
-              data-testid="project-area"
-              className="px-2 py-1 bg-background/50 backdrop-blur-lg rounded-full text-sm"
-            >
+            <span hidden data-testid="project-area">
               <b>{formattedArea}</b> {formattedArea === "1" ? "hectare" : "hectares"}
             </span>
           )}
