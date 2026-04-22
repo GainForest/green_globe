@@ -15,6 +15,7 @@ import {
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
 import { Agent } from "@atproto/api";
 import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
+import { computePolygonMetrics } from "@/lib/geojson";
 import { fetchMeasuredTreeOccurrences } from "../../../_hooks/use-organization-measured-trees";
 import { hyperindexClient } from "@/lib/hyperindex/client";
 import {
@@ -247,6 +248,7 @@ type ProjectStateCatalog = {
     allSitesOptions: null;
     siteId: null;
     activeSite: null;
+    activeSiteAreaHectares: null;
     treesAsync: null;
     projectSlug: null;
     atprotoSites: null;
@@ -257,6 +259,7 @@ type ProjectStateCatalog = {
     allSitesOptions: ProjectSiteOption[];
     siteId: string | null;
     activeSite: AtprotoSite | null;
+    activeSiteAreaHectares: number | null;
     treesAsync: AsyncData<MeasuredTreesGeoJSON | null>;
     projectSlug: string;
     atprotoSites: AtprotoSite[];
@@ -267,6 +270,7 @@ type ProjectStateCatalog = {
     allSitesOptions: null;
     siteId: null;
     activeSite: null;
+    activeSiteAreaHectares: null;
     treesAsync: null;
     projectSlug: null;
     atprotoSites: null;
@@ -322,6 +326,7 @@ const initialProjectState: ProjectState = {
   allSitesOptions: null,
   siteId: null,
   activeSite: null,
+  activeSiteAreaHectares: null,
   projectSlug: null,
   atprotoSites: null,
 };
@@ -337,6 +342,10 @@ const useProjectOverlayStore = create<
   ProjectOverlayState & ProjectOverlayActions
 >((set, get) => {
   const isProjectStillActive = (id: string) => get().projectId === id;
+  const isSiteStillActive = (projectId: string, siteId: string | null) => {
+    const state = get();
+    return state.projectId === projectId && state.siteId === siteId;
+  };
 
   const loadProjectTrees = async (
     projectId: string,
@@ -529,12 +538,26 @@ const useProjectOverlayStore = create<
 
       set({
         activeSite: selectedSite ?? null,
+        activeSiteAreaHectares: null,
         treesAsync: { _status: "loading", data: null },
       });
 
       if (selectedSite) {
+        const selectedSiteId = selectedSite.uri;
+
         fetchSiteShapefile(projectId, selectedSite.shapefile).then((data) => {
-          if (data === null) return;
+          if (!isSiteStillActive(projectId, selectedSiteId)) {
+            return;
+          }
+
+          if (data === null) {
+            set({ activeSiteAreaHectares: null });
+            return;
+          }
+
+          const { areaHectares } = computePolygonMetrics(data);
+          set({ activeSiteAreaHectares: areaHectares });
+
           const boundingBox = bbox(data as unknown as GeoJSON.FeatureCollection).slice(0, 4) as [
             number,
             number,
