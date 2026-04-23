@@ -13,9 +13,15 @@ const useNavigation = () => {
   const navigate = (
     state: Partial<NavigationState> | ((draft: NavigationState) => void)
   ) => {
-    const currentState = useNavigationStore.getState();
+    const { overlay, layers, search, project, map } = useNavigationStore.getState();
+    const currentState: NavigationState = {
+      overlay,
+      layers,
+      search,
+      project,
+      map,
+    };
 
-    // Create new state using Immer without updating the store
     const newState =
       typeof state === "function" ?
         produce(currentState, state)
@@ -23,13 +29,21 @@ const useNavigation = () => {
           Object.assign(draft, state);
         });
 
-    const { overlay, layers, search, project, map } = newState;
+    useNavigationStore.getState().updateNavigationState(newState);
 
-    const overlayQueryString = generateQueryStringFromOverlay(overlay);
-    const layersQueryString = generateQueryStringFromLayers(layers);
-    const searchQueryString = generateQueryStringFromSearch(search);
-    const projectQueryString = generateQueryStringFromProject(project);
-    const mapQueryString = generateQueryStringFromMap(map);
+    const {
+      overlay: nextOverlay,
+      layers: nextLayers,
+      search: nextSearch,
+      project: nextProject,
+      map: nextMap,
+    } = newState;
+
+    const overlayQueryString = generateQueryStringFromOverlay(nextOverlay);
+    const layersQueryString = generateQueryStringFromLayers(nextLayers);
+    const searchQueryString = generateQueryStringFromSearch(nextSearch);
+    const projectQueryString = generateQueryStringFromProject(nextProject);
+    const mapQueryString = generateQueryStringFromMap(nextMap);
 
     const queryString = [
       overlayQueryString,
@@ -41,10 +55,10 @@ const useNavigation = () => {
       .filter((str) => str.trim() !== "")
       .join("&");
 
-    if (project === null) {
+    if (nextProject === null) {
       router.push(`/?${queryString}`);
     } else {
-      router.push(`/${project["project-id"]}?${queryString}`);
+      router.push(`/${nextProject["project-id"]}?${queryString}`);
     }
   };
 

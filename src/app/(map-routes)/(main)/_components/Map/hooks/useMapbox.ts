@@ -6,7 +6,6 @@ import {
   spinGlobe,
 } from "@/app/(map-routes)/_utils/map";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
-import useOverlayTabsStore from "@/app/(map-routes)/(main)/_components/Overlay/OverlayTabs/store";
 import mapboxgl, { GeoJSONSource, Map as MapInterface } from "mapbox-gl";
 import { MAP_CONFIG, MAP_FOG_CONFIG } from "../../../../../../config/map";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
@@ -22,7 +21,6 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
   const setMapLoaded = useMapStore((state) => state.setMapLoaded);
 
   const setCurrentView = useMapStore((state) => state.setCurrentView);
-  const setOverlayTab = useOverlayTabsStore((actions) => actions.setActiveTab);
   const setActiveProjectId = useProjectOverlayStore(
     (actions) => actions.setProjectId
   );
@@ -31,10 +29,7 @@ const useMapbox = (mapContainerRef: React.RefObject<HTMLDivElement | null>) => {
 
   const handleOrganizationPointClick = (organizationId: string) => {
     setCurrentView("project");
-    setOverlayTab("project", navigate);
-    setTimeout(() => {
-      setActiveProjectId(organizationId, navigate);
-    }, 400);
+    setActiveProjectId(organizationId, navigate);
   };
 
   useEffect(() => {
