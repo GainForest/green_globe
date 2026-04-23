@@ -49,10 +49,16 @@ next-env.d.ts
 
 # Temporary files
 tmp/
+%TEMP%/
 DB Exports/
 Tree Data/
 downloaded/
 docs/
+climateai-sdk-scalability/
+latest lexicons JSON/
+GBIF-PUBLISHING.md
+goat_AT_PROTO_README.md
+FUNDING.json
 pds-env.json
 pds-help.txt
 Report_ GainForest PDS Deployment.txt
