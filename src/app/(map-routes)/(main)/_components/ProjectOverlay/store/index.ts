@@ -5,6 +5,7 @@ import {
   fetchSiteShapefile,
 } from "./utils";
 import useMapStore from "../../Map/store";
+import useOverlayTabsStore from "../../Overlay/OverlayTabs/store";
 import bbox from "@turf/bbox";
 import { MeasuredTreesGeoJSON } from "./types";
 import { AsyncData } from "@/lib/types";
@@ -432,12 +433,16 @@ const useProjectOverlayStore = create<
         projectId,
         ...initialProjectState,
       });
-      navigate?.({
-        project: {
+      if (navigate) {
+        useOverlayTabsStore.getState().setActiveTab("project");
+      }
+      navigate?.((draft) => {
+        draft.overlay["active-tab"] = "project";
+        draft.project = {
           "project-id": projectId,
           "site-id": null,
           views: ["info"],
-        },
+        };
       });
 
       // Fetch ATProto data in parallel: sites + default site + handle/slug

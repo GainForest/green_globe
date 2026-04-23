@@ -56,9 +56,6 @@ const SearchOverlay = () => {
 
   const handleOrganizationClick = (organizationId: string) => {
     setProjectId(organizationId, navigate);
-    setTimeout(() => {
-      setActiveTab("project", navigate);
-    }, 400);
     setCurrentMapView("project");
   };
 
