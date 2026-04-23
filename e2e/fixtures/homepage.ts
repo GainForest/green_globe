@@ -317,7 +317,7 @@ export const OCCURRENCE_RECORDS_RESPONSE = {
   records: [
     {
       uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/tree-1`,
-      cid: "bafkreioccurrencetree1",
+      cid: "bafkreicpoc5hueq7mc3cpjwn6impwjy4btx2iw2kyrm4y7malbxxo4o5vm",
       value: {
         $type: "app.gainforest.dwc.occurrence",
         scientificName: "Acacia tortilis",
@@ -332,7 +332,7 @@ export const OCCURRENCE_RECORDS_RESPONSE = {
     },
     {
       uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/tree-2`,
-      cid: "bafkreioccurrencetree2",
+      cid: "bafkreidcjuqazbmwawqom5p4c4bje72ev6hdmnavkkmzfrtmt7ll7il6vq",
       value: {
         $type: "app.gainforest.dwc.occurrence",
         scientificName: "Faidherbia albida",
@@ -347,7 +347,7 @@ export const OCCURRENCE_RECORDS_RESPONSE = {
     },
     {
       uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/herb-1`,
-      cid: "bafkreioccurrenceherb1",
+      cid: "bafkreib7ep7mlpe4dmtak46rg2uvqqscg4omz4c6blyanvejo2rqusaegi",
       value: {
         $type: "app.gainforest.dwc.occurrence",
         scientificName: "Ocimum gratissimum",
@@ -366,7 +366,7 @@ export const OCCURRENCE_RECORDS_RESPONSE = {
     },
     {
       uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/bird-1`,
-      cid: "bafkreioccurrencebird1",
+      cid: "bafkreibvmbptlqd4j3rikwekfu6vqgcl2iqqaebf6zwuqkyytr2ilfdfhe",
       value: {
         $type: "app.gainforest.dwc.occurrence",
         scientificName: "Tockus erythrorhynchus",
@@ -379,7 +379,7 @@ export const OCCURRENCE_RECORDS_RESPONSE = {
     },
     {
       uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/mammal-1`,
-      cid: "bafkreioccurrencemammal1",
+      cid: "bafkreihiguqml7ejadkyuuyhbvdxa5z5mgvviulc7b7hndrorkdvs5foba",
       value: {
         $type: "app.gainforest.dwc.occurrence",
         scientificName: "Madoqua kirkii",
