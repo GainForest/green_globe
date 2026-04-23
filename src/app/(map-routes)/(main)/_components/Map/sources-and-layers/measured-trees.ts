@@ -3,7 +3,7 @@ import {
   GeoJSONSourceSpecification,
   Map,
 } from "mapbox-gl";
-import dayjs from "dayjs";
+import { formatOccurrenceEventDate } from "@/lib/occurrence-event-date";
 import { TreeFeature } from "../../ProjectOverlay/store/types";
 
 export const treesSource: GeoJSONSourceSpecification = {
@@ -62,18 +62,32 @@ export const unclusteredTreesLayer: CircleLayerSpecification = {
   paint: {
     "circle-color": [
       "case",
+      ["boolean", ["feature-state", "selected"], false],
+      "#ec4899",
       ["boolean", ["feature-state", "hover"], false],
       "#0883fe",
       "#ff77c1",
     ],
     "circle-radius": [
       "case",
+      ["boolean", ["feature-state", "selected"], false],
+      10,
       ["boolean", ["feature-state", "hover"], false],
       8,
       4,
     ],
-    "circle-stroke-width": 1,
-    "circle-stroke-color": "#000000",
+    "circle-stroke-width": [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      3,
+      1,
+    ],
+    "circle-stroke-color": [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      "#ffffff",
+      "#000000",
+    ],
   },
 };
 
@@ -108,12 +122,12 @@ export const toggleMeasuredTreesLayer = (
 };
 
 export const getTreeSpeciesName = (tree: TreeFeature["properties"]) => {
-  const upperCaseFirstLetter = (name: string) =>
-    name.charAt(0).toUpperCase() + name.slice(1);
+  const upperCaseEveryWord = (name: string) =>
+    name.replace(/(^\w{1})|(\s+\w{1})/g, (letter) => letter.toUpperCase());
   if (tree?.Plant_Name) {
-    return upperCaseFirstLetter(tree?.Plant_Name);
+    return upperCaseEveryWord(tree?.Plant_Name);
   } else if (tree?.species) {
-    return upperCaseFirstLetter(tree?.species);
+    return tree?.species;
   } else {
     return undefined;
   }
@@ -146,31 +160,29 @@ export const getTreeDateOfMeasurement = (tree: TreeFeature["properties"]) => {
   if (tree?.dateOfMeasurement) {
     return tree?.dateOfMeasurement;
   } else if (tree?.datePlanted) {
-    return dayjs(tree?.datePlanted).format("DD/MM/YYYY");
+    return formatOccurrenceEventDate(tree?.datePlanted);
   } else if (tree?.dateMeasured) {
-    return dayjs(tree?.dateMeasured).format("DD/MM/YYYY");
+    return formatOccurrenceEventDate(tree?.dateMeasured);
   } else if (tree["FCD-tree_records-tree_time"]) {
-    const input = tree["FCD-tree_records-tree_time"];
-    if (input.includes("T")) {
-      return dayjs(input).format("DD/MM/YYYY");
-    }
-    const [datePart, timePart] = input.split(" ");
-    const ddmmyyArr = datePart.split("/");
-    const [day, month] = ddmmyyArr;
-    let [, , year] = ddmmyyArr;
-    year = year.length === 2 ? `20${year}` : year;
-    const isoDateString = `${year}-${month}-${day}T${timePart}:00`;
-    const date = new Date(isoDateString);
-    const formattedDate = date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-
-    return formattedDate;
+    return formatOccurrenceEventDate(tree["FCD-tree_records-tree_time"]);
   } else {
     return "unknown";
   }
+};
+
+/**
+ * Returns true if the URL is a PDS blob URL (climateai.org/xrpc/com.atproto.sync.getBlob).
+ * PDS blob URLs are used directly without any S3 fallback.
+ */
+const isPdsBlobUrl = (url: string): boolean =>
+  url.includes("com.atproto.sync.getBlob");
+
+const appendUniquePhoto = (result: string[], url: string | undefined) => {
+  if (!url || url.trim() === "" || result.includes(url)) {
+    return;
+  }
+
+  result.push(url);
 };
 
 export const getTreePhotos = (
@@ -178,10 +190,22 @@ export const getTreePhotos = (
   activeProject: string,
   treeID: string
 ) => {
-  const result = [];
+  const result: string[] = [];
   if (tree?.tree_photo) {
     return [tree?.tree_photo];
   }
+
+  // Prefer any PDS blob-backed tree angle before falling back to legacy URLs.
+  const primaryPdsPhoto = [tree?.awsUrl, tree?.leafAwsUrl, tree?.barkAwsUrl].find(
+    (url): url is string => typeof url === "string" && isPdsBlobUrl(url)
+  );
+  if (primaryPdsPhoto) {
+    appendUniquePhoto(result, primaryPdsPhoto);
+    appendUniquePhoto(result, tree?.leafAwsUrl);
+    appendUniquePhoto(result, tree?.barkAwsUrl);
+    return result;
+  }
+
   if (
     activeProject ==
       "40367dfcbafa0a8d1fa26ff481d6b2609536c0e14719f8e88060a9aee8c8ab0a" &&
@@ -194,21 +218,21 @@ export const getTreePhotos = (
     }
   }
   if (tree?.awsUrl) {
-    result.push(tree?.awsUrl);
+    appendUniquePhoto(result, tree?.awsUrl);
   } else if (tree?.koboUrl) {
-    result.push(tree?.koboUrl);
+    appendUniquePhoto(result, tree?.koboUrl);
   }
 
   if (tree?.leafAwsUrl) {
-    result.push(tree?.leafAwsUrl);
+    appendUniquePhoto(result, tree?.leafAwsUrl);
   } else if (tree?.leafKoboUrl) {
-    result.push(tree?.leafKoboUrl);
+    appendUniquePhoto(result, tree?.leafKoboUrl);
   }
 
   if (tree?.barkAwsUrl) {
-    result.push(tree?.barkAwsUrl);
+    appendUniquePhoto(result, tree?.barkAwsUrl);
   } else if (tree?.barkKoboUrl) {
-    result.push(tree?.barkKoboUrl);
+    appendUniquePhoto(result, tree?.barkKoboUrl);
   }
   if (result.length == 0) {
     result.push(

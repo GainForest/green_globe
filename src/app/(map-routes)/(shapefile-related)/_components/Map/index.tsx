@@ -6,7 +6,7 @@ import { MAP_FOG_CONFIG } from "@/config/map";
 import { MAP_CONFIG } from "@/config/map";
 import mapboxgl, { Map as MapInterface } from "mapbox-gl";
 import {
-  addProjectMarkerHandlers,
+  addOrganizationPointClickHandlers,
   setProjectMarkers,
   spinGlobe,
 } from "@/app/(map-routes)/_utils/map";
@@ -85,7 +85,10 @@ const Map = () => {
   }, [mapControls.showProjectMarkers]);
 
   useEffect(() => {
-    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOXGL_ACCESSTOKEN;
+    mapboxgl.accessToken =
+      process.env.NEXT_PUBLIC_MAPBOXGL_ACCESSTOKEN ??
+      process.env.NEXT_PUBLIC_MAPBOX_API_KEY ??
+      "";
     if (mapContainerRef.current === null) return;
 
     const map = new MapInterface({
@@ -126,7 +129,7 @@ const Map = () => {
       );
       map.setFog(MAP_FOG_CONFIG);
       setProjectMarkers(map).then(() => {
-        addProjectMarkerHandlers(map, handleProjectMarkerClick);
+        addOrganizationPointClickHandlers(map, handleProjectMarkerClick);
       });
       setMapLoaded(true);
     };

@@ -5,8 +5,8 @@ import { Info, Leaf, LucideProps, Users2 } from "lucide-react";
 import QuickTooltip from "@/components/ui/quick-tooltip";
 import { cn } from "@/lib/utils";
 import useProjectOverlayStore, { ProjectOverlayState } from "./store";
-import { Project } from "./store/types";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
+import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
 const TabButton = ({
   children,
   label,
@@ -110,13 +110,30 @@ const Tabs = () => {
   );
 };
 
-const Header = ({ projectData }: { projectData: Project }) => {
-  const countryDetails = Object.keys(countryToEmoji).includes(
-    projectData.country
-  )
-    ? countryToEmoji[projectData.country as keyof typeof countryToEmoji]
+const formatAreaHectares = (areaHectares: number | null) => {
+  if (areaHectares === null || !Number.isFinite(areaHectares) || areaHectares <= 0) {
+    return null;
+  }
+
+  return areaHectares.toLocaleString(undefined, {
+    minimumFractionDigits: areaHectares < 1 ? 1 : 0,
+    maximumFractionDigits: areaHectares < 10 ? 2 : 0,
+  });
+};
+
+const Header = ({
+  organization,
+}: {
+  organization: AppGainforestOrganizationInfo.Record;
+}) => {
+  const countryDetails =
+    Object.keys(countryToEmoji).includes(organization.country) ?
+      countryToEmoji[organization.country as keyof typeof countryToEmoji]
     : null;
-  const area = Math.round(projectData.area / 10000);
+  const activeSiteAreaHectares = useProjectOverlayStore(
+    (state) => state.activeSiteAreaHectares
+  );
+  const formattedArea = formatAreaHectares(activeSiteAreaHectares);
 
   const activeTab = useProjectOverlayStore((state) => state.activeTab);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -144,30 +161,33 @@ const Header = ({ projectData }: { projectData: Project }) => {
     <div
       className={cn(
         "p-4 sticky top-20 -translate-y-20 z-10 bg-gradient-to-b",
-        isStuck
-          ? "from-neutral-50/90 dark:from-neutral-900/90 to-neutral-50 dark:to-neutral-900 border-b border-b-border backdrop-blur-lg shadow-xl"
-          : "from-black/0 via-black/20 to-black/0"
+        isStuck ?
+          "from-neutral-50/90 dark:from-neutral-900/90 to-neutral-50 dark:to-neutral-900 border-b border-b-border backdrop-blur-lg shadow-xl"
+        : "from-black/0 via-black/20 to-black/0"
       )}
       ref={headerRef}
     >
       <h1
+        data-testid="project-title"
         className="text-2xl font-bold text-balance"
         style={{
           textShadow: "0px 0px 16px rgb(0 0 0 / 1)",
         }}
       >
-        {projectData.name}
+        {organization.displayName}
       </h1>
       {countryDetails && (
         <div className="flex items-center gap-2 flex-wrap mt-2">
-          <span className="px-2 py-1 bg-background/50 backdrop-blur-lg rounded-full text-sm">
-            {countryDetails.emoji}
-            &nbsp;&nbsp;
-            {countryDetails.name}
-          </span>
-          {Boolean(area) && (
+          {countryDetails && (
             <span className="px-2 py-1 bg-background/50 backdrop-blur-lg rounded-full text-sm">
-              <b>{area}</b> {area === 1 ? "hectare" : "hectares"}
+              {countryDetails.emoji}
+              &nbsp;&nbsp;
+              {countryDetails.name}
+            </span>
+          )}
+          {formattedArea && (
+            <span hidden data-testid="project-area">
+              <b>{formattedArea}</b> {formattedArea === "1" ? "hectare" : "hectares"}
             </span>
           )}
         </div>

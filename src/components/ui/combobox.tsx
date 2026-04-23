@@ -33,18 +33,22 @@ type ComboboxProps = {
   className?: string;
   searchIn?: "value" | "label" | "both";
   allowNoSelection?: boolean;
+  children?: React.ReactNode;
+  disabled?: boolean;
 };
 
 export function Combobox({
   options,
   value,
   onChange,
+  children,
   placeholder = "Select option...",
   searchPlaceholder = "Search options...",
   emptyMessage = "No option found.",
   className,
   allowNoSelection = false,
   searchIn = "both",
+  disabled = false,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -68,17 +72,20 @@ export function Combobox({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-[200px] justify-between", className)}
-        >
-          {value
-            ? options.find((option) => option.value === value)?.label
-            : placeholder}
-          <ChevronsUpDown className="opacity-50" />
-        </Button>
+        {children ?? (
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            className={cn("w-[200px] justify-between", className)}
+          >
+            {value
+              ? options.find((option) => option.value === value)?.label
+              : placeholder}
+            <ChevronsUpDown className="opacity-50" />
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
         <Command shouldFilter={false}>
@@ -87,6 +94,7 @@ export function Combobox({
             className="h-9"
             value={searchQuery}
             onValueChange={setSearchQuery}
+            disabled={disabled}
           />
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
@@ -95,7 +103,9 @@ export function Combobox({
                 <CommandItem
                   key={option.value}
                   value={option.value}
+                  disabled={disabled}
                   onSelect={(currentValue) => {
+                    if (disabled) return;
                     if (currentValue === value && allowNoSelection) {
                       onChange?.("");
                     } else {

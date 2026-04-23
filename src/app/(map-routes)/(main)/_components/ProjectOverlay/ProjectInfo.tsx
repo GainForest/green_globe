@@ -1,9 +1,11 @@
 "use client";
 import React from "react";
 import { Combobox } from "@/components/ui/combobox";
-import { Project } from "./store/types";
 import useProjectOverlayStore from "./store";
 import useNavigation from "../../_features/navigation/use-navigation";
+import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import LinearDocumentRenderer from "@/components/LinearDocumentRenderer";
+import type * as PubLeafletPagesLinearDocument from "@/../lexicon-api/types/pub/leaflet/pages/linearDocument";
 
 const ProjectSitesSection = () => {
   const projectSitesOptions = useProjectOverlayStore(
@@ -22,33 +24,29 @@ const ProjectSitesSection = () => {
   if (!projectSitesOptions || projectSitesOptions.length === 0) return null;
 
   return (
-    <section className="flex items-center gap-2">
+    <section className="flex items-center gap-2" data-testid="project-sites-section">
       <span className="text-muted-foreground font-bold">
         Project Site{projectSitesOptions.length > 1 ? "s" : ""}
       </span>
-      {projectSitesOptions.length > 1 ? (
-        <Combobox
-          options={projectSitesOptions}
-          value={siteId ?? undefined}
-          onChange={handleProjectSiteChange}
-          className="flex-1 max-w-[300px]"
-          searchIn="label"
-        />
-      ) : (
-        <span className="text-muted-foreground flex-1 bg-accent px-2 py-1 rounded-md">
+      {projectSitesOptions.length > 1 ?
+        <div data-testid="project-site-combobox" className="flex-1 max-w-[300px]">
+          <Combobox
+            options={projectSitesOptions}
+            value={siteId ?? undefined}
+            onChange={handleProjectSiteChange}
+            className="w-full"
+            searchIn="label"
+          />
+        </div>
+      : <span className="text-muted-foreground flex-1 bg-accent px-2 py-1 rounded-md">
           {projectSitesOptions[0].label}
         </span>
-      )}
+      }
     </section>
   );
 };
 
-const ProjectObjectivesSection = ({
-  projectData,
-}: {
-  projectData: Project;
-}) => {
-  const objectives = projectData.objective?.split(",") || [];
+const ProjectObjectivesSection = ({ objectives }: { objectives: string[] }) => {
   return (
     <section className="flex flex-col gap-0.5">
       <span className="font-bold">Objective</span>
@@ -66,15 +64,29 @@ const ProjectObjectivesSection = ({
   );
 };
 
-const ProjectInfo = ({ projectData }: { projectData: Project }) => {
+const ProjectInfo = ({
+  organization,
+}: {
+  organization: AppGainforestOrganizationInfo.Record;
+}) => {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-testid="project-info">
       <ProjectSitesSection />
-      <section className="flex flex-col gap-0.5">
+      <section className="flex flex-col gap-0.5" data-testid="project-description">
         <span className="font-bold">Description</span>
-        <p className="leading-snug">{projectData.longDescription}</p>
+        {typeof organization.longDescription === "string" ? (
+          <p className="leading-snug">{organization.longDescription}</p>
+        ) : organization.longDescription != null ? (
+          <LinearDocumentRenderer
+            document={
+              organization.longDescription as PubLeafletPagesLinearDocument.Main
+            }
+          />
+        ) : null}
       </section>
-      <ProjectObjectivesSection projectData={projectData} />
+      <div data-testid="project-objectives">
+        <ProjectObjectivesSection objectives={organization.objectives} />
+      </div>
     </div>
   );
 };

@@ -1,14 +1,13 @@
 import { create } from "zustand";
-import dayjs from "dayjs";
 import { fetchLayers, fetchProjectSpecificLayers } from "./utils";
-import { DynamicLayer } from "./types";
+import type { DynamicLayer } from "./types";
 import { groupBy } from "@/lib/utils";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
+
 export type LayersOverlayState = {
   toggledOnLayerIds: Set<string>;
   staticLayersVisibility: {
-    historicalSatellite: boolean;
     landcover: boolean;
   };
   categorizedDynamicLayers: Record<string, DynamicLayer[]>[];
@@ -17,23 +16,11 @@ export type LayersOverlayState = {
     status: "loading" | "success";
     layers: DynamicLayer[] | null;
   };
-  historicalSatelliteState: {
-    minDate: dayjs.Dayjs;
-    maxDate: dayjs.Dayjs;
-    previousDate: dayjs.Dayjs | null;
-    formattedPreviousDate: string | null;
-    currentDate: dayjs.Dayjs;
-    formattedCurrentDate: string;
-  };
 };
 
 export type LayersOverlayActions = {
   setToggledOnLayerIds: (
     layers: string[],
-    navigate?: ReturnType<typeof useNavigation>
-  ) => void;
-  setHistoricalSatelliteDate: (
-    date: dayjs.Dayjs,
     navigate?: ReturnType<typeof useNavigation>
   ) => void;
   setStaticLayerVisibility: (
@@ -48,7 +35,6 @@ export type LayersOverlayActions = {
 const initialState: LayersOverlayState = {
   toggledOnLayerIds: new Set<string>(),
   staticLayersVisibility: {
-    historicalSatellite: false,
     landcover: false,
   },
   categorizedDynamicLayers: [],
@@ -56,17 +42,6 @@ const initialState: LayersOverlayState = {
     projectId: null,
     status: "loading",
     layers: null,
-  },
-  historicalSatelliteState: {
-    minDate: dayjs("2020-09-01"),
-    maxDate: dayjs().subtract(6, "week").set("date", 1),
-    previousDate: null,
-    formattedPreviousDate: null,
-    currentDate: dayjs().subtract(6, "week").set("date", 1),
-    formattedCurrentDate: dayjs()
-      .subtract(6, "week")
-      .set("date", 1)
-      .format("YYYY-MM"),
   },
 };
 
@@ -76,6 +51,18 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
       ...initialState,
 
       setToggledOnLayerIds: (layers, navigate) => {
+        // Bail out when the toggled set hasn't actually changed.
+        // useStoreUrlSync calls this on every URL change; without this guard
+        // the .map() calls below create new object references every time,
+        // causing cascading re-renders across all layers-store subscribers.
+        const current = get().toggledOnLayerIds;
+        if (
+          layers.length === current.size &&
+          layers.every((l) => current.has(l))
+        ) {
+          return;
+        }
+
         const layersSet = new Set(layers);
         set((state) => {
           // Update the categorized dynamic layers
@@ -115,14 +102,6 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
           navigate?.((draft) => {
             draft.layers["landcover"] = value;
           });
-        } else if (layerName === "historicalSatellite") {
-          navigate?.((draft) => {
-            draft.layers["historical-satellite"] = value
-              ? {
-                  date: get().historicalSatelliteState.formattedCurrentDate,
-                }
-              : null;
-          });
         }
         set((state) => ({
           staticLayersVisibility: {
@@ -132,8 +111,9 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
         }));
       },
       fetchProjectSpecificLayers: async () => {
-        const projectData = useProjectOverlayStore.getState().projectData;
-        if (!projectData) {
+        const overlayState = useProjectOverlayStore.getState();
+        const { projectId: did, projectSlug } = overlayState;
+        if (!did || !projectSlug) {
           set({
             projectSpecificLayers: {
               projectId: null,
@@ -143,20 +123,22 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
           });
           return;
         }
-        if (projectData.id === get().projectSpecificLayers.projectId) {
+        if (did === get().projectSpecificLayers.projectId) {
           return;
         }
+        const currentLayers = get().projectSpecificLayers.layers;
         set({
           projectSpecificLayers: {
-            projectId: projectData.id,
+            projectId: did,
             status: "loading",
-            layers: null,
+            layers: currentLayers?.map((l) => ({ ...l, visible: false })) ?? null,
           },
         });
-        const layers = await fetchProjectSpecificLayers(projectData.name);
+        // Try ATProto first (by DID); fall back to S3 (by slug) when no records exist
+        const layers = await fetchProjectSpecificLayers(did, projectSlug);
         set({
           projectSpecificLayers: {
-            projectId: projectData.id,
+            projectId: did,
             status: "success",
             layers: (layers ?? []).map((layer) => ({
               ...layer,
@@ -173,23 +155,6 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
         }));
         const categorizedDynamicLayers = groupBy(dynamicLayers, "category");
         set({ categorizedDynamicLayers });
-      },
-      setHistoricalSatelliteDate: (date, navigate) => {
-        navigate?.((draft) => {
-          draft.layers["historical-satellite"] = {
-            date: date.format("YYYY-MM"),
-          };
-        });
-        set((state) => ({
-          historicalSatelliteState: {
-            ...state.historicalSatelliteState,
-            previousDate: state.historicalSatelliteState.currentDate,
-            formattedPreviousDate:
-              state.historicalSatelliteState.formattedCurrentDate,
-            currentDate: date,
-            formattedCurrentDate: date.format("YYYY-MM"),
-          },
-        }));
       },
     };
   }

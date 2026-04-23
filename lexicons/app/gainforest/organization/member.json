@@ -1,0 +1,126 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.organization.member",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A community or team member of an organization",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["displayName", "role", "did", "createdAt"],
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "description": "Full display name of the member",
+            "maxGraphemes": 256
+          },
+          "role": {
+            "type": "string",
+            "description": "Role or title of the member within the organization",
+            "maxGraphemes": 128
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The date and time the record was created",
+            "format": "datetime"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name of the member",
+            "maxGraphemes": 128
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the member",
+            "maxGraphemes": 128
+          },
+          "bio": {
+            "type": "ref",
+            "ref": "app.gainforest.common.defs#richtext",
+            "description": "Biography of the member"
+          },
+          "profileImage": {
+            "type": "ref",
+            "ref": "org.hypercerts.defs#smallImage",
+            "description": "Profile photo of the member"
+          },
+          "email": {
+            "type": "string",
+            "description": "Contact email address of the member",
+            "maxGraphemes": 256
+          },
+          "orcid": {
+            "type": "string",
+            "description": "ORCID identifier of the member",
+            "maxGraphemes": 64
+          },
+          "did": {
+            "type": "string",
+            "description": "ATProto DID if the member has their own account",
+            "format": "did"
+          },
+          "expertise": {
+            "type": "array",
+            "description": "Areas of expertise (e.g. 'botany', 'remote sensing', 'community engagement')",
+            "maxLength": 10,
+            "items": {
+              "type": "string",
+              "maxGraphemes": 128
+            }
+          },
+          "languages": {
+            "type": "array",
+            "description": "Languages spoken by the member as BCP-47 codes",
+            "maxLength": 10,
+            "items": {
+              "type": "string",
+              "maxGraphemes": 32
+            }
+          },
+          "displayOrder": {
+            "type": "integer",
+            "description": "Ordering priority for display (lower values appear first)",
+            "minimum": 0
+          },
+          "isPublic": {
+            "type": "boolean",
+            "description": "Whether this member profile is publicly visible"
+          },
+          "joinedAt": {
+            "type": "string",
+            "description": "When the member joined the organization",
+            "format": "datetime"
+          },
+          "walletAddresses": {
+            "type": "array",
+            "description": "Blockchain wallet addresses for receiving funds",
+            "maxLength": 5,
+            "items": {
+              "type": "ref",
+              "ref": "#walletAddress"
+            }
+          }
+        }
+      }
+    },
+    "walletAddress": {
+      "type": "object",
+      "description": "A blockchain wallet address for receiving funds",
+      "required": ["chain", "address"],
+      "properties": {
+        "chain": {
+          "type": "string",
+          "description": "The blockchain network for this wallet address",
+          "maxGraphemes": 32,
+          "knownValues": ["celo", "solana", "ethereum", "polygon", "other"]
+        },
+        "address": {
+          "type": "string",
+          "description": "The wallet address on the specified chain",
+          "maxGraphemes": 256
+        }
+      }
+    }
+  }
+}

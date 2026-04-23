@@ -1,31 +1,58 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import Splash from "./Splash";
+import CoverImage from "./CoverImage";
 import Loading from "./loading";
 import Header from "./Header";
 import TabMapper from "./TabMapper";
 import useProjectOverlayStore from "./store";
-import { getProjectSplashImageURLFromProject } from "./store/utils";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import ErrorMessage from "./ErrorMessage";
+import { useQuery } from "@tanstack/react-query";
+import getRecord from "@/lib/atproto/getRecord";
+import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
+import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+import { PDS_ENDPOINT } from "@/config/atproto";
+
 const ProjectOverlay = () => {
-  const projectDataStatus = useProjectOverlayStore(
-    (state) => state.projectDataStatus
-  );
-  const projectData = useProjectOverlayStore((state) => state.projectData);
+  const organizationDid = useProjectOverlayStore((state) => state.projectId);
+
+  const queryKey = ["app.gainforest.organization.info", organizationDid];
+  const {
+    data: info,
+    isPending,
+    error,
+    isPlaceholderData,
+  } = useQuery({
+    queryKey: queryKey,
+    queryFn: async () => {
+      const data = await getRecord(
+        organizationDid ?? "",
+        "app.gainforest.organization.info",
+        "self",
+        validateRecord
+      );
+      return data as AppGainforestOrganizationInfo.Record;
+    },
+    enabled: !!organizationDid,
+  });
+
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const splashImageURL = projectData
-    ? getProjectSplashImageURLFromProject(projectData)
-    : null;
+  const coverImage = info?.coverImage;
+  const coverImageCID = coverImage ? coverImage.image.ref : null;
+  const coverImageUrl =
+    coverImageCID ?
+      `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(organizationDid ?? "")}&cid=${encodeURIComponent(String(coverImageCID))}`
+    : "/assets/placeholders/cover-image.png";
 
   return (
     <motion.div
       id="project-overlay"
+      data-testid="project-overlay"
       initial={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
       animate={animate}
       exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
@@ -33,9 +60,9 @@ const ProjectOverlay = () => {
       className="relative h-full w-full"
     >
       <div className="absolute inset-0 scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 flex flex-col">
-        {projectDataStatus === "loading" ? (
+        {isPending || isPlaceholderData ?
           <Loading />
-        ) : projectDataStatus === "error" || projectData === null ? (
+        : error || !info ?
           <div className="p-4">
             <ErrorMessage
               message={
@@ -48,15 +75,14 @@ const ProjectOverlay = () => {
               }
             />
           </div>
-        ) : (
-          <div className="w-full relative flex flex-col flex-1">
-            <Splash imageURL={splashImageURL} projectDetails={projectData} />
-            <Header projectData={projectData} />
+        : <div className="w-full relative flex flex-col flex-1">
+            <CoverImage imageURL={coverImageUrl} projectDetails={info} />
+            <Header organization={info} />
             <div className="flex flex-col gap-2 p-4 -translate-y-20 flex-1 -mb-20">
-              <TabMapper projectData={projectData} />
+              <TabMapper organization={info} />
             </div>
           </div>
-        )}
+        }
       </div>
     </motion.div>
   );

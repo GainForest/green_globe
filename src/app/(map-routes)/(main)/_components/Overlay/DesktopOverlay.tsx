@@ -33,6 +33,7 @@ const DesktopOverlay = () => {
       : `${OVERLAY_WIDTH}px`;
   return (
     <motion.div
+      data-testid="desktop-overlay"
       className="fixed top-2 left-2 bottom-2 flex items-start gap-2"
       initial={{ opacity: 0, x: `-${computedSidebarWidth}` }}
       animate={{ opacity: 1, x: isOpen ? 0 : `-${computedSidebarWidth}` }}
@@ -57,7 +58,7 @@ const DesktopOverlay = () => {
           </div>
         </UIBase>
       </motion.div>
-      <UIBase innerClassName="p-0.5 flex flex-col gap-0.5">
+      <UIBase innerClassName="p-0.5 flex flex-col gap-0.5" data-testid="overlay-rail">
         <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
           <ChevronLeft
             size={16}

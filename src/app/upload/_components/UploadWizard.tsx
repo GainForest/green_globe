@@ -1,0 +1,178 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ColumnMapping, ValidatedRow, ValidationResult } from "@/lib/upload/types";
+import FileDropStep from "./FileDropStep";
+import ColumnMappingStep from "./ColumnMappingStep";
+import PreviewStep from "./PreviewStep";
+import UploadStep, { STORAGE_KEY } from "./UploadStep";
+
+type WizardState = {
+  currentStep: 1 | 2 | 3 | 4;
+  file: File | null;
+  parsedData: Record<string, string>[] | null;
+  headers: string[] | null;
+  mappings: ColumnMapping[];
+  validationResult: ValidationResult | null;
+  validRows: ValidatedRow[];
+};
+
+const STEP_LABELS: Record<number, string> = {
+  1: "Upload File",
+  2: "Map Columns",
+  3: "Preview & Validate",
+  4: "Submit",
+};
+
+export default function UploadWizard() {
+  const [state, setState] = useState<WizardState>({
+    currentStep: 1,
+    file: null,
+    parsedData: null,
+    headers: null,
+    mappings: [],
+    validationResult: null,
+    validRows: [],
+  });
+
+  // On mount, check for wizard state persisted before an OAuth redirect.
+  // If found and not expired (10 min), resume at Step 4 with the saved rows.
+  useEffect(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      try {
+        const { validRows, timestamp } = JSON.parse(stored) as {
+          validRows: ValidatedRow[];
+          timestamp: number;
+        };
+        if (
+          Date.now() - timestamp < 10 * 60 * 1000 &&
+          Array.isArray(validRows) &&
+          validRows.length > 0
+        ) {
+          setState((prev) => ({ ...prev, currentStep: 4, validRows }));
+        }
+      } catch {
+        /* ignore corrupt data */
+      }
+    }
+  }, []);
+
+  const handleFileAndMappings = (
+    file: File,
+    parsedData: Record<string, string>[],
+    headers: string[],
+    mappings: ColumnMapping[]
+  ) => {
+    setState((prev) => ({ ...prev, file, parsedData, headers, mappings }));
+  };
+
+  const handleNext = () => {
+    setState((prev) => ({
+      ...prev,
+      currentStep: Math.min(4, prev.currentStep + 1) as 1 | 2 | 3 | 4,
+    }));
+  };
+
+  const handleBack = () => {
+    setState((prev) => ({
+      ...prev,
+      currentStep: Math.max(1, prev.currentStep - 1) as 1 | 2 | 3 | 4,
+    }));
+  };
+
+  const handleMappingsChange = (mappings: ColumnMapping[]) => {
+    setState((prev) => ({ ...prev, mappings }));
+  };
+
+  const handlePreviewNext = (validRows: ValidatedRow[]) => {
+    setState((prev) => ({
+      ...prev,
+      validRows,
+      currentStep: 4,
+    }));
+  };
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Upload Tree Data</CardTitle>
+          <span className="text-sm text-muted-foreground">
+            Step {state.currentStep} of 4
+          </span>
+        </div>
+        {/* Step indicator */}
+        <div className="flex gap-2 mt-2">
+          {([1, 2, 3, 4] as const).map((step) => (
+            <div key={step} className="flex items-center gap-2">
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  step < state.currentStep
+                    ? "bg-primary"
+                    : step === state.currentStep
+                      ? "bg-primary"
+                      : "bg-muted"
+                }`}
+              />
+              <span
+                className={`text-xs ${
+                  step === state.currentStep
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {STEP_LABELS[step]}
+              </span>
+            </div>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {state.currentStep === 1 && (
+          <FileDropStep
+            onFileAndMappings={handleFileAndMappings}
+            onNext={handleNext}
+          />
+        )}
+        {state.currentStep === 2 && state.headers && state.parsedData && (
+          <ColumnMappingStep
+            headers={state.headers}
+            parsedData={state.parsedData}
+            mappings={state.mappings}
+            onMappingsChange={handleMappingsChange}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
+        )}
+        {state.currentStep === 3 && state.parsedData && (
+          <PreviewStep
+            parsedData={state.parsedData}
+            mappings={state.mappings}
+            onNext={handlePreviewNext}
+            onBack={handleBack}
+          />
+        )}
+        {state.currentStep === 4 && (
+          <UploadStep
+            validRows={state.validRows}
+            onComplete={() =>
+              setState({
+                currentStep: 1,
+                file: null,
+                parsedData: null,
+                headers: null,
+                mappings: [],
+                validationResult: null,
+                validRows: [],
+              })
+            }
+            onBack={handleBack}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}

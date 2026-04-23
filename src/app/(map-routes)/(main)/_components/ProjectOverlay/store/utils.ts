@@ -2,212 +2,228 @@ import { toKebabCase } from "@/lib/utils";
 import {
   MeasuredTreesGeoJSON,
   NormalizedTreeFeature,
-  Project,
-  ProjectDataApiResponse,
-  ProjectPolygonAPIResponse,
   TreeFeature,
 } from "./types";
 import { getTreeSpeciesName } from "../../Map/sources-and-layers/measured-trees";
+import { extractCid } from "@/lib/atproto/extract-cid";
+import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
 
-export const fetchProjectData = async (projectId: string) => {
-  const endpoint = `${process.env.NEXT_PUBLIC_GAINFOREST_ENDPOINT}/api/graphql`;
+// ---------------------------------------------------------------------------
+// ATProto blob ref shape (subset of what the PDS returns)
+// ---------------------------------------------------------------------------
+type BlobRef = {
+  $type?: string;
+  ref?: { $link: string };
+  mimeType?: string;
+  size?: number;
+};
 
+const isBlobRef = (value: unknown): value is BlobRef =>
+  typeof value === "object" &&
+  value !== null &&
+  ("ref" in value || "$type" in value);
+
+/**
+ * Unwrap a SmallBlob / SmallImage wrapper if present.
+ *
+ * ATProto site records wrap BlobRefs in a union object:
+ *   { $type: "org.hypercerts.defs#smallBlob", blob: <BlobRef> }
+ *
+ * If the value has a `blob` property we treat it as a SmallBlob wrapper and
+ * return the inner BlobRef; otherwise the value is returned unchanged.
+ */
+const unwrapSmallBlob = (value: unknown): unknown => {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "blob" in value
+  ) {
+    return (value as Record<string, unknown>).blob;
+  }
+  return value;
+};
+
+const parseAtUri = (uri: string) => {
+  const withoutScheme = uri.replace(/^at:\/\//, "");
+  const [repo, collection, rkey] = withoutScheme.split("/");
+  if (!repo || !collection || !rkey) return null;
+  return { repo, collection, rkey };
+};
+
+// ---------------------------------------------------------------------------
+// fetchSiteShapefile — fetch GeoJSON boundary from ATProto blob or external URI
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches the GeoJSON boundary for a site from either:
+ *   1. An ATProto blob ref (via com.atproto.sync.getBlob XRPC URL)
+ *   2. An AT-URI string (at://...) — resolved to a record, blob CID extracted, then fetched
+ *   3. An external HTTP(S) boundary URL (plain HTTP fetch)
+ *
+ * Returns the parsed GeoJSON or null on failure.
+ */
+export const fetchSiteShapefile = async (
+  did: string,
+  shapefile: unknown
+): Promise<GeoJSON.GeoJsonObject | null> => {
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: `
-                  query {
-                    project(id:"${projectId}") {
-                      id
-                      name
-                      country
-                      dataDownloadUrl
-                      dataDownloadInfo
-                      description
-                      longDescription
-                      stripeUrl
-                      discordId
-                      lat
-                      lon
-                      area
-                      objective
-                      assets {
-                        id
-                        name
-                        classification
-                        awsCID
-                        shapefile {
-                          default
-                          isReference
-                          shortName
-                        }
-                      }
-                      communityMembers {
-                        id
-                        firstName
-                        lastName
-                        priority
-                        role
-                        bio
-                        Wallet {
-                          CeloAccounts
-                          SOLAccounts
-                        }
-                        fundsReceived
-                        profileUrl
-                      }
-                      Wallet {
-                        CeloAccounts
-                        SOLAccounts
-                      }
-                    }
-                  }
-                `,
-      }),
-    });
-    const responseData: ProjectDataApiResponse = await response.json();
-    if ("project" in responseData.data && responseData.data.project) {
-      const project = responseData.data.project;
+    // Unwrap SmallBlob / SmallImage wrapper if present.
+    // ATProto site records wrap the BlobRef in { $type: '...', blob: <BlobRef> }.
+    const resolvedShapefile = unwrapSmallBlob(shapefile);
 
-      // SORALO HARDCODED DATA:
-      if (
-        project.id ===
-        "9744630d6b4cdfdaf687bf289de011c04272d63ecb486ffc91bacde385740208"
-      ) {
-        const projectClone = structuredClone(project);
-        // Remove the shapefiles from the project
-        const newAssets = projectClone.assets.filter(
-          (asset) => asset.classification !== "Shapefiles"
+    // Case 1: blob ref object with a CID link — fetch via PDS XRPC URL (browser-safe)
+    const cid = isBlobRef(resolvedShapefile)
+      ? extractCid(resolvedShapefile.ref)
+      : null;
+    if (cid) {
+      const pdsEndpoint = await resolvePdsEndpoint(did);
+      const url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(
+          `fetchSiteShapefile: blob fetch failed (${response.status})`
         );
-        // Add the new assets to the project
-        newAssets.push(
-          {
-            id: "shapefile-00001",
-            name: "Elangata",
-            classification: "Shapefiles",
-            awsCID: "shapefiles/soralo-hardcoded-sites/Elangata.geojson",
-            shapefile: {
-              default: true,
-              isReference: false,
-              shortName: "Elangata",
-            },
-          },
-          {
-            id: "shapefile-00002",
-            name: "Enkong u enkare",
-            classification: "Shapefiles",
-            awsCID: "shapefiles/soralo-hardcoded-sites/Enkong u enkare.geojson",
-            shapefile: {
-              default: false,
-              isReference: false,
-              shortName: "Enkong u enkare",
-            },
-          },
-          {
-            id: "shapefile-00003",
-            name: "Enkuto",
-            classification: "Shapefiles",
-            awsCID: "shapefiles/soralo-hardcoded-sites/Enkuto.geojson",
-            shapefile: {
-              default: false,
-              isReference: false,
-              shortName: "Enkuto",
-            },
-          },
-          {
-            id: "shapefile-00004",
-            name: "Motorok Spring",
-            classification: "Shapefiles",
-            awsCID: "shapefiles/soralo-hardcoded-sites/Motorok Spring.geojson",
-            shapefile: {
-              default: false,
-              isReference: false,
-              shortName: "Motorok Spring",
-            },
-          },
-          {
-            id: "shapefile-00005",
-            name: "Ngurman",
-            classification: "Shapefiles",
-            awsCID: "shapefiles/soralo-hardcoded-sites/Ngurman.geojson",
-            shapefile: {
-              default: false,
-              isReference: false,
-              shortName: "Ngurman",
-            },
-          },
-          {
-            id: "shapefile-00006",
-            name: "Olorte",
-            classification: "Shapefiles",
-            awsCID: "shapefiles/soralo-hardcoded-sites/Olorte.geojson",
-            shapefile: {
-              default: false,
-              isReference: false,
-              shortName: "Olorte",
-            },
-          },
-          {
-            id: "shapefile-00007",
-            name: "Pakase",
-            classification: "Shapefiles",
-            awsCID: "shapefiles/soralo-hardcoded-sites/Pakase.geojson",
-            shapefile: {
-              default: false,
-              isReference: false,
-              shortName: "Pakase",
-            },
-          }
-        );
-        projectClone.assets = newAssets;
-        return projectClone;
+        return null;
       }
-      // END SORALO HARDCODED DATA:
-
-      return project;
-    } else {
-      return null;
+      return (await response.json()) as GeoJSON.GeoJsonObject;
     }
+
+    // Case 2: AT-URI string (at://did/collection/rkey) — must be checked BEFORE
+    // the generic string check so it is not mistakenly fetched as an HTTP URL.
+    // Resolve the record, extract the geometry/blob source, then fetch the blob.
+    if (typeof resolvedShapefile === "string" && resolvedShapefile.startsWith("at://")) {
+      const parsed = parseAtUri(resolvedShapefile);
+      if (!parsed) return null;
+
+      const pdsEndpoint = await resolvePdsEndpoint(parsed.repo);
+      const recordUrl = `${pdsEndpoint}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(parsed.repo)}&collection=${encodeURIComponent(parsed.collection)}&rkey=${encodeURIComponent(parsed.rkey)}`;
+      const recordResponse = await fetch(recordUrl);
+      if (!recordResponse.ok) return null;
+      const record = (await recordResponse.json()) as {
+        value?: { shapefile?: unknown; location?: unknown };
+      };
+      const rawBlobSource = unwrapSmallBlob(
+        record.value?.location ?? record.value?.shapefile
+      );
+      const resolvedCid = isBlobRef(rawBlobSource)
+        ? extractCid(rawBlobSource.ref)
+        : null;
+      if (!resolvedCid) return null;
+      const cid = resolvedCid;
+      const blobUrl = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(parsed.repo)}&cid=${encodeURIComponent(cid)}`;
+      const blobResponse = await fetch(blobUrl);
+      if (!blobResponse.ok) {
+        console.error(
+          `fetchSiteShapefile: blob fetch failed (${blobResponse.status})`
+        );
+        return null;
+      }
+      return (await blobResponse.json()) as GeoJSON.GeoJsonObject;
+    }
+
+    // Case 3: generic HTTP(S) boundary URL
+    if (typeof resolvedShapefile === "string" && resolvedShapefile.trim().length > 0) {
+      const response = await fetch(resolvedShapefile.trim(), {
+        headers: {
+          Accept: "application/geo+json, application/json;q=0.9, */*;q=0.1",
+        },
+      });
+      if (!response.ok) {
+        console.error(
+          `fetchSiteShapefile: boundary fetch failed (${response.status})`
+        );
+        return null;
+      }
+      return (await response.json()) as GeoJSON.GeoJsonObject;
+    }
+
+    console.warn("fetchSiteShapefile: no usable shapefile source", resolvedShapefile);
+    return null;
   } catch (error) {
-    console.error(error);
+    console.error("fetchSiteShapefile error:", error);
     return null;
   }
 };
 
-export const fetchProjectPolygon = async (awsCID: string) => {
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${awsCID}`
-    );
-    const data: ProjectPolygonAPIResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
+// ---------------------------------------------------------------------------
+// fetchMeasuredTreesShapefile — fetch tree planting GeoJSON from ATProto blob
+// or fall back to S3 if no blob ref is available
+// ---------------------------------------------------------------------------
 
-export const getProjectSplashImageURLFromProject = (project: Project) => {
-  const splashImage = project.assets.find(
-    (asset) => asset.classification === "Project Splash"
+/**
+ * Normalizes a raw MeasuredTreesGeoJSON<TreeFeature> into the normalized form.
+ */
+const normalizeMeasuredTreesGeoJSON = (
+  result: MeasuredTreesGeoJSON<TreeFeature>
+): MeasuredTreesGeoJSON => {
+  const normalizedFeatures: NormalizedTreeFeature[] = result.features.map(
+    (feature, index: number) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        species: getTreeSpeciesName(feature.properties)?.trim() ?? "Unknown",
+        type: "measured-tree",
+      },
+      id: index,
+    })
   );
-  if (splashImage?.awsCID) {
-    return `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${splashImage?.awsCID}`;
-  } else {
-    return null;
-  }
+  return { ...result, features: normalizedFeatures };
 };
 
+/**
+ * Fetches the measured trees GeoJSON for a site.
+ *
+ * Priority:
+ *   1. ATProto blob ref on the site record (via com.atproto.sync.getBlob)
+ *   2. S3 fallback using the project slug (backward compatibility)
+ *
+ * @param slug     - Project slug (for S3 fallback path construction)
+ * @param treesRef - Optional blob ref from the ATProto site record
+ * @param did      - Organization DID (required when treesRef is provided)
+ */
 export const fetchMeasuredTreesShapefile = async (
-  projectName: string
+  slug: string,
+  treesRef?: unknown,
+  did?: string
 ): Promise<MeasuredTreesGeoJSON | null> => {
-  const kebabCaseProjectName = toKebabCase(projectName);
+  // --- Path 1: ATProto blob ---
+  // Unwrap SmallBlob / SmallImage wrapper if present (same pattern as fetchSiteShapefile).
+  const resolvedTreesRef = unwrapSmallBlob(treesRef);
+  const treeCid = isBlobRef(resolvedTreesRef)
+    ? extractCid(resolvedTreesRef.ref)
+    : null;
+  if (treeCid && did) {
+    const cid = treeCid;
+    try {
+      const pdsEndpoint = await resolvePdsEndpoint(did);
+      const url = `${pdsEndpoint}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const result =
+          (await response.json()) as MeasuredTreesGeoJSON<TreeFeature>;
+        if (result.features && result.features.length > 0) {
+          return normalizeMeasuredTreesGeoJSON(result);
+        }
+        console.warn(
+          'fetchMeasuredTreesShapefile: blob has empty features, falling back to S3'
+        );
+      }
+      if (!response.ok) {
+        console.warn(
+          `fetchMeasuredTreesShapefile: blob fetch failed (${response.status}), falling back to S3`
+        );
+      }
+    } catch (error) {
+      console.warn(
+        "fetchMeasuredTreesShapefile: blob fetch error, falling back to S3",
+        error
+      );
+    }
+  }
 
-  const endpoint = `shapefiles/${kebabCaseProjectName}-all-tree-plantings.geojson`;
+  // --- Path 2: S3 fallback ---
+  const kebabCaseSlug = toKebabCase(slug);
+  const endpoint = `shapefiles/${kebabCaseSlug}-all-tree-plantings.geojson`;
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${endpoint}`
@@ -215,24 +231,7 @@ export const fetchMeasuredTreesShapefile = async (
     if (response.ok) {
       const result =
         (await response.json()) as MeasuredTreesGeoJSON<TreeFeature>;
-
-      const normalizedFeatures: NormalizedTreeFeature[] = result.features.map(
-        (feature, index: number) => ({
-          ...feature,
-          properties: {
-            ...feature.properties,
-            species:
-              getTreeSpeciesName(feature.properties)?.trim() ?? "Unknown",
-            type: "measured-tree",
-          },
-          id: index,
-        })
-      );
-      const normalizedResult: MeasuredTreesGeoJSON = {
-        ...result,
-        features: normalizedFeatures,
-      };
-      return normalizedResult;
+      return normalizeMeasuredTreesGeoJSON(result);
     } else {
       return null;
     }

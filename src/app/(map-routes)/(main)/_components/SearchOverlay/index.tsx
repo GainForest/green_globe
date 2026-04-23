@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { ChevronRight, CircleAlert, Loader2, X } from "lucide-react";
 import useOverlayTabsStore from "../Overlay/OverlayTabs/store";
 import { cn } from "@/lib/utils";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
-import { fetchProjectSites } from "@/app/(map-routes)/_utils/map";
+import useIndexedOrganizations from "../../_hooks/useIndexedOrganizations";
 
 const SearchOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
@@ -33,37 +33,29 @@ const SearchOverlay = () => {
   const searchQuery = useSearchOverlayStore((state) => state.searchQuery);
   const setSearchQuery = useSearchOverlayStore((state) => state.setSearchQuery);
 
-  const allProjects = useSearchOverlayStore((state) => state.allProjects);
-  const setAllProjects = useSearchOverlayStore((state) => state.setAllProjects);
+  const { organizations } = useIndexedOrganizations();
 
-  const filteredProjects = useMemo(() => {
-    return allProjects.filter((project) => {
+  const filteredOrganizations = useMemo(() => {
+    if (!organizations) return undefined;
+    return organizations?.filter((organization) => {
       const lcSearchQuery = searchQuery.toLowerCase();
-      const properties = project.properties;
-      const countryDetails = Object.keys(countryToEmoji).includes(
-        project.properties.country
-      )
-        ? countryToEmoji[
-            project.properties.country as keyof typeof countryToEmoji
-          ]
+      const info = organization.info;
+      if (!info) return false;
+      const countryCode = info.country?.toUpperCase();
+      const countryDetails =
+        countryCode && Object.keys(countryToEmoji).includes(countryCode) ?
+          countryToEmoji[countryCode as keyof typeof countryToEmoji]
         : null;
       const countryName = countryDetails?.name;
       return (
-        properties.name.toLowerCase().includes(lcSearchQuery) ||
+        info.name.toLowerCase().includes(lcSearchQuery) ||
         countryName?.toLowerCase().includes(lcSearchQuery)
       );
     });
-  }, [allProjects, searchQuery]);
+  }, [organizations, searchQuery]);
 
-  useEffect(() => {
-    fetchProjectSites().then((projectSites) => {
-      const features = projectSites.features;
-      setAllProjects(features);
-    });
-  }, []);
-
-  const handleProjectClick = (projectId: string) => {
-    setProjectId(projectId, navigate);
+  const handleOrganizationClick = (organizationId: string) => {
+    setProjectId(organizationId, navigate);
     setTimeout(() => {
       setActiveTab("project", navigate);
     }, 400);
@@ -76,11 +68,13 @@ const SearchOverlay = () => {
       animate={animate}
       exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
       onAnimationComplete={onAnimationComplete}
+      data-testid="search-overlay"
       className=""
     >
       <div className="scrollable overflow-y-auto overflow-x-hidden scrollbar-variant-1 p-4">
         <div className="flex items-center relative">
           <Input
+            data-testid="search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value, navigate)}
             placeholder="Search projects"
@@ -88,6 +82,7 @@ const SearchOverlay = () => {
           />
           {searchQuery.length > 0 && (
             <button
+              data-testid="clear-search"
               onClick={() => setSearchQuery("", navigate)}
               className="absolute right-2 h-6 w-6 p-1 rounded-full bg-background/40 flex items-center justify-center"
             >
@@ -95,47 +90,72 @@ const SearchOverlay = () => {
             </button>
           )}
         </div>
-        {filteredProjects.length > 0 && (
-          <div className="flex flex-col divide-y bg-neutral-50 dark:bg-neutral-950 border border-border rounded-xl mt-4 overflow-hidden">
-            {filteredProjects.map((project) => {
-              const countryDetails = Object.keys(countryToEmoji).includes(
-                project.properties.country
-              )
-                ? countryToEmoji[
-                    project.properties.country as keyof typeof countryToEmoji
-                  ]
+        {filteredOrganizations === undefined && (
+          <div className="mt-4 flex flex-col gap-1">
+            {new Array(6).fill(null).map((_, index) => (
+              <div
+                key={index}
+                className="w-full h-20 flex flex-col gap-2 p-4 bg-foreground/10 animate-pulse rounded-sm"
+                style={{
+                  animationDelay: `${index * 200}ms`,
+                  borderTopLeftRadius: index === 0 ? "1rem" : undefined,
+                  borderTopRightRadius: index === 0 ? "1rem" : undefined,
+                  borderBottomLeftRadius: index === 5 ? "1rem" : undefined,
+                  borderBottomRightRadius: index === 5 ? "1rem" : undefined,
+                }}
+              >
+                <div className="h-6 w-40 bg-foreground/10 animate-pulse rounded-sm"></div>
+                <div className="h-6 w-20 bg-foreground/10 animate-pulse rounded-sm"></div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {filteredOrganizations && filteredOrganizations.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, filter: "blur(10px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, filter: "blur(10px)" }}
+            data-testid="search-results"
+            className="flex flex-col divide-y bg-neutral-50 dark:bg-neutral-950 border border-border rounded-xl mt-4 overflow-hidden"
+          >
+            {filteredOrganizations.map((organization) => {
+              const info = organization.info;
+              if (!info) return null;
+              const countryCode = info.country?.toUpperCase();
+              const countryDetails =
+                countryCode && Object.keys(countryToEmoji).includes(countryCode) ?
+                  countryToEmoji[countryCode as keyof typeof countryToEmoji]
                 : null;
 
-              const isCurrentProject =
-                projectId === project.properties.projectId;
+              const isCurrentProject = projectId === organization.did;
               return (
-                <div
-                  className="flex relative"
-                  key={project.properties.projectId}
-                >
+                <div className="flex relative" key={organization.did}>
                   <button
+                    data-testid={`project-search-result-${organization.did}`}
                     //   className="rounded-none"
                     className={cn(
                       "flex-1 justify-start h-auto rounded-none p-3 text-left whitespace-normal bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-950 hover:dark:bg-neutral-900",
-                      isCurrentProject
-                        ? "bg-neutral-100 dark:bg-neutral-900"
-                        : ""
+                      isCurrentProject ?
+                        "bg-neutral-100 dark:bg-neutral-900"
+                      : ""
                     )}
-                    onClick={() =>
-                      handleProjectClick(project.properties.projectId)
-                    }
+                    onClick={() => handleOrganizationClick(organization.did)}
                   >
                     <div className="flex flex-col gap-2 items-start">
-                      <span className="font-bold">
-                        {project.properties.name}
-                      </span>
-                      <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                        <span className="px-2 py-1 bg-foreground/10 backdrop-blur-lg rounded-full text-sm">
-                          {countryDetails?.emoji}
-                          &nbsp;&nbsp;
-                          {countryDetails?.name}
+                      <span className="font-bold">{info.name}</span>
+                      {countryDetails && (
+                        <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                          <span className="px-2 py-1 bg-foreground/10 backdrop-blur-lg rounded-full text-sm inline-flex items-center gap-1">
+                            <img
+                              src={countryDetails.image}
+                              alt={countryDetails.name}
+                              className="h-4 w-4 inline-block"
+                            />
+                            {countryDetails.name}
+                          </span>
                         </span>
-                      </span>
+                      )}
                     </div>
                   </button>
                   {isCurrentProject && (
@@ -147,23 +167,23 @@ const SearchOverlay = () => {
                         disabled={projectDataStatus !== "success"}
                         className="text-muted-foreground"
                       >
-                        {projectDataStatus === "loading" ? (
+                        {projectDataStatus === "loading" ?
                           <Loader2 className="animate-spin" />
-                        ) : projectDataStatus === "error" ? (
+                        : projectDataStatus === "error" ?
                           <CircleAlert />
-                        ) : projectDataStatus === "success" ? (
+                        : projectDataStatus === "success" ?
                           <ChevronRight />
-                        ) : null}
+                        : null}
                       </Button>
                     </div>
                   )}
                 </div>
               );
             })}
-          </div>
+          </motion.div>
         )}
-        {filteredProjects.length === 0 && (
-          <div className="bg-foreground/[0.025] p-4 rounded-xl mt-4 flex flex-col items-center justify-center gap-4">
+        {filteredOrganizations && filteredOrganizations.length === 0 && (
+          <div data-testid="search-empty-state" className="bg-foreground/[0.025] p-4 rounded-xl mt-4 flex flex-col items-center justify-center gap-4">
             <CircleAlert
               className="text-muted-foreground opacity-50"
               size={40}

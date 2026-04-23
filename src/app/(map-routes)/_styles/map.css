@@ -15,3 +15,12 @@
 .mapboxgl-popup-tip {
   border-top-color: rgb(255 255 255 / 0.8) !important;
 }
+
+.trees-shimmer-sweep {
+  animation: trees-shimmer-sweep 1.8s ease-in-out infinite;
+}
+
+@keyframes trees-shimmer-sweep {
+  0%   { transform: translateX(100vw); }
+  100% { transform: translateX(-100vw); }
+}

@@ -3,15 +3,19 @@ import React from "react";
 import useProjectOverlayStore from "./store";
 import ProjectInfo from "./ProjectInfo";
 import AIAssistant from "./AIAssistant";
-import { Project } from "./store/types";
 import Biodiversity from "./Biodiversity";
 import Community from "./Community";
-const TabMapper = ({ projectData }: { projectData: Project }) => {
+import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
+const TabMapper = ({
+  organization,
+}: {
+  organization: AppGainforestOrganizationInfo.Record;
+}) => {
   const activeTab = useProjectOverlayStore((state) => state.activeTab);
 
   switch (activeTab) {
     case "info":
-      return <ProjectInfo projectData={projectData} />;
+      return <ProjectInfo organization={organization} />;
     case "ask-ai":
       return <AIAssistant />;
     case "biodiversity":

@@ -4,7 +4,6 @@ import { Layers, LocateFixed } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
-import HistoricalSatelliteControls from "./HistoricalSatelliteControls";
 import useLayersOverlayStore from "./store";
 import useProjectOverlayStore from "../ProjectOverlay/store";
 import { toKebabCase } from "@/lib/utils";
@@ -59,15 +58,16 @@ const LayersOverlay = () => {
   const setMapView = useMapStore((actions) => actions.setCurrentView);
   const setMapBounds = useMapStore((actions) => actions.setMapBounds);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (categorizedDynamicLayers.length === 0) {
       fetchCategorizedDynamicLayers();
     }
-  }, [categorizedDynamicLayers]);
+  }, []);
 
   useEffect(() => {
     fetchProjectSpecificLayers();
-  }, [projectData]);
+  }, [projectData?.id]);
 
   const handleZoomToProjectSpecificLayer = useCallback(
     (layerEndpoint: string) => {
@@ -94,15 +94,13 @@ const LayersOverlay = () => {
       animate={animate}
       exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
       onAnimationComplete={onAnimationComplete}
+      data-testid="layers-overlay"
       className="p-4"
     >
       <div className="flex items-center gap-3 mb-6">
         <Layers size={20} />
         <span className="text-xl font-bold">Explore Layers</span>
       </div>
-
-      {/* Monthly Satellite Layer */}
-      <HistoricalSatelliteControls />
 
       {/* Land Cover Layer */}
       <LandcoverControls />
@@ -111,7 +109,7 @@ const LayersOverlay = () => {
         const key = Object.keys(layerCategory)[0];
         const layers = layerCategory[key];
         return (
-          <div className="mb-6" key={key}>
+          <div className="mb-6" key={key} data-testid={`layer-category-${toKebabCase(key)}`}>
             <h3 className="text-sm text-muted-foreground font-semibold mb-1 capitalize">
               {key}
             </h3>
@@ -126,6 +124,7 @@ const LayersOverlay = () => {
                     <Label htmlFor={id}>{layer.name}</Label>
                     <Switch
                       id={id}
+                      data-testid={`layer-toggle-${id}`}
                       checked={layer.visible}
                       onCheckedChange={(value) => {
                         toggleLayer(layer.name, value);
@@ -147,7 +146,7 @@ const LayersOverlay = () => {
       ) : projectSpecificLayers.status === "success" &&
         projectSpecificLayers.layers &&
         projectSpecificLayers.layers.length > 0 ? (
-        <div className="mb-6">
+        <div className="mb-6" data-testid="project-specific-layers">
           <h3 className="text-sm text-muted-foreground font-semibold mb-1 capitalize">
             Project Specific Layers
           </h3>
@@ -161,6 +160,7 @@ const LayersOverlay = () => {
                     {layer.visible && (
                       <QuickTooltip tooltipContent={"Zoom to layer in map"}>
                         <Button
+                          data-testid={`zoom-to-layer-${id}`}
                           variant="outline"
                           size="icon"
                           onClick={() =>
@@ -171,10 +171,11 @@ const LayersOverlay = () => {
                         </Button>
                       </QuickTooltip>
                     )}
-                    <Switch
-                      id={id}
-                      checked={layer.visible}
-                      onCheckedChange={(value) => {
+                      <Switch
+                        id={id}
+                        data-testid={`layer-toggle-${id}`}
+                        checked={layer.visible}
+                        onCheckedChange={(value) => {
                         toggleLayer(layer.name, value);
                         if (value) {
                           handleZoomToProjectSpecificLayer(layer.endpoint);

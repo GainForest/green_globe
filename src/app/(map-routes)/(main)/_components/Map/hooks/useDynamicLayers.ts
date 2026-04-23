@@ -29,13 +29,27 @@ const useDynamicLayers = () => {
     const map = mapRef?.current;
     if (!map) return;
 
-    flatMapLayers.forEach((layer) => {
-      if (layer.visible) {
-        addNamedSource(map, layer);
-      } else {
-        removeNamedSource(map, layer);
+    let cancelled = false;
+
+    const syncDynamicLayers = async () => {
+      for (const layer of flatMapLayers) {
+        if (cancelled) {
+          return;
+        }
+
+        if (layer.visible) {
+          await addNamedSource(map, layer);
+        } else {
+          removeNamedSource(map, layer);
+        }
       }
-    });
+    };
+
+    void syncDynamicLayers();
+
+    return () => {
+      cancelled = true;
+    };
   }, [mapRef, flatMapLayers]);
 };
 

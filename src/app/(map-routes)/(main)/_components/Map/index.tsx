@@ -5,12 +5,13 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import { useHoveredTreeInfo } from "./hooks/useHoveredTreeInfo";
 import useProjectTrees from "./hooks/useProjectTrees";
-import useHistoricalSatelliteLayer from "./hooks/useHistoricalSatelliteLayer";
 import useMapbox from "./hooks/useMapbox";
 import useDynamicLayers from "./hooks/useDynamicLayers";
 import useBounds from "./hooks/useBounds";
 import useHighlightedPolygon from "./hooks/useHighlightedPolygon";
 import useLandcoverLayer from "./hooks/useLandcoverLayer";
+import useSelectedTreeHighlight from "./hooks/useSelectedTreeHighlight";
+import useTreesLoadingOverlay from "./hooks/useTreesLoadingOverlay";
 
 const Map = () => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -20,14 +21,16 @@ const Map = () => {
   useHighlightedPolygon();
   useProjectTrees();
   useHoveredTreeInfo();
-  useHistoricalSatelliteLayer();
+  useSelectedTreeHighlight();
   useLandcoverLayer();
   useDynamicLayers();
+  useTreesLoadingOverlay();
 
   return (
     <div
       style={{ height: "100%" }}
       ref={mapContainerRef}
+      data-testid="map-root"
       className="map-container flex-1"
     ></div>
   );

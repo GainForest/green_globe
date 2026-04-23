@@ -1,0 +1,76 @@
+name: Homepage E2E
+
+on:
+  push:
+    branches:
+      - atproto-dev
+  pull_request:
+    branches:
+      - atproto-dev
+  workflow_dispatch:
+
+jobs:
+  homepage-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COOKIE_SECRET: e2e-cookie-secret-at-least-32-characters-long
+      NEXT_PUBLIC_MAPBOXGL_ACCESSTOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build application
+        run: bun run build
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+
+      - name: Start application
+        run: bunx next start -p 8910 > /tmp/green-globe-e2e.log 2>&1 &
+
+      - name: Wait for health endpoint
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8910/api/healthz > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Application did not become ready in time"
+          cat /tmp/green-globe-e2e.log
+          exit 1
+
+      - name: Warm homepage routes
+        run: |
+          curl -fsS "http://127.0.0.1:8910/?overlay-active-tab=search" > /dev/null
+          curl -fsS "http://127.0.0.1:8910/did:plc:acaciaconservdemo234567a?overlay-active-tab=project&project-views=biodiversity,predictions" > /dev/null
+
+      - name: Run homepage E2E suite
+        env:
+          E2E_APP_URL: http://127.0.0.1:8910
+        run: bun run test:e2e:headless
+
+      - name: Upload E2E report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: homepage-e2e-report
+          path: |
+            reports/
+            /tmp/green-globe-e2e.log
+          if-no-files-found: warn

@@ -13,21 +13,29 @@ const remotePatterns = [
   },
   {
     protocol: "https" as const,
-    hostname: "*",
+    hostname: "climateai.org", // ATProto PDS
+  },
+  {
+    // Allow blobs from any ATProto PDS (e.g. gainforest.id) — scoped to the
+    // canonical XRPC blob path so we don't accidentally proxy arbitrary hosts.
+    protocol: "https" as const,
+    hostname: "**",
+    pathname: "/xrpc/com.atproto.sync.getBlob",
+  },
+  {
+    protocol: "https" as const,
+    hostname: "kf.kobotoolbox.org", // KoboToolbox (still used as fallback)
+  },
+  {
+    protocol: "https" as const,
+    hostname: "cdn.jsdelivr.net", // Country flag SVGs
   },
 ].filter((pattern) => pattern !== null);
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
   images: {
-    remotePatterns: [
-      ...remotePatterns,
-      {
-        protocol: "https",
-        hostname:
-          "gainforest-transparency-dashboard.s3.us-east-1.amazonaws.com",
-      },
-    ],
+    remotePatterns,
   },
   /* config options here */
   experimental: {

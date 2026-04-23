@@ -1,3 +1,9 @@
+export type LegendEntry = {
+  label: string;
+  color: string;
+  value?: string;
+};
+
 export type Layer = {
   name: string;
   type:
@@ -7,11 +13,16 @@ export type Layer = {
     | "choropleth"
     | "choropleth_shannon"
     | "raster_tif"
-    | "tms_tile";
+    | "tms_tile"
+    | "heatmap"
+    | "contour"
+    | "satellite_overlay";
   endpoint: string;
   description: string;
   category: string;
-  legend?: string;
+  /** Legend entries for the layer. Array format comes from ATProto lexicon. */
+  legend?: LegendEntry[];
+  isDefault?: boolean;
   tilePattern?: string;
   tileRange?: {
     x: { min: number; max: number };

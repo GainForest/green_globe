@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import React, { useCallback, useState } from "react";
+import React, { Suspense, useCallback, useState } from "react";
 import useProjectOverlayStore from "../ProjectOverlay/store";
 import { Check, Copy, LocateFixed, LucideProps, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,11 @@ const ShareOption = ({
   );
 };
 
-const ShareDialog = ({ children }: { children: React.ReactNode }) => {
+const ShareDialogWithoutSuspense = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const project = useProjectOverlayStore((state) => state.projectData);
@@ -197,6 +201,14 @@ const ShareDialog = ({ children }: { children: React.ReactNode }) => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const ShareDialog = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <Suspense>
+      <ShareDialogWithoutSuspense>{children}</ShareDialogWithoutSuspense>
+    </Suspense>
   );
 };
 

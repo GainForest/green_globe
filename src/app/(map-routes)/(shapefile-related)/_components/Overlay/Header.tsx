@@ -17,11 +17,13 @@ const Header = () => {
         />
         <span className="font-bold text-lg">GainForest</span>
       </div>
-      <Link href="/">
-        <Button variant={"outline"} size={"icon"}>
-          <Home />
-        </Button>
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link href="/">
+          <Button variant={"outline"} size={"icon"}>
+            <Home />
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 };

@@ -1,0 +1,78 @@
+{
+  "lexicon": 1,
+  "id": "app.gainforest.evaluator.evaluation",
+  "description": "An evaluation record published by an evaluator in their own repo. Contains structured, typed results about a target record (or batch of records). Discovered by AppViews via the atproto-accept-evaluators HTTP header pattern.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A single evaluation produced by an evaluator service. Exactly one of 'subject' (single target) or 'subjects' (batch) must be provided.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["evaluationType", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "ref",
+            "ref": "app.gainforest.evaluator.defs#subjectRef",
+            "description": "Single target record being evaluated. Use this OR subjects, not both."
+          },
+          "subjects": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "app.gainforest.evaluator.defs#subjectRef" },
+            "maxLength": 100,
+            "description": "Batch evaluation: multiple target records sharing the same result. Use this OR subject, not both."
+          },
+          "evaluationType": {
+            "type": "string",
+            "maxGraphemes": 64,
+            "description": "Identifier for the type of evaluation (must match one declared in the evaluator's service record)."
+          },
+          "result": {
+            "type": "union",
+            "description": "The typed evaluation result. The $type field determines which result schema is used.",
+            "refs": [
+              "app.gainforest.evaluator.defs#speciesIdResult",
+              "app.gainforest.evaluator.defs#dataQualityResult",
+              "app.gainforest.evaluator.defs#verificationResult",
+              "app.gainforest.evaluator.defs#classificationResult",
+              "app.gainforest.evaluator.defs#measurementResult",
+              "app.gainforest.evaluator.defs#bioacousticsResult",
+              "app.gainforest.evaluator.defs#deforestationResult",
+              "app.gainforest.evaluator.defs#carbonEstimationResult"
+            ]
+          },
+          "confidence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000,
+            "description": "Overall confidence in this evaluation (0-1000, where 1000 = 100.0%)."
+          },
+          "method": {
+            "type": "ref",
+            "ref": "app.gainforest.evaluator.defs#methodInfo",
+            "description": "Method/model provenance for this specific evaluation (overrides service-level method if set)."
+          },
+          "neg": {
+            "type": "boolean",
+            "description": "If true, this is a negation/withdrawal of a previous evaluation (like label negation)."
+          },
+          "supersedes": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI of a previous evaluation record that this one supersedes (e.g., model re-run with improved version)."
+          },
+          "dynamicProperties": {
+            "type": "string",
+            "maxGraphemes": 10000,
+            "description": "Additional structured data as a JSON string. Escape hatch for experimental result types before they are formalized into the union."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Timestamp of when this evaluation was produced."
+          }
+        }
+      }
+    }
+  }
+}

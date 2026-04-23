@@ -5,26 +5,39 @@ import useOverlayTabsStore from "../../_components/Overlay/OverlayTabs/store";
 import { generateNavigationStateFromURL } from "../../_features/navigation/utils";
 import useNavigationStore from "../../_features/navigation/store";
 import useLayersOverlayStore from "../../_components/LayersOverlay/store";
-import dayjs from "dayjs";
 import useSearchOverlayStore from "../../_components/SearchOverlay/store";
 import { updateDedicatedStoresFromViews } from "../../_features/navigation/utils/project";
 import useMapStore from "../../_components/Map/store";
+import usePreviewStore from "../preview/store";
 
 const useStoreUrlSync = (
   queryParams: ReadonlyURLSearchParams,
   params: {
     projectId?: string;
+    embed?: boolean;
   }
 ) => {
-  const { projectId: projectIdParam } = params;
+  const { projectId: projectIdParam, embed = false } = params;
 
   // ⚠️⚠️⚠️ Make sure to update the dependencies, in case of changes to the props.
   useEffect(() => {
+    const nextPreviewState = {
+      embedMode: embed,
+      treeUri: queryParams.get("tree-uri"),
+      datasetRef: queryParams.get("dataset-ref"),
+    };
+    const previousPreviewState = usePreviewStore.getState();
+    const previewChanged =
+      previousPreviewState.embedMode !== nextPreviewState.embedMode ||
+      previousPreviewState.treeUri !== nextPreviewState.treeUri ||
+      previousPreviewState.datasetRef !== nextPreviewState.datasetRef;
+
     const navigationState = generateNavigationStateFromURL(
       projectIdParam ? `/${projectIdParam}` : "",
       queryParams
     );
     useNavigationStore.getState().updateNavigationState(navigationState);
+    usePreviewStore.getState().setPreviewState(nextPreviewState);
 
     // Overlay
     const overlay = useNavigationStore.getState().overlay;
@@ -41,7 +54,7 @@ const useStoreUrlSync = (
     const project = useNavigationStore.getState().project;
     let map = useNavigationStore.getState().map;
     if (project) {
-      const { projectId, setProjectId } = useProjectOverlayStore.getState();
+      const { projectId, setProjectId, refreshTrees } = useProjectOverlayStore.getState();
 
       // Project & Map bounds
       if (project["project-id"] !== projectId) {
@@ -58,6 +71,10 @@ const useStoreUrlSync = (
       }
 
       updateDedicatedStoresFromViews(project["views"]);
+
+      if (previewChanged && project["project-id"] === projectId) {
+        refreshTrees();
+      }
     }
 
     // Layers
@@ -66,35 +83,6 @@ const useStoreUrlSync = (
       useLayersOverlayStore.getState();
     setToggledOnLayerIds(layers["enabled-layers"]);
     setStaticLayerVisibility("landcover", layers["landcover"]);
-    const historicalSatelliteLayer = layers["historical-satellite"];
-    if (historicalSatelliteLayer) {
-      const historicalSatelliteState =
-        useLayersOverlayStore.getState().historicalSatelliteState;
-      const { minDate, maxDate } = historicalSatelliteState;
-      const { date: historicalSatelliteDateString } = historicalSatelliteLayer;
-      let isValidDate = false;
-      try {
-        const date = dayjs(historicalSatelliteDateString, "YYYY-MM");
-        if (
-          date.isValid() &&
-          (date.isAfter(minDate) || date.isSame(minDate)) &&
-          (date.isBefore(maxDate) || date.isSame(maxDate))
-        ) {
-          isValidDate = true;
-        }
-      } catch (error) {
-        console.error(error);
-        isValidDate = false;
-      }
-      if (isValidDate) {
-        setStaticLayerVisibility("historicalSatellite", true);
-        useLayersOverlayStore
-          .getState()
-          .setHistoricalSatelliteDate(
-            dayjs(historicalSatelliteDateString, "YYYY-MM")
-          );
-      }
-    }
 
     // Search
     const search = useNavigationStore.getState().search;
@@ -110,7 +98,8 @@ const useStoreUrlSync = (
     if (map["bounds"] !== null && map["bounds"].length === 4) {
       setMapBounds(map["bounds"]);
     }
-  }, [projectIdParam, queryParams]);
+
+  }, [embed, projectIdParam, queryParams]);
 };
 
 export default useStoreUrlSync;

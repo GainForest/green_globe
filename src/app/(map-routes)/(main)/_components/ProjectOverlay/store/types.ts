@@ -1,9 +1,29 @@
+// ATProto-based site record (replaces GraphQL Asset/SiteAsset)
+export type AtprotoSite = {
+  uri: string;
+  rkey: string;
+  name: string;
+  lat: string;
+  lon: string;
+  area: string;
+  shapefile: unknown; // blob ref or boundary URI
+  trees?: unknown;
+  createdAt?: string;
+};
+
+// ---------------------------------------------------------------------------
+// Legacy GraphQL types — kept for backward compatibility with downstream stores
+// (BiodiversityPredictions, LayersOverlay) until task 17.4 migrates them.
+// ---------------------------------------------------------------------------
+
+/** @deprecated Use AtprotoSite instead */
 export type Shapefile = {
   default: boolean;
   isReference: boolean;
   shortName: string;
 };
 
+/** @deprecated Use AtprotoSite instead */
 export type Asset = {
   id: string;
   name: string;
@@ -12,6 +32,7 @@ export type Asset = {
   shapefile: Shapefile | null;
 };
 
+/** @deprecated Use AtprotoSite instead */
 export type SiteAsset = {
   id: string;
   name: string;
@@ -35,6 +56,13 @@ export type CommunityMember = {
   } | null;
 };
 
+/**
+ * Minimal project shape kept for backward compatibility with downstream stores
+ * (BiodiversityPredictions, LayersOverlay, ExportDialog) until task 17.4.
+ * After 17.3 this is populated from ATProto data:
+ *   - id   → organization DID
+ *   - name → project slug (handle prefix, e.g. "kayapo-project")
+ */
 export type Project = {
   id: string;
   name: string;
@@ -54,6 +82,7 @@ export type Project = {
   Wallet: unknown | null;
 };
 
+/** @deprecated No longer fetched from GraphQL */
 export type ProjectDataApiResponse = {
   data: {
     project?: Project;
@@ -61,6 +90,7 @@ export type ProjectDataApiResponse = {
   extensions: object;
 };
 
+/** @deprecated No longer fetched from AWS S3 awsCID */
 export type ProjectPolygonAPIResponse = {
   type: "FeatureCollection";
   features: Array<{
@@ -76,6 +106,10 @@ export type ProjectPolygonAPIResponse = {
 export type TreeFeatureProperties = {
   lat: number;
   lon: number;
+  occurrenceUri?: string;
+  datasetRef?: string;
+  siteRef?: string;
+  treeSource?: string;
   Height?: string;
   height?: string;
   diameter?: string;
@@ -112,7 +146,7 @@ export type TreeFeature = {
 };
 
 export type NormalizedTreeFeature = TreeFeature & {
-  id: number;
+  id: string | number;
   properties: TreeFeatureProperties & {
     type: "measured-tree";
   };

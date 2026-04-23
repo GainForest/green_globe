@@ -1,9 +1,9 @@
 "use client";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import useOverlayStore from "../../_components/Overlay/store";
 import { useSearchParams } from "next/navigation";
 
-const ViewPage = () => {
+const GeoView = () => {
   const searchParams = useSearchParams();
   const sourceValue = searchParams.get("source-value") ?? "";
   const overlayVisibility = searchParams.get("overlay-visibility");
@@ -23,4 +23,12 @@ const ViewPage = () => {
   return null;
 };
 
-export default ViewPage;
+const GeoViewPage = () => {
+  return (
+    <Suspense>
+      <GeoView />
+    </Suspense>
+  );
+};
+
+export default GeoViewPage;

@@ -8,19 +8,32 @@ import addRasterSourceAndLayer from "./raster";
 import addChoroplethSourceAndLayers from "./chloropleth";
 import addShannonChoroplethSourceAndLayers from "./shannon-chloropleth";
 
-const addNamedSource = (map: Map, layer: DynamicLayer) => {
+const safeMoveLayer = (map: Map, layerId: string, beforeId?: string) => {
+  if (!map.getLayer(layerId)) {
+    return;
+  }
+
+  if (beforeId && map.getLayer(beforeId)) {
+    map.moveLayer(layerId, beforeId);
+    return;
+  }
+
+  map.moveLayer(layerId);
+};
+
+const addNamedSource = async (map: Map, layer: DynamicLayer) => {
   if (!map.getSource(layer.name)) {
     if (layer.type == "geojson_points") {
-      addGeojsonPointSourceAndLayer(map, layer);
+      await addGeojsonPointSourceAndLayer(map, layer);
     }
     if (layer.type == "geojson_line") {
-      addGeojsonLineSourceAndLayer(map, layer);
+      await addGeojsonLineSourceAndLayer(map, layer);
     }
     if (layer.type == "tms_tile") {
       addTMSTileSourceAndLayer(map, layer);
     }
     if (layer.type == "raster_tif") {
-      addRasterSourceAndLayer(map, layer);
+      await addRasterSourceAndLayer(map, layer);
     }
     if (layer.type == "choropleth") {
       addChoroplethSourceAndLayers(map, layer);
@@ -33,13 +46,16 @@ const addNamedSource = (map: Map, layer: DynamicLayer) => {
     }
   }
 
-  map.moveLayer(layer.name, "highlightedSiteOutline");
-  map.moveLayer("highlightedSiteOutline", "projectMarkerLayer");
+  safeMoveLayer(map, layer.name, "highlightedSiteOutline");
+  safeMoveLayer(map, "highlightedSiteOutline", "projectMarkerLayer");
 };
 
 export const removeNamedSource = (map: Map, layer: DynamicLayer) => {
-  if (map.getSource(layer.name)) {
+  if (map.getLayer(layer.name)) {
     map.removeLayer(layer.name);
+  }
+
+  if (map.getSource(layer.name)) {
     map.removeSource(layer.name);
   }
 };

@@ -14,9 +14,6 @@ export type ProjectNavigationState = {
 };
 
 export type LayersNavigationState = {
-  "historical-satellite": {
-    date: string;
-  } | null;
   landcover: boolean;
   "enabled-layers": string[];
 };
@@ -50,7 +47,6 @@ export const DEFAULT_NAVIGATION_STATE: NavigationState = {
   },
   project: null,
   layers: {
-    "historical-satellite": null,
     landcover: false,
     "enabled-layers": [],
   },
