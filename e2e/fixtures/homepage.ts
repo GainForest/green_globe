@@ -300,6 +300,99 @@ export const MULTIMEDIA_BY_DID_RESPONSE = {
   },
 };
 
+/**
+ * XRPC `com.atproto.repo.listRecords` response for the
+ * `app.gainforest.dwc.occurrence` collection.
+ *
+ * The predictions store fetches occurrences directly from the PDS (not
+ * Hyperindex) so it can read the full record value — including
+ * `conservationStatus` and `plantTraits`, which Hyperindex's schema does not
+ * expose. Kingdom filtering happens client-side, so this response returns
+ * both Plantae and Animalia records in one payload.
+ *
+ * Only `MachineObservation` records live here; measured trees (HumanObservation)
+ * flow through Hyperindex via OBSERVATION_OCCURRENCES_RESPONSE.
+ */
+export const OCCURRENCE_RECORDS_RESPONSE = {
+  records: [
+    {
+      uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/tree-1`,
+      cid: "bafkreioccurrencetree1",
+      value: {
+        $type: "app.gainforest.dwc.occurrence",
+        scientificName: "Acacia tortilis",
+        vernacularName: "Umbrella Thorn",
+        kingdom: "Plantae",
+        basisOfRecord: "MachineObservation",
+        occurrenceID: "plant-tree-1",
+        dynamicProperties: '{"group":"COMMON","dataType":"trees"}',
+        conservationStatus: { iucnCategory: "LC", iucnTaxonId: 12345 },
+        plantTraits: { maxHeight: 18, woodDensity: 0.72 },
+      },
+    },
+    {
+      uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/tree-2`,
+      cid: "bafkreioccurrencetree2",
+      value: {
+        $type: "app.gainforest.dwc.occurrence",
+        scientificName: "Faidherbia albida",
+        vernacularName: "Apple-Ring Acacia",
+        kingdom: "Plantae",
+        basisOfRecord: "MachineObservation",
+        occurrenceID: "plant-tree-2",
+        dynamicProperties: '{"group":"COMMON","dataType":"trees"}',
+        conservationStatus: { iucnCategory: "LC", iucnTaxonId: 54321 },
+        plantTraits: { maxHeight: 22, woodDensity: 0.63 },
+      },
+    },
+    {
+      uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/herb-1`,
+      cid: "bafkreioccurrenceherb1",
+      value: {
+        $type: "app.gainforest.dwc.occurrence",
+        scientificName: "Ocimum gratissimum",
+        vernacularName: "African Basil",
+        kingdom: "Plantae",
+        basisOfRecord: "MachineObservation",
+        occurrenceID: "plant-herb-1",
+        dynamicProperties: '{"group":"COMMON","dataType":"herbs"}',
+        conservationStatus: { iucnCategory: "NE" },
+        plantTraits: {
+          maxHeight: 1.5,
+          rootDepth: 0.4,
+          edibleParts: ["leaves"],
+        },
+      },
+    },
+    {
+      uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/bird-1`,
+      cid: "bafkreioccurrencebird1",
+      value: {
+        $type: "app.gainforest.dwc.occurrence",
+        scientificName: "Tockus erythrorhynchus",
+        vernacularName: "Red-billed Hornbill",
+        kingdom: "Animalia",
+        basisOfRecord: "MachineObservation",
+        occurrenceID: "animal-1",
+        dynamicProperties: '{"animalType":"Bird"}',
+      },
+    },
+    {
+      uri: `at://${FIXTURE_PROJECT_ID}/app.gainforest.dwc.occurrence/mammal-1`,
+      cid: "bafkreioccurrencemammal1",
+      value: {
+        $type: "app.gainforest.dwc.occurrence",
+        scientificName: "Madoqua kirkii",
+        vernacularName: "Kirk's Dik-dik",
+        kingdom: "Animalia",
+        basisOfRecord: "MachineObservation",
+        occurrenceID: "animal-2",
+        dynamicProperties: '{"animalType":"Mammal"}',
+      },
+    },
+  ],
+};
+
 export const PREDICTION_OCCURRENCES_RESPONSE = {
   Plantae: {
     data: {

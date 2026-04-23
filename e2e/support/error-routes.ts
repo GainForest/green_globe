@@ -82,17 +82,38 @@ export const installErrorRoute_CommunityMembersFails = async (
 };
 
 /**
- * Makes the `OccurrencesByDidAndKingdom` GraphQL query return a 500 error so
- * that `Biodiversity/Predictions` enters the error state and renders
- * `<ErrorMessage>`. We also fail the legacy S3 fallbacks so the panel cannot
- * silently degrade into the generic no-data state.
+ * Makes biodiversity predictions enter the error state and render
+ * `<ErrorMessage>`.
  *
- * The predictions panel fires two separate queries (Plantae + Animalia), so
- * this handler stays active for the whole scenario and intercepts either/both.
+ * The predictions store now fetches occurrences directly from the PDS via
+ * `com.atproto.repo.listRecords` on `app.gainforest.dwc.occurrence` (the
+ * previous Hyperindex `OccurrencesByDidAndKingdom` path was replaced so
+ * `conservationStatus` and `plantTraits` are available). To surface the error
+ * state we fail three upstream calls:
+ *
+ *   1. The PDS `listRecords` XRPC for `app.gainforest.dwc.occurrence` — the
+ *      primary data source.
+ *   2. The legacy `OccurrencesByDidAndKingdom` GraphQL query — still guarded in
+ *      case anything falls back to it.
+ *   3. The S3 fallbacks under `/restor/` and `/predictions/` — the store falls
+ *      back to these when the PDS call returns null, so they must also fail to
+ *      prevent a silent degrade into the no-data state.
  */
 export const installErrorRoute_PredictionsFails = async (
   page: Page,
 ): Promise<void> => {
+  await page.route(
+    "**/xrpc/com.atproto.repo.listRecords**",
+    async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("collection") === "app.gainforest.dwc.occurrence") {
+        await fulfillJsonError(route, "InternalServerError", 500);
+        return;
+      }
+      await route.fallback();
+    },
+  );
+
   await page.route("**/graphql", async (route) => {
     const { query = "" } = getGraphQLPayload(route);
     if (query.includes("OccurrencesByDidAndKingdom")) {

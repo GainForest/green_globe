@@ -10,6 +10,7 @@ import {
   MEASUREMENT_RECORDS_RESPONSE,
   MULTIMEDIA_BY_DID_RESPONSE,
   OBSERVATION_OCCURRENCES_RESPONSE,
+  OCCURRENCE_RECORDS_RESPONSE,
   ORGANIZATION_INFO_RESPONSE,
   ORGANIZATION_MEMBER_RECORDS_RESPONSE,
   ORGANIZATIONS_RESPONSE,
@@ -162,6 +163,10 @@ const handleXrpc = async (route: Route) => {
 
     if (collection === "app.gainforest.dwc.measurement") {
       return fulfillJson(route, MEASUREMENT_RECORDS_RESPONSE);
+    }
+
+    if (collection === "app.gainforest.dwc.occurrence") {
+      return fulfillJson(route, OCCURRENCE_RECORDS_RESPONSE);
     }
   }
 
