@@ -25,7 +25,7 @@ const ImageInfoContent = ({ tree }: { tree: BiodiversityPlant }) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col items-start gap-1">
-        <h1 className="font-bold text-2xl text-balance w-[calc(100%-40px)]">
+        <h1 className="font-bold text-2xl text-balance w-[calc(100%-40px)] italic">
           {tree.scientificName}
         </h1>
         {isInvasive && (
