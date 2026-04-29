@@ -10,6 +10,39 @@ import { updateDedicatedStoresFromViews } from "../../_features/navigation/utils
 import useMapStore from "../../_components/Map/store";
 import usePreviewStore from "../preview/store";
 
+const GREEN_GLOBE_PREVIEW_FOCUS_MESSAGE_TYPE =
+  "gainforest.greenGlobePreview.focusTree";
+
+type GreenGlobePreviewFocusMessage = {
+  type: typeof GREEN_GLOBE_PREVIEW_FOCUS_MESSAGE_TYPE;
+  datasetRef?: unknown;
+  treeUri?: unknown;
+};
+
+const isPreviewFocusMessage = (
+  value: unknown,
+): value is GreenGlobePreviewFocusMessage => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    value.type === GREEN_GLOBE_PREVIEW_FOCUS_MESSAGE_TYPE
+  );
+};
+
+const normalizeNullableString = (value: unknown): string | null | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const useStoreUrlSync = (
   queryParams: ReadonlyURLSearchParams,
   params: {
@@ -100,6 +133,53 @@ const useStoreUrlSync = (
     }
 
   }, [embed, projectIdParam, queryParams]);
+
+  useEffect(() => {
+    if (!embed) {
+      return;
+    }
+
+    const handlePreviewFocusMessage = (event: MessageEvent) => {
+      if (!isPreviewFocusMessage(event.data)) {
+        return;
+      }
+
+      const previousPreviewState = usePreviewStore.getState();
+      const nextDatasetRef = normalizeNullableString(event.data.datasetRef);
+      const nextTreeUri = normalizeNullableString(event.data.treeUri);
+      const nextPreviewState = {
+        embedMode: true,
+        datasetRef:
+          nextDatasetRef === undefined
+            ? previousPreviewState.datasetRef
+            : nextDatasetRef,
+        treeUri:
+          nextTreeUri === undefined ? previousPreviewState.treeUri : nextTreeUri,
+      };
+
+      const datasetChanged =
+        previousPreviewState.datasetRef !== nextPreviewState.datasetRef;
+      const previewChanged =
+        previousPreviewState.embedMode !== nextPreviewState.embedMode ||
+        previousPreviewState.treeUri !== nextPreviewState.treeUri ||
+        datasetChanged;
+
+      if (!previewChanged) {
+        return;
+      }
+
+      usePreviewStore.getState().setPreviewState(nextPreviewState);
+
+      if (datasetChanged) {
+        useProjectOverlayStore.getState().refreshTrees();
+      }
+    };
+
+    window.addEventListener("message", handlePreviewFocusMessage);
+    return () => {
+      window.removeEventListener("message", handlePreviewFocusMessage);
+    };
+  }, [embed]);
 };
 
 export default useStoreUrlSync;
