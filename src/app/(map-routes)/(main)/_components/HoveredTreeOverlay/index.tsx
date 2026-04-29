@@ -14,6 +14,8 @@ import useHoveredTreeOverlayStore from "./store";
 import useOverlayStore from "../Overlay/store";
 import { cn } from "@/lib/utils";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
+import usePreviewStore from "../../_features/preview/store";
+
 const HoveredTreeOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
@@ -27,6 +29,7 @@ const HoveredTreeOverlay = () => {
   const setIsExpanded = useHoveredTreeOverlayStore(
     (state) => state.setIsExpanded
   );
+  const isEmbedMode = usePreviewStore((state) => state.embedMode);
 
   if (!hoveredTree) return null;
 
@@ -40,19 +43,39 @@ const HoveredTreeOverlay = () => {
           exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           onAnimationComplete={onAnimationComplete}
           className={cn(
-            "fixed right-2 w-[25%] max-w-[280px] min-w-[180px]",
-            overlaySize === "desktop" ? "top-2" : "top-16"
+            isEmbedMode
+              ? "fixed right-2 max-h-[calc(100dvh-1rem)] w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)]"
+              : "fixed right-2 w-[25%] max-w-[280px] min-w-[180px]",
+            isEmbedMode || overlaySize === "desktop" ? "top-2" : "top-16"
           )}
         >
-          <UIBase innerClassName="p-0 overflow-hidden relative">
+          <UIBase
+            className={cn(
+              isEmbedMode && "max-h-[calc(100dvh-1rem)] overflow-hidden"
+            )}
+            innerClassName={cn(
+              "p-0 relative",
+              isEmbedMode
+                ? "max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain"
+                : "overflow-hidden"
+            )}
+          >
             <Image
               src={hoveredTree.treePhotos[0]}
               width={400}
               height={400}
               alt="Hovered Tree"
-              className="w-full h-auto object-cover object-center [mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)]"
+              className={cn(
+                "w-full object-cover object-center [mask-image:linear-gradient(to_bottom,black_40%,transparent_100%)]",
+                isEmbedMode ? "h-32" : "h-auto"
+              )}
             />
-            <div className="px-4 pb-2 flex flex-col gap-2 -mt-12">
+            <div
+              className={cn(
+                "px-4 pb-2 flex flex-col gap-2",
+                isEmbedMode ? "-mt-8" : "-mt-12"
+              )}
+            >
               <div className="flex flex-col gap-1 items-start">
                 <span className="bg-muted/70 backdrop-blur-lg text-muted-foreground text-sm px-3 py-1 rounded-full flex items-center gap-2">
                   <Leaf size={16} />
@@ -122,7 +145,7 @@ const HoveredTreeOverlay = () => {
           onAnimationComplete={onAnimationComplete}
           className={cn(
             "fixed right-2 flex flex-col items-end gap-2",
-            overlaySize === "desktop" ? "top-2" : "top-16"
+            isEmbedMode || overlaySize === "desktop" ? "top-2" : "top-16"
           )}
         >
           <UIBase innerClassName="w-28 p-0 overflow-hidden">
