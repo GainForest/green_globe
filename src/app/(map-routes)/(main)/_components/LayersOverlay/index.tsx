@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import useLayersOverlayStore from "./store";
 import useProjectOverlayStore from "../ProjectOverlay/store";
-import { toKebabCase } from "@/lib/utils";
+import { toKebabCase, resolveLayerUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import QuickTooltip from "@/components/ui/quick-tooltip";
 import useMapStore from "../Map/store";
@@ -73,7 +73,7 @@ const LayersOverlay = () => {
     (layerEndpoint: string) => {
       setMapView("project");
       fetch(
-        `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${process.env.NEXT_PUBLIC_AWS_STORAGE}/${layerEndpoint}`
+        `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${resolveLayerUrl(layerEndpoint)}`
       )
         .then((response) => {
           return response.json();

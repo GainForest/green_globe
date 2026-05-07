@@ -1,4 +1,5 @@
 import { Map } from "mapbox-gl";
+import { resolveLayerUrl } from "@/lib/utils";
 
 const addRasterSourceAndLayer = async (
   map: Map,
@@ -9,7 +10,7 @@ const addRasterSourceAndLayer = async (
       map.addSource(layer.name, {
         type: "raster",
         tiles: [
-          `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=${process.env.NEXT_PUBLIC_AWS_STORAGE}/${layer.endpoint}`,
+          `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=${resolveLayerUrl(layer.endpoint)}`,
         ],
       });
     }
