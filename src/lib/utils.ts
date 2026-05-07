@@ -60,3 +60,49 @@ export const resolveLayerUrl = (endpoint: string): string => {
   }
   return `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${endpoint}`;
 };
+
+// Recursively collect all [lng, lat] pairs from any GeoJSON geometry coordinate array.
+function collectCoords(value: unknown, out: [number, number][]): void {
+  if (!Array.isArray(value)) return;
+  if (typeof value[0] === "number" && typeof value[1] === "number") {
+    out.push([value[0] as number, value[1] as number]);
+  } else {
+    for (const child of value) collectCoords(child, out);
+  }
+}
+
+export const geojsonBbox = (
+  geojson: Record<string, unknown>
+): [number, number, number, number] | null => {
+  const coords: [number, number][] = [];
+
+  const processGeometry = (geom: Record<string, unknown>) => {
+    if (!geom) return;
+    if (geom.type === "GeometryCollection") {
+      for (const g of (geom.geometries as Record<string, unknown>[]) ?? [])
+        processGeometry(g);
+    } else {
+      collectCoords(geom.coordinates, coords);
+    }
+  };
+
+  if (geojson.type === "FeatureCollection") {
+    for (const f of (geojson.features as { geometry: Record<string, unknown> }[]) ?? [])
+      if (f.geometry) processGeometry(f.geometry);
+  } else if (geojson.type === "Feature") {
+    const g = geojson.geometry as Record<string, unknown>;
+    if (g) processGeometry(g);
+  } else {
+    processGeometry(geojson);
+  }
+
+  if (!coords.length) return null;
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  for (const [lng, lat] of coords) {
+    if (lng < minLng) minLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lng > maxLng) maxLng = lng;
+    if (lat > maxLat) maxLat = lat;
+  }
+  return [minLng, minLat, maxLng, maxLat];
+};
