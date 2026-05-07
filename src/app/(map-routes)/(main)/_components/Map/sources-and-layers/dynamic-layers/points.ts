@@ -1,13 +1,12 @@
 import { DynamicLayer } from "@/app/(map-routes)/(main)/_components/LayersOverlay/store/types";
 import { EMPTY_GEOJSON } from "@/constants";
 import { Map } from "mapbox-gl";
+import { resolveLayerUrl } from "@/lib/utils";
 
 const addGeojsonPointSourceAndLayer = async (map: Map, layer: DynamicLayer) => {
   let pointsGeojson = EMPTY_GEOJSON;
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${layer.endpoint}`
-    );
+    const res = await fetch(resolveLayerUrl(layer.endpoint));
     pointsGeojson = await res.json();
   } catch (error) {
     console.error("Error fetching points geojson", error);

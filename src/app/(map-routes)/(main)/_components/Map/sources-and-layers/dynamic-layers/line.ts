@@ -1,5 +1,6 @@
 import { EMPTY_GEOJSON } from "@/constants";
 import { Map } from "mapbox-gl";
+import { resolveLayerUrl } from "@/lib/utils";
 
 const geojsonLineSource = (treeCrownGeojson = EMPTY_GEOJSON) => ({
   type: "geojson" as const,
@@ -26,9 +27,7 @@ const addGeojsonLineSourceAndLayer = async (
   layer: { name: string; endpoint: string; type: string }
 ) => {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${layer.endpoint}`
-    );
+    const res = await fetch(resolveLayerUrl(layer.endpoint));
     const treeCrownGeojson = await res.json();
 
     if (!map.getSource(layer.name)) {

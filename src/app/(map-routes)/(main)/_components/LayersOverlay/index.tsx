@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
 import useLayersOverlayStore from "./store";
 import useProjectOverlayStore from "../ProjectOverlay/store";
-import { toKebabCase } from "@/lib/utils";
+import { toKebabCase, resolveLayerUrl, geojsonBbox } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import QuickTooltip from "@/components/ui/quick-tooltip";
 import useMapStore from "../Map/store";
@@ -70,20 +70,26 @@ const LayersOverlay = () => {
   }, [projectData?.id]);
 
   const handleZoomToProjectSpecificLayer = useCallback(
-    (layerEndpoint: string) => {
+    (layer: { endpoint: string; type: string }) => {
       setMapView("project");
-      fetch(
-        `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${process.env.NEXT_PUBLIC_AWS_STORAGE}/${layerEndpoint}`
-      )
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          if (!data) return;
-          if (!("bounds" in data)) return;
-          if (!Array.isArray(data.bounds)) return;
-          setMapBounds(data.bounds as [number, number, number, number]);
-        });
+      if (layer.type === "raster_tif") {
+        fetch(
+          `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${resolveLayerUrl(layer.endpoint)}`
+        )
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data || !("bounds" in data) || !Array.isArray(data.bounds))
+              return;
+            setMapBounds(data.bounds as [number, number, number, number]);
+          });
+      } else {
+        fetch(resolveLayerUrl(layer.endpoint))
+          .then((r) => r.json())
+          .then((data) => {
+            const bbox = geojsonBbox(data as Record<string, unknown>);
+            if (bbox) setMapBounds(bbox);
+          });
+      }
     },
     [setMapView, setMapBounds]
   );
@@ -164,7 +170,7 @@ const LayersOverlay = () => {
                           variant="outline"
                           size="icon"
                           onClick={() =>
-                            handleZoomToProjectSpecificLayer(layer.endpoint)
+                            handleZoomToProjectSpecificLayer(layer)
                           }
                         >
                           <LocateFixed size={16} />
@@ -178,7 +184,7 @@ const LayersOverlay = () => {
                         onCheckedChange={(value) => {
                         toggleLayer(layer.name, value);
                         if (value) {
-                          handleZoomToProjectSpecificLayer(layer.endpoint);
+                          handleZoomToProjectSpecificLayer(layer);
                         }
                       }}
                     />
