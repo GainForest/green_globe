@@ -1,4 +1,3 @@
-import { isExcludedGlobeProjectDid } from "@/constants";
 import { GeoJSONSource, Map, Popup, MapMouseEvent } from "mapbox-gl";
 import { OrganizationPoints } from "../_types/map";
 
@@ -35,12 +34,7 @@ export const fetchProjectSites = async (): Promise<OrganizationPoints> => {
       `${process.env.NEXT_PUBLIC_AWS_STORAGE}/shapefiles/gainforest-all-shapefiles.geojson`
     );
     const projects: OrganizationPoints = await response.json();
-    return {
-      ...projects,
-      features: projects.features.filter(
-        (project) => !isExcludedGlobeProjectDid(project.properties.did)
-      ),
-    };
+    return projects;
   } catch (error) {
     console.error("Error fetching projects", error);
     return { type: "FeatureCollection", features: [] };

@@ -1,4 +1,3 @@
-import { isExcludedGlobeProjectDid } from "@/constants";
 import { listAllOrganizations } from "@/lib/atproto/list-all-organizations";
 import { tryCatch } from "@/lib/tryCatch";
 import { NextRequest, NextResponse } from "next/server";
@@ -56,19 +55,17 @@ export async function GET(request: NextRequest) {
 
   // Map the IndexedOrganization shape from the utility to the existing
   // response shape expected by the frontend (IndexedOrganization with info/mapPoint).
-  const response: IndexedOrganization[] = organizations
-    .filter((org) => !isExcludedGlobeProjectDid(org.did))
-    .map((org) => ({
-      did: org.did,
-      info:
-        org.name !== undefined && org.country !== undefined
-          ? { name: org.name, country: org.country }
-          : null,
-      mapPoint:
-        org.lat !== undefined && org.lon !== undefined
-          ? { lat: org.lat, lon: org.lon }
-          : null,
-    }));
+  const response: IndexedOrganization[] = organizations.map((org) => ({
+    did: org.did,
+    info:
+      org.name !== undefined && org.country !== undefined
+        ? { name: org.name, country: org.country }
+        : null,
+    mapPoint:
+      org.lat !== undefined && org.lon !== undefined
+        ? { lat: org.lat, lon: org.lon }
+        : null,
+  }));
 
   return NextResponse.json(response, { status: 200 });
 }
