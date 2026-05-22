@@ -510,9 +510,9 @@ const buildTreeFeature = (
 export const fetchMeasuredTreeOccurrences = async (
   did: string,
 ): Promise<MeasuredTreesGeoJSON | null> => {
-  const { datasetRef, treeUri } = usePreviewStore.getState();
+  const { datasetRefs, previewMode, treeUri } = usePreviewStore.getState();
   const shouldFetchPdsPreviewOccurrences =
-    datasetRef !== null || treeUri !== null;
+    (previewMode === "only" && datasetRefs.length > 0) || treeUri !== null;
 
   // Resolve the org DID to its home PDS. Records for Bumicerts-certified orgs
   // live on PDSes other than the default (e.g. gainforest.id), so using the
@@ -664,8 +664,12 @@ export type UseOrganizationMeasuredTreesResult = {
 const useOrganizationMeasuredTrees = (
   did: string | null | undefined,
 ): UseOrganizationMeasuredTreesResult => {
+  const datasetRefs = usePreviewStore((state) => state.datasetRefs);
+  const previewMode = usePreviewStore((state) => state.previewMode);
+  const treeUri = usePreviewStore((state) => state.treeUri);
+
   const query = useQuery({
-    queryKey: ["organization-measured-trees", did],
+    queryKey: ["organization-measured-trees", did, datasetRefs, previewMode, treeUri],
     queryFn: async () => {
       if (!did) return null;
       return fetchMeasuredTreeOccurrences(did);

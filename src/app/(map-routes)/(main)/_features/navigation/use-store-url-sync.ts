@@ -1,4 +1,4 @@
-import { ReadonlyURLSearchParams } from "next/navigation";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import useProjectOverlayStore from "../../_components/ProjectOverlay/store";
 import useOverlayTabsStore from "../../_components/Overlay/OverlayTabs/store";
@@ -8,6 +8,11 @@ import useLayersOverlayStore from "../../_components/LayersOverlay/store";
 import useSearchOverlayStore from "../../_components/SearchOverlay/store";
 import { updateDedicatedStoresFromViews } from "../../_features/navigation/utils/project";
 import useMapStore from "../../_components/Map/store";
+import {
+  normalizePreviewDatasetRefs,
+  previewDatasetRefsEqual,
+  resolvePreviewMode,
+} from "../preview/params";
 import usePreviewStore from "../preview/store";
 
 const useStoreUrlSync = (
@@ -21,16 +26,29 @@ const useStoreUrlSync = (
 
   // ⚠️⚠️⚠️ Make sure to update the dependencies, in case of changes to the props.
   useEffect(() => {
+    const datasetRefs = normalizePreviewDatasetRefs(queryParams.getAll("dataset-ref"));
     const nextPreviewState = {
       embedMode: embed,
       treeUri: queryParams.get("tree-uri"),
-      datasetRef: queryParams.get("dataset-ref"),
+      datasetRefs,
+      focusedDatasetRef: datasetRefs.length === 1 ? datasetRefs[0] : null,
+      focusedSiteRef: null,
+      previewMode: resolvePreviewMode({
+        explicitMode: queryParams.get("preview-mode"),
+        datasetRefs,
+      }),
     };
     const previousPreviewState = usePreviewStore.getState();
     const previewChanged =
       previousPreviewState.embedMode !== nextPreviewState.embedMode ||
       previousPreviewState.treeUri !== nextPreviewState.treeUri ||
-      previousPreviewState.datasetRef !== nextPreviewState.datasetRef;
+      previousPreviewState.focusedDatasetRef !== nextPreviewState.focusedDatasetRef ||
+      previousPreviewState.focusedSiteRef !== nextPreviewState.focusedSiteRef ||
+      previousPreviewState.previewMode !== nextPreviewState.previewMode ||
+      !previewDatasetRefsEqual(
+        previousPreviewState.datasetRefs,
+        nextPreviewState.datasetRefs,
+      );
 
     const navigationState = generateNavigationStateFromURL(
       projectIdParam ? `/${projectIdParam}` : "",
