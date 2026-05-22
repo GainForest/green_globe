@@ -74,7 +74,7 @@ const LayersOverlay = () => {
       setMapView("project");
       if (layer.type === "raster_tif") {
         fetch(
-          `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${resolveLayerUrl(layer.endpoint)}`
+          `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${encodeURIComponent(resolveLayerUrl(layer.endpoint))}`
         )
           .then((r) => r.json())
           .then((data) => {

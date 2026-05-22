@@ -1,11 +1,12 @@
 import { Map } from "mapbox-gl";
 import { DynamicLayer } from "@/app/(map-routes)/(main)/_components/LayersOverlay/store/types";
+import { resolveLayerUrl } from "@/lib/utils";
 
 const addShannonChoroplethSourceAndLayers = (map: Map, layer: DynamicLayer) => {
   if (!map.getSource(layer.name)) {
     map.addSource(layer.name, {
       type: "geojson",
-      data: `${process.env.NEXT_PUBLIC_AWS_STORAGE}/${layer.endpoint}`,
+      data: resolveLayerUrl(layer.endpoint),
     });
   }
 
