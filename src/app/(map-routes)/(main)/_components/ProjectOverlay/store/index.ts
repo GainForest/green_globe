@@ -152,22 +152,65 @@ const buildCompatProject = (did: string, slug: string): Project => ({
   Wallet: null,
 });
 
-const applyPreviewFilters = (
+const emptyMeasuredTreesGeoJSON = (): MeasuredTreesGeoJSON => ({
+  type: "FeatureCollection",
+  features: [],
+});
+
+const shouldClearPreviewTrees = (): boolean => {
+  const { previewMode, treeUri } = usePreviewStore.getState();
+  return previewMode === "none" && !treeUri;
+};
+
+const getPreviewRequestSignature = (): string => {
+  const {
+    datasetRefs,
+    focusedDatasetRef,
+    focusedSiteRef,
+    previewMode,
+    treeUri,
+  } = usePreviewStore.getState();
+  return JSON.stringify({
+    datasetRefs,
+    focusedDatasetRef,
+    focusedSiteRef,
+    previewMode,
+    treeUri,
+  });
+};
+
+const isPreviewRequestCurrent = (signature: string): boolean =>
+  signature === getPreviewRequestSignature();
+
+export const applyPreviewFilters = (
   data: MeasuredTreesGeoJSON | null,
 ): MeasuredTreesGeoJSON | null => {
   if (!data) {
-    return null;
+    return shouldClearPreviewTrees() ? emptyMeasuredTreesGeoJSON() : null;
   }
 
-  const { datasetRef, treeUri } = usePreviewStore.getState();
+  const { datasetRefs, previewMode, treeUri } = usePreviewStore.getState();
 
-  if (!datasetRef && !treeUri) {
+  if (previewMode === "all" && !treeUri) {
     return data;
   }
 
-  const datasetFiltered = datasetRef
-    ? data.features.filter((feature) => feature.properties.datasetRef === datasetRef)
-    : data.features;
+  if (previewMode === "none" && !treeUri) {
+    return {
+      ...data,
+      features: [],
+    };
+  }
+
+  const datasetRefSet = new Set(datasetRefs);
+  const datasetFiltered = previewMode === "only"
+    ? data.features.filter((feature) => {
+        const datasetRef = feature.properties.datasetRef;
+        return typeof datasetRef === "string" && datasetRefSet.has(datasetRef);
+      })
+    : previewMode === "all"
+      ? data.features
+      : [];
 
   const treeFiltered = treeUri
     ? data.features.filter((feature) => feature.properties.occurrenceUri === treeUri)
@@ -181,19 +224,36 @@ const applyPreviewFilters = (
     featureMap.set(feature.id, feature);
   }
 
-  const features = [...featureMap.values()];
-
-  if (datasetRef && features.length === 0) {
-    return {
-      ...data,
-      features: treeFiltered,
-    };
-  }
-
   return {
     ...data,
-    features,
+    features: [...featureMap.values()].map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        selected: treeUri !== null && feature.properties.occurrenceUri === treeUri,
+      },
+    })),
   };
+};
+
+export const getPreviewBoundsData = (
+  data: MeasuredTreesGeoJSON,
+): MeasuredTreesGeoJSON => {
+  const { focusedDatasetRef, previewMode, treeUri } = usePreviewStore.getState();
+  if (treeUri || previewMode !== "only" || !focusedDatasetRef) {
+    return data;
+  }
+
+  const focusedFeatures = data.features.filter(
+    (feature) => feature.properties.datasetRef === focusedDatasetRef,
+  );
+
+  return focusedFeatures.length > 0
+    ? {
+        ...data,
+        features: focusedFeatures,
+      }
+    : data;
 };
 
 const setMapBoundsFromTrees = (data: MeasuredTreesGeoJSON | null) => {
@@ -209,7 +269,7 @@ const setMapBoundsFromTrees = (data: MeasuredTreesGeoJSON | null) => {
 
     if (selectedFeature) {
       const [lon, lat] = selectedFeature.geometry.coordinates;
-      const offset = 0.0025;
+      const offset = 0.0005;
       useMapStore.getState().setMapBounds([
         lon - offset,
         lat - offset,
@@ -230,8 +290,13 @@ const setMapBoundsFromTrees = (data: MeasuredTreesGeoJSON | null) => {
 };
 
 const shouldUsePreviewBounds = (): boolean => {
-  const { embedMode, datasetRef, treeUri } = usePreviewStore.getState();
-  return embedMode || datasetRef !== null || treeUri !== null;
+  const { embedMode, datasetRefs, previewMode, treeUri } = usePreviewStore.getState();
+  return (
+    embedMode ||
+    previewMode !== "all" ||
+    datasetRefs.length > 0 ||
+    treeUri !== null
+  );
 };
 
 // ---------------------------------------------------------------------------
@@ -359,9 +424,20 @@ const useProjectOverlayStore = create<
       projectId ===
       "49bbaba0d8980989ce9b3988a45c375a42206239d6bc930c2357035e670838e0";
 
+    const previewRequestSignature = getPreviewRequestSignature();
+
     try {
+      if (shouldClearPreviewTrees()) {
+        useMapStore.getState().setHighlightedPolygon(null);
+        set({ treesAsync: { _status: "success", data: emptyMeasuredTreesGeoJSON() } });
+        return;
+      }
+
       const occurrenceData = await fetchMeasuredTreeOccurrences(projectId);
-      if (!isProjectStillActive(projectId)) {
+      if (
+        !isProjectStillActive(projectId) ||
+        !isPreviewRequestCurrent(previewRequestSignature)
+      ) {
         return;
       }
 
@@ -373,13 +449,16 @@ const useProjectOverlayStore = create<
           filteredOccurrenceData &&
           (shouldUsePreviewBounds() || !shouldFitToSite)
         ) {
-          setMapBoundsFromTrees(filteredOccurrenceData);
+          setMapBoundsFromTrees(getPreviewBoundsData(filteredOccurrenceData));
         }
         return;
       }
 
       const rawData = await fetchMeasuredTreesShapefile(slug, treesRef, projectId);
-      if (!isProjectStillActive(projectId)) {
+      if (
+        !isProjectStillActive(projectId) ||
+        !isPreviewRequestCurrent(previewRequestSignature)
+      ) {
         return;
       }
 
@@ -405,11 +484,14 @@ const useProjectOverlayStore = create<
         filteredData &&
         (shouldUsePreviewBounds() || !shouldFitToSite)
       ) {
-        setMapBoundsFromTrees(filteredData);
+        setMapBoundsFromTrees(getPreviewBoundsData(filteredData));
       }
     } catch (error) {
       console.error("Error fetching measured trees", error);
-      if (!isProjectStillActive(projectId)) {
+      if (
+        !isProjectStillActive(projectId) ||
+        !isPreviewRequestCurrent(previewRequestSignature)
+      ) {
         return;
       }
       set({ treesAsync: { _status: "error", data: null } });
@@ -503,12 +585,17 @@ const useProjectOverlayStore = create<
           allSitesOptions.some((s) => s.value === currentSiteId);
 
         if (!siteStillValid) {
-          // Prefer the defaultSite record, then fall back to first option
+          const { focusedSiteRef, previewMode } = usePreviewStore.getState();
+          const focusedPreviewOption =
+            previewMode !== "none" && focusedSiteRef
+              ? allSitesOptions.find((s) => s.value === focusedSiteRef)
+              : undefined;
+          // Prefer the focused preview site, then the defaultSite record, then the first option.
           const defaultOption = defaultSiteUri
             ? allSitesOptions.find((s) => s.value === defaultSiteUri)
             : undefined;
           const siteIdToActivate =
-            defaultOption?.value ?? allSitesOptions[0].value;
+            focusedPreviewOption?.value ?? defaultOption?.value ?? allSitesOptions[0].value;
           get().setSiteId(siteIdToActivate, navigate);
         }
       } else {
@@ -549,9 +636,13 @@ const useProjectOverlayStore = create<
 
       if (selectedSite) {
         const selectedSiteId = selectedSite.uri;
+        const sitePreviewRequestSignature = getPreviewRequestSignature();
 
         fetchSiteShapefile(projectId, selectedSite.shapefile).then((data) => {
-          if (!isSiteStillActive(projectId, selectedSiteId)) {
+          if (
+            !isSiteStillActive(projectId, selectedSiteId) ||
+            !isPreviewRequestCurrent(sitePreviewRequestSignature)
+          ) {
             return;
           }
 

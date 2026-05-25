@@ -110,6 +110,7 @@ export type TreeFeatureProperties = {
   datasetRef?: string;
   siteRef?: string;
   treeSource?: string;
+  selected?: boolean;
   Height?: string;
   height?: string;
   diameter?: string;
