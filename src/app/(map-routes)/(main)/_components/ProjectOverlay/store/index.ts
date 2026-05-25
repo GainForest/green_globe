@@ -226,7 +226,13 @@ export const applyPreviewFilters = (
 
   return {
     ...data,
-    features: [...featureMap.values()],
+    features: [...featureMap.values()].map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        selected: treeUri !== null && feature.properties.occurrenceUri === treeUri,
+      },
+    })),
   };
 };
 
@@ -263,7 +269,7 @@ const setMapBoundsFromTrees = (data: MeasuredTreesGeoJSON | null) => {
 
     if (selectedFeature) {
       const [lon, lat] = selectedFeature.geometry.coordinates;
-      const offset = 0.0025;
+      const offset = 0.0005;
       useMapStore.getState().setMapBounds([
         lon - offset,
         lat - offset,

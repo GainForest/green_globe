@@ -243,6 +243,7 @@ describe("Green Globe preview messages", () => {
           type: LEGACY_GREEN_GLOBE_PREVIEW_FOCUS_TREE_MESSAGE_TYPE,
           datasetRef: datasetOne,
           treeUri: "at://did:plc:org/app.gainforest.dwc.occurrence/tree-1",
+          siteRef: siteOne,
         },
         projectDid,
       ),
@@ -253,7 +254,7 @@ describe("Green Globe preview messages", () => {
         treeUri: "at://did:plc:org/app.gainforest.dwc.occurrence/tree-1",
         datasetRefs: [datasetOne],
         focusedDatasetRef: datasetOne,
-        focusedSiteRef: null,
+        focusedSiteRef: siteOne,
         previewMode: "only",
       },
     });

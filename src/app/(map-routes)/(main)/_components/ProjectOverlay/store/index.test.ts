@@ -118,7 +118,7 @@ describe("applyPreviewFilters", () => {
     ]);
   });
 
-  it("unions a selected treeUri with selected dataset refs", () => {
+  it("unions and marks a selected treeUri with selected dataset refs", () => {
     usePreviewStore.getState().setPreviewState({
       embedMode: true,
       treeUri: treeTwo,
@@ -128,6 +128,11 @@ describe("applyPreviewFilters", () => {
       previewMode: "only",
     });
 
-    expect(filteredIds(applyPreviewFilters(measuredTrees))).toEqual(["one", "two"]);
+    const filteredData = applyPreviewFilters(measuredTrees);
+
+    expect(filteredIds(filteredData)).toEqual(["one", "two"]);
+    expect(
+      filteredData?.features.map((feature) => feature.properties.selected),
+    ).toEqual([false, true]);
   });
 });

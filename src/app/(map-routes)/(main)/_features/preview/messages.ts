@@ -52,6 +52,7 @@ type TimelineDatasetLayersMessage = {
 type LegacyFocusTreeMessage = {
   type: typeof LEGACY_GREEN_GLOBE_PREVIEW_FOCUS_TREE_MESSAGE_TYPE;
   datasetRef?: unknown;
+  siteRef?: unknown;
   treeUri?: unknown;
 };
 
@@ -233,6 +234,7 @@ export function previewStateFromMessage(
     const datasetRef = stringOrNull(message.datasetRef);
     const datasetRefs = normalizePreviewDatasetRefs(datasetRef ? [datasetRef] : []);
     const treeUri = stringOrNull(message.treeUri);
+    const focusedSiteRef = stringOrNull(message.siteRef);
 
     return {
       requestId: null,
@@ -241,7 +243,7 @@ export function previewStateFromMessage(
         treeUri,
         datasetRefs,
         focusedDatasetRef: datasetRefs.length === 1 ? datasetRefs[0] : null,
-        focusedSiteRef: null,
+        focusedSiteRef,
         previewMode: datasetRefs.length > 0 ? "only" : "all",
       },
     };

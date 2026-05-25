@@ -6,6 +6,12 @@ import {
 import { formatOccurrenceEventDate } from "@/lib/occurrence-event-date";
 import { TreeFeature } from "../../ProjectOverlay/store/types";
 
+const selectedTreeExpression = [
+  "any",
+  ["boolean", ["feature-state", "selected"], false],
+  ["boolean", ["get", "selected"], false],
+] as const;
+
 export const treesSource: GeoJSONSourceSpecification = {
   type: "geojson",
   data: {
@@ -62,7 +68,7 @@ export const unclusteredTreesLayer: CircleLayerSpecification = {
   paint: {
     "circle-color": [
       "case",
-      ["boolean", ["feature-state", "selected"], false],
+      selectedTreeExpression,
       "#ec4899",
       ["boolean", ["feature-state", "hover"], false],
       "#0883fe",
@@ -70,7 +76,7 @@ export const unclusteredTreesLayer: CircleLayerSpecification = {
     ],
     "circle-radius": [
       "case",
-      ["boolean", ["feature-state", "selected"], false],
+      selectedTreeExpression,
       10,
       ["boolean", ["feature-state", "hover"], false],
       8,
@@ -78,13 +84,13 @@ export const unclusteredTreesLayer: CircleLayerSpecification = {
     ],
     "circle-stroke-width": [
       "case",
-      ["boolean", ["feature-state", "selected"], false],
+      selectedTreeExpression,
       3,
       1,
     ],
     "circle-stroke-color": [
       "case",
-      ["boolean", ["feature-state", "selected"], false],
+      selectedTreeExpression,
       "#ffffff",
       "#000000",
     ],
