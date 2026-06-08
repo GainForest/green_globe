@@ -13,13 +13,24 @@ import useMapStore from "../Map/store";
 import LandcoverControls from "./LandcoverControls";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
 
+const parseLayerBounds = (
+  bounds: string | undefined
+): [number, number, number, number] | null => {
+  if (!bounds) return null;
+  const parts = bounds.split(",").map((part) => Number(part.trim()));
+  if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) {
+    return null;
+  }
+  return parts as [number, number, number, number];
+};
+
 const LayersOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const projectData = useProjectOverlayStore((state) => state.projectData);
+  const projectId = useProjectOverlayStore((state) => state.projectId);
   const toggledOnLayerIds = useLayersOverlayStore(
     (state) => state.toggledOnLayerIds
   );
@@ -38,7 +49,7 @@ const LayersOverlay = () => {
       }
       setToggledOnLayerIds([...tempToggledOnLayerIds], navigate);
     },
-    [toggledOnLayerIds, setToggledOnLayerIds]
+    [toggledOnLayerIds, setToggledOnLayerIds, navigate]
   );
 
   const categorizedDynamicLayers = useLayersOverlayStore(
@@ -58,20 +69,25 @@ const LayersOverlay = () => {
   const setMapView = useMapStore((actions) => actions.setCurrentView);
   const setMapBounds = useMapStore((actions) => actions.setMapBounds);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (categorizedDynamicLayers.length === 0) {
       fetchCategorizedDynamicLayers();
     }
-  }, []);
+  }, [categorizedDynamicLayers.length, fetchCategorizedDynamicLayers]);
 
   useEffect(() => {
     fetchProjectSpecificLayers();
-  }, [projectData?.id]);
+  }, [projectId, fetchProjectSpecificLayers]);
 
   const handleZoomToProjectSpecificLayer = useCallback(
-    (layer: { endpoint: string; type: string }) => {
+    (layer: { endpoint: string; type: string; bounds?: string }) => {
       setMapView("project");
+      const bounds = parseLayerBounds(layer.bounds);
+      if (bounds) {
+        setMapBounds(bounds);
+        return;
+      }
+
       if (layer.type === "raster_tif") {
         fetch(
           `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/bounds?url=${encodeURIComponent(resolveLayerUrl(layer.endpoint))}`

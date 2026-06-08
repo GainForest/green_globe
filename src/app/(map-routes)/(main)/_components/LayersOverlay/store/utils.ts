@@ -1,8 +1,8 @@
-import ClimateAIAgent from "@/lib/atproto/agent";
+import { requestHyperindex } from "@/lib/hyperindex/client";
+import { ALL_LAYER_RECORDS } from "@/lib/hyperindex/queries";
 import { toKebabCase } from "@/lib/utils";
+import type { Connection } from "@/lib/hyperindex/types";
 import type { Layer, LayersAPIResponse, LegendEntry } from "./types";
-
-const LAYER_COLLECTION = "app.gainforest.organization.layer";
 
 const VALID_LAYER_TYPES = new Set([
   "geojson_points",
@@ -32,14 +32,17 @@ type RawLayerValue = {
   category?: unknown;
   /** isDefault (not visibility) is the lexicon field for default visibility */
   isDefault?: unknown;
+  displayOrder?: unknown;
   legend?: unknown;
   description?: unknown;
+  bounds?: unknown;
   [k: string]: unknown;
 };
 
 type RawLayerRecord = {
   uri: string;
   cid?: string;
+  did?: string;
   value: RawLayerValue;
 };
 
@@ -71,6 +74,8 @@ const normalizeAtprotoLayer = (raw: RawLayerRecord): Layer => {
     description: typeof v.description === "string" ? v.description : "",
     legend,
     isDefault: typeof v.isDefault === "boolean" ? v.isDefault : undefined,
+    displayOrder: typeof v.displayOrder === "number" ? v.displayOrder : undefined,
+    bounds: typeof v.bounds === "string" ? v.bounds : undefined,
   };
 };
 
@@ -110,43 +115,58 @@ export const fetchLayers = async (): Promise<Layer[]> => {
 };
 
 /**
- * Fetch project-specific layers from the PDS repo directly.
- * Returns null if the organization has no layer records (caller should fall back to S3).
+ * Fetch project-specific layers from Hyperindex.
+ *
+ * Browser clients cannot reliably call climateai.org PDS repo XRPC endpoints
+ * directly because the PDS does not expose the CORS headers required for those
+ * reads. Hyperindex is the browser-safe AppView read path and preserves the
+ * full raw layer record value through the generic records() query.
+ *
+ * Returns null if the organization has no layer records (caller may fall back to S3).
  */
 const fetchLayersFromAtproto = async (did: string): Promise<Layer[] | null> => {
   try {
     const records: RawLayerRecord[] = [];
-    let cursor: string | undefined;
-    const seenCursors = new Set<string>();
+    let cursor: string | null = null;
 
     do {
-      const response = await ClimateAIAgent.com.atproto.repo.listRecords({
-        repo: did,
-        collection: LAYER_COLLECTION,
-        limit: 100,
-        cursor,
-      });
+      const response: {
+        records: Connection<RawLayerRecord>;
+      } = await requestHyperindex<{
+        records: Connection<RawLayerRecord>;
+      }>(
+        ALL_LAYER_RECORDS,
+        {
+          first: 100,
+          after: cursor,
+        },
+        { label: "organization layer records" }
+      );
 
-      const page = response.data.records as RawLayerRecord[] | undefined;
+      records.push(
+        ...response.records.edges
+          .map((edge) => edge.node)
+          .filter((record) => record.did === did)
+      );
 
-      if (page?.length) {
-        records.push(...page);
-      }
-
-      const nextCursor = response.data.cursor ?? undefined;
-      if (!nextCursor || !page?.length || seenCursors.has(nextCursor)) {
+      if (response.records.pageInfo.hasNextPage) {
+        cursor = response.records.pageInfo.endCursor;
+      } else {
         break;
       }
-
-      seenCursors.add(nextCursor);
-      cursor = nextCursor;
     } while (cursor);
 
     if (records.length === 0) {
       return null;
     }
 
-    return records.map(normalizeAtprotoLayer);
+    return records
+      .map(normalizeAtprotoLayer)
+      .sort(
+        (a, b) =>
+          (a.displayOrder ?? Number.MAX_SAFE_INTEGER) -
+          (b.displayOrder ?? Number.MAX_SAFE_INTEGER)
+      );
   } catch (error) {
     console.error("Error fetching ATProto layer records", error);
     return null;
@@ -185,19 +205,19 @@ const fetchLayersFromS3 = async (slug: string): Promise<Layer[] | null> => {
 };
 
 /**
- * Fetch project-specific layers, preferring PDS records and falling back to S3
- * layerData.json when no layer records exist for the organization.
+ * Fetch project-specific layers, preferring indexed ATProto records and falling
+ * back to S3 layerData.json when no layer records exist for the organization.
  *
  * @param did  - The organization DID (used for PDS lookup)
- * @param slug - The project slug (used for S3 fallback path)
+ * @param slug - The project slug (used for S3 fallback path when available)
  */
 export const fetchProjectSpecificLayers = async (
   did: string,
-  slug: string
+  slug?: string | null
 ): Promise<Layer[] | null> => {
   const atprotoLayers = await fetchLayersFromAtproto(did);
   if (atprotoLayers !== null) {
     return atprotoLayers;
   }
-  return fetchLayersFromS3(slug);
+  return slug ? fetchLayersFromS3(slug) : null;
 };

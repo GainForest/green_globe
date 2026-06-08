@@ -14,14 +14,14 @@ import {
   convertFromGFTreeFeatureToNormalizedTreeFeature,
 } from "./ayyoweca-uganda";
 import useNavigation from "@/app/(map-routes)/(main)/_features/navigation/use-navigation";
-import { Agent } from "@atproto/api";
-import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
 import { computePolygonMetrics } from "@/lib/geojson";
+import { toKebabCase } from "@/lib/utils";
 import { fetchMeasuredTreeOccurrences } from "../../../_hooks/use-organization-measured-trees";
 import { requestHyperindex } from "@/lib/hyperindex/client";
 import {
   DEFAULT_SITE_BY_DID,
   LOCATIONS_BY_DID,
+  ORGANIZATION_INFO_BY_DID,
 } from "@/lib/hyperindex/queries";
 import type {
   Connection,
@@ -42,6 +42,10 @@ type LocationsResponse = {
 
 type DefaultSiteResponse = {
   appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
+};
+
+type OrganizationInfoByDidResponse = {
+  appGainforestOrganizationInfo: Connection<{ did: string; displayName?: string }>;
 };
 
 const normalizeCertifiedLocation = (location: HiCertifiedLocation): AtprotoSite => ({
@@ -110,14 +114,17 @@ const SLUG_OVERRIDES: Record<string, string> = {
 
 const fetchOrganizationSlug = async (did: string): Promise<string | null> => {
   try {
-    const pdsEndpoint = await resolvePdsEndpoint(did);
-    const agent = new Agent(pdsEndpoint);
-    const response = await agent.com.atproto.repo.describeRepo({
-      repo: did,
-    });
-    const handle = response.data.handle ?? null;
-    if (!handle) return null;
-    const rawSlug = handle.split('.')[0] ?? null;
+    const response = await requestHyperindex<OrganizationInfoByDidResponse>(
+      ORGANIZATION_INFO_BY_DID,
+      { did },
+      { label: "organization info by DID" }
+    );
+
+    const displayName =
+      response.appGainforestOrganizationInfo.edges[0]?.node.displayName ?? null;
+    if (!displayName) return null;
+
+    const rawSlug = toKebabCase(displayName);
     if (!rawSlug) return null;
     return SLUG_OVERRIDES[rawSlug] ?? rawSlug;
   } catch (err) {

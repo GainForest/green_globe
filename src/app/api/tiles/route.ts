@@ -14,6 +14,11 @@ const PRIVATE_HOST_PATTERNS = [
   /^0\./,
 ];
 
+const EXTERNAL_LAYER_SOURCE_HOSTS = new Set([
+  // Legacy XPRIZE drone orthomosaic bucket used by migrated organization layers.
+  "xprize-finals.s3.eu-west-3.amazonaws.com",
+]);
+
 type TileMode = "satellite" | "raster-with-basemap";
 type ImageTile = {
   buffer: Buffer;
@@ -23,7 +28,7 @@ type ImageTile = {
 const isPrivateHost = (hostname: string): boolean =>
   PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
 
-const isAllowedStorageUrl = (url: URL): boolean => {
+const isAllowedLayerSourceUrl = (url: URL): boolean => {
   if (url.protocol !== "https:" || isPrivateHost(url.hostname)) return false;
 
   const storageOrigin = process.env.NEXT_PUBLIC_AWS_STORAGE;
@@ -31,7 +36,10 @@ const isAllowedStorageUrl = (url: URL): boolean => {
     ? new URL(storageOrigin).hostname
     : null;
 
-  return url.hostname === storageHostname;
+  return (
+    url.hostname === storageHostname ||
+    EXTERNAL_LAYER_SOURCE_HOSTS.has(url.hostname)
+  );
 };
 
 const isAllowedTitilerTileUrl = (url: URL): boolean => {
@@ -51,14 +59,14 @@ const isAllowedTitilerTileUrl = (url: URL): boolean => {
   if (!nestedSourceUrl) return false;
 
   try {
-    return isAllowedStorageUrl(new URL(nestedSourceUrl));
+    return isAllowedLayerSourceUrl(new URL(nestedSourceUrl));
   } catch {
     return false;
   }
 };
 
 const isAllowedRemoteTileUrl = (url: URL): boolean =>
-  isAllowedStorageUrl(url) || isAllowedTitilerTileUrl(url);
+  isAllowedLayerSourceUrl(url) || isAllowedTitilerTileUrl(url);
 
 const parseTileNumber = (
   request: NextRequest,
