@@ -1,19 +1,65 @@
-.mapboxgl-popup-content {
-  background: rgb(255 255 255 / 0.8) !important;
-  color: black !important;
-  border: 1px solid rgb(0 0 0 / 0.1) !important;
-  border-radius: 12px !important;
-  backdrop-filter: blur(16px) !important;
-  padding: 4px 8px !important;
-  font-family: var(--font-geist-sans), Inter, Arial, Helvetica !important;
-  font-size: 1rem !important;
-  text-align: center !important;
-  text-wrap-style: balance !important;
-  pointer-events: none !important;
+.globe-html-marker {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  pointer-events: auto;
+  position: relative;
+  transition: opacity 180ms ease;
+  z-index: 30;
 }
 
-.mapboxgl-popup-tip {
-  border-top-color: rgb(255 255 255 / 0.8) !important;
+.globe-html-marker-project-marker img {
+  display: block;
+  height: 32px;
+  transition: transform 120ms ease;
+  width: 32px;
+}
+
+.globe-html-marker-project-marker:hover img {
+  transform: scale(1.12);
+}
+
+.globe-html-marker-centroid-marker span {
+  border: 2px solid #ffffff;
+  border-radius: 50% 50% 50% 10%;
+  box-sizing: border-box;
+  display: block;
+  height: 20px;
+  transform: rotate(45deg);
+  transition: transform 120ms ease;
+  width: 20px;
+}
+
+.globe-html-marker-centroid-marker:hover span {
+  transform: rotate(45deg) scale(1.12);
+}
+
+.tree-cluster-overlay {
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tree-cluster,
+.tree-cluster text {
+  pointer-events: none;
+  user-select: none;
+}
+
+.tree-dot {
+  cursor: pointer;
+  pointer-events: auto;
+  transition: r 120ms ease, stroke-width 120ms ease;
+}
+
+.tree-dot:hover {
+  fill: #0883fe;
+  r: 8px;
+  stroke: #ffffff;
+  stroke-width: 2px;
 }
 
 .trees-shimmer-sweep {
@@ -21,6 +67,6 @@
 }
 
 @keyframes trees-shimmer-sweep {
-  0%   { transform: translateX(100vw); }
+  0% { transform: translateX(100vw); }
   100% { transform: translateX(-100vw); }
 }

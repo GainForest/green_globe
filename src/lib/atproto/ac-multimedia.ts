@@ -1,6 +1,6 @@
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
-import { hyperindexClient } from "@/lib/hyperindex/client";
+import { requestHyperindex } from "@/lib/hyperindex/client";
 import { MULTIMEDIA_BY_DID } from "@/lib/hyperindex/queries";
 import type { Connection, HiAcMultimedia } from "@/lib/hyperindex/types";
 
@@ -33,18 +33,21 @@ type MultimediaResponse = {
   appGainforestAcMultimedia: Connection<HiAcMultimedia>;
 };
 
+const HYPERINDEX_PAGE_SIZE = 500;
+
 const fetchAllMultimedia = async (did: string): Promise<HiAcMultimedia[]> => {
   const records: HiAcMultimedia[] = [];
   let cursor: string | null = null;
 
   do {
-    const response: MultimediaResponse = await hyperindexClient.request(
+    const response: MultimediaResponse = await requestHyperindex<MultimediaResponse>(
       MULTIMEDIA_BY_DID,
       {
         did,
-        first: 100,
+        first: HYPERINDEX_PAGE_SIZE,
         after: cursor,
-      }
+      },
+      { label: "multimedia" },
     );
 
     const connection = response.appGainforestAcMultimedia;

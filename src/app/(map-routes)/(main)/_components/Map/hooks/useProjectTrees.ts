@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import useMapStore from "../store";
-import { GeoJSONSource } from "mapbox-gl";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
 import type { MeasuredTreesGeoJSON } from "../../ProjectOverlay/store/types";
 
@@ -19,11 +18,11 @@ const useProjectTrees = () => {
 
   useEffect(() => {
     if (currentView !== "project") return;
-    const map = mapRef?.current;
-    if (!mapLoaded || !map) return;
+    const globe = mapRef?.current;
+    if (!mapLoaded || !globe) return;
 
-    (map.getSource("trees") as GeoJSONSource | undefined)?.setData(
-      projectTrees ?? EMPTY_TREES_GEOJSON,
+    globe.setTrees(
+      (projectTrees ?? EMPTY_TREES_GEOJSON) as unknown as GeoJSON.FeatureCollection,
     );
   }, [mapLoaded, mapRef, currentView, projectTrees]);
 };

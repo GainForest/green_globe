@@ -21,7 +21,7 @@ const HoveredTreeOverlay = () => {
   );
   const overlaySize = useOverlayStore((state) => state.size);
   const hoveredTree = useHoveredTreeOverlayStore(
-    (state) => state.treeInformation
+    (state) => state.treeInformation ?? state.selectedTreeInformation
   );
   const isExpanded = useHoveredTreeOverlayStore((state) => state.isExpanded);
   const setIsExpanded = useHoveredTreeOverlayStore(
@@ -40,7 +40,7 @@ const HoveredTreeOverlay = () => {
           exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           onAnimationComplete={onAnimationComplete}
           className={cn(
-            "fixed right-2 w-[25%] max-w-[280px] min-w-[180px]",
+            "fixed right-2 z-40 w-[25%] max-w-[280px] min-w-[180px]",
             overlaySize === "desktop" ? "top-2" : "top-16"
           )}
         >
@@ -121,7 +121,7 @@ const HoveredTreeOverlay = () => {
           exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           onAnimationComplete={onAnimationComplete}
           className={cn(
-            "fixed right-2 flex flex-col items-end gap-2",
+            "fixed right-2 z-40 flex flex-col items-end gap-2",
             overlaySize === "desktop" ? "top-2" : "top-16"
           )}
         >

@@ -72,20 +72,31 @@ const useStoreUrlSync = (
     const project = useNavigationStore.getState().project;
     let map = useNavigationStore.getState().map;
     if (project) {
-      const { projectId, setProjectId, refreshTrees } = useProjectOverlayStore.getState();
+      const {
+        projectId,
+        setProjectId,
+        refreshTrees,
+        activateSite,
+      } = useProjectOverlayStore.getState();
+      const shouldZoomToSite = map["bounds"] === null || map["bounds"].length !== 4;
 
       // Project & Map bounds
       if (project["project-id"] !== projectId) {
         setProjectId(
           project["project-id"],
           undefined,
-          map["bounds"] === null || map["bounds"].length !== 4
+          shouldZoomToSite
         );
       }
 
       const { siteId, setSiteId } = useProjectOverlayStore.getState();
-      if (project["site-id"] !== siteId) {
+      const didProjectChange = project["project-id"] !== projectId;
+      const didSiteChange = project["site-id"] !== siteId;
+      if (didSiteChange) {
         setSiteId(project["site-id"]);
+        if (!didProjectChange) {
+          activateSite(shouldZoomToSite);
+        }
       }
 
       updateDedicatedStoresFromViews(project["views"]);

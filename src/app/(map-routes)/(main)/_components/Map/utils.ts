@@ -1,54 +1,25 @@
-import { Map, MapMouseEvent } from "mapbox-gl";
 import {
-  addAllSitesSourceAndLayer,
-  addHighlightedSiteSourceAndLayer,
-  addTreesLoadingOverlayLayer,
-} from "./sources-and-layers/project-sites";
-import {
-  addMeasuredTreesSourceAndLayer,
   getTreeDateOfMeasurement,
   getTreeDBH,
   getTreeHeight,
   getTreePhotos,
   getTreeSpeciesName,
 } from "./sources-and-layers/measured-trees";
-import { addProjectMarkersSourceAndLayer } from "./sources-and-layers/project-markers";
-import { NormalizedTreeFeature } from "../ProjectOverlay/store/types";
-import { addLandcoverSourceAndLayer } from "./sources-and-layers/landcover";
-import { HoveredTreeOverlayState } from "../HoveredTreeOverlay/store";
+import type { NormalizedTreeFeature } from "../ProjectOverlay/store/types";
+import type { HoveredTreeOverlayState } from "../HoveredTreeOverlay/store";
 
-export const addAllSourcesAndLayers = (map: Map) => {
-  addLandcoverSourceAndLayer(map);
-  addAllSitesSourceAndLayer(map);
-  addHighlightedSiteSourceAndLayer(map);
-  addTreesLoadingOverlayLayer(map);
-  addMeasuredTreesSourceAndLayer(map);
-  addProjectMarkersSourceAndLayer(map);
-};
-
-export const getTreeInformation = (
-  e: MapMouseEvent,
-  activeProjectId: string
+export const getTreeInformationFromFeature = (
+  hoveredTreeFeature: NormalizedTreeFeature | undefined,
+  activeProjectId: string,
 ): HoveredTreeOverlayState["treeInformation"] | null => {
-  const features = e?.features;
-  if (!features || features.length === 0) return null;
-
-  const hoveredTreeFeature = features.find((feature) => {
-    if (!feature.properties) return false;
-    return (
-      "type" in feature.properties &&
-      feature.properties.type === "measured-tree"
-    );
-  }) as NormalizedTreeFeature | undefined;
-
-  if (!hoveredTreeFeature) return null;
+  if (!hoveredTreeFeature?.properties) return null;
 
   const treeSpecies = getTreeSpeciesName(hoveredTreeFeature.properties);
   const treeCommonName = hoveredTreeFeature.properties?.commonName;
   const treeHeight = getTreeHeight(hoveredTreeFeature.properties);
   const treeDBH = getTreeDBH(hoveredTreeFeature.properties);
   const dateOfMeasurement = getTreeDateOfMeasurement(
-    hoveredTreeFeature.properties
+    hoveredTreeFeature.properties,
   );
 
   const fcdTreePhoto =
@@ -62,10 +33,11 @@ export const getTreeInformation = (
   const treePhotos = getTreePhotos(
     hoveredTreeFeature.properties,
     activeProjectId,
-    treeID
+    treeID,
   );
 
   return {
+    treeUri: hoveredTreeFeature.properties.occurrenceUri,
     treeSpecies,
     treeCommonName,
     treeHeight,

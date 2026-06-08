@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { hyperindexClient } from "@/lib/hyperindex/client";
+import { requestHyperindex } from "@/lib/hyperindex/client";
 import { ORGANIZATION_MEMBER_RECORDS } from "@/lib/hyperindex/queries";
 import { hiKeys } from "@/lib/hyperindex/query-keys";
 import type { Connection } from "@/lib/hyperindex/types";
@@ -234,12 +234,13 @@ export const fetchAllMemberRecords = async (
   let cursor: string | null = null;
 
   do {
-    const response: MemberRecordsResponse = await hyperindexClient.request(
+    const response: MemberRecordsResponse = await requestHyperindex<MemberRecordsResponse>(
       ORGANIZATION_MEMBER_RECORDS,
       {
         first: 100,
         after: cursor,
-      }
+      },
+      { label: "organization member records" },
     );
 
     const page = response.records.edges

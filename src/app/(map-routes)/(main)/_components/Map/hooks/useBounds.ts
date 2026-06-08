@@ -2,10 +2,6 @@ import { useEffect } from "react";
 import useMapStore from "../store";
 import useOverlayStore from "../../Overlay/store";
 
-/**
- * When the active project polygon changes, fit the map to the polygon and update the highlighted site source
- * @param mapRef - The ref to the map
- */
 const useBounds = () => {
   const bounds = useMapStore((state) => state.mapBounds);
   const mapRef = useMapStore((state) => state.mapRef);
@@ -17,16 +13,11 @@ const useBounds = () => {
   const shouldAddExtraLeftPadding = size === "desktop" && isOverlayOpen;
 
   useEffect(() => {
-    const map = mapRef?.current;
-    if (!mapLoaded || !map || !bounds) return;
+    const globe = mapRef?.current;
+    if (!mapLoaded || !globe || !bounds) return;
 
-    map.fitBounds(bounds, {
-      padding: {
-        top: 40,
-        bottom: 40,
-        left: shouldAddExtraLeftPadding ? 540 : 40,
-        right: 40,
-      },
+    globe.fitBounds(bounds, {
+      extraLeftPadding: shouldAddExtraLeftPadding,
     });
   }, [mapLoaded, mapRef, bounds, shouldAddExtraLeftPadding]);
 };

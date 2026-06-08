@@ -1,76 +1,172 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
+import {
+  geoJsonInputToFeatures,
+  type GlobeGeoJsonInput,
+} from "@/app/(map-routes)/_utils/globe-data";
 import useMapStore from "./store";
 import useProjectOverlayStore from "../ProjectOverlay/store";
-import type { Map as MapboxMap } from "mapbox-gl";
 import type { ProjectPolygonAPIResponse } from "../ProjectOverlay/store/types";
 
-const computeClipRings = (
-  map: MapboxMap,
-  polygon: ProjectPolygonAPIResponse
-): string[] => {
-  const collection = polygon as unknown as GeoJSON.FeatureCollection;
-  const rect = map.getContainer().getBoundingClientRect();
-  const rings: string[] = [];
+type BoundaryShape = {
+  points: string;
+  closed: boolean;
+};
 
-  const projectRing = (ring: number[][]): string =>
-    ring
-      .map(([lng, lat]) => {
-        const { x, y } = map.project([lng, lat]);
-        return `${rect.left + x},${rect.top + y}`;
-      })
-      .join(" ");
+type ScreenPoint = { x: number; y: number };
 
-  for (const feature of collection.features ?? []) {
-    const geo = feature.geometry as GeoJSON.Geometry;
+const POINT_BOUNDARY_RADIUS_PX = 24;
+const POINT_BOUNDARY_SEGMENTS = 32;
+
+const coordinatesToPoints = (
+  getScreenCoords: (lng: number, lat: number) => ScreenPoint,
+  positions: GeoJSON.Position[],
+): string =>
+  positions
+    .map(([lng, lat]) => {
+      const { x, y } = getScreenCoords(lng, lat);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+const pointToCircle = (
+  getScreenCoords: (lng: number, lat: number) => ScreenPoint,
+  coordinates: GeoJSON.Position,
+): string => {
+  const [lng, lat] = coordinates;
+  const { x, y } = getScreenCoords(lng, lat);
+
+  return Array.from({ length: POINT_BOUNDARY_SEGMENTS }, (_, index) => {
+    const angle = (index / POINT_BOUNDARY_SEGMENTS) * Math.PI * 2;
+    return `${x + Math.cos(angle) * POINT_BOUNDARY_RADIUS_PX},${y + Math.sin(angle) * POINT_BOUNDARY_RADIUS_PX}`;
+  }).join(" ");
+};
+
+const lineStringToShape = (
+  getScreenCoords: (lng: number, lat: number) => ScreenPoint,
+  coordinates: GeoJSON.Position[],
+): BoundaryShape[] => {
+  if (coordinates.length < 2) return [];
+
+  return [
+    {
+      points: coordinatesToPoints(getScreenCoords, coordinates),
+      // Site boundaries are sometimes stored as LineString rings instead of Polygon.
+      // Treat 3+ coordinate lines as boundary rings so selected sites still receive
+      // the yellow outline/fill and clipped loader.
+      closed: coordinates.length >= 3,
+    },
+  ];
+};
+
+const computeBoundaryShapes = (
+  getScreenCoords: (lng: number, lat: number) => ScreenPoint,
+  polygon: ProjectPolygonAPIResponse,
+): BoundaryShape[] => {
+  const features = geoJsonInputToFeatures(
+    polygon as unknown as GlobeGeoJsonInput,
+  );
+  const shapes: BoundaryShape[] = [];
+
+  for (const feature of features) {
+    const geo = feature.geometry as GeoJSON.Geometry | null;
+    if (!geo) continue;
+
     if (geo.type === "Polygon") {
-      rings.push(projectRing((geo as GeoJSON.Polygon).coordinates[0]));
+      const [outerRing] = (geo as GeoJSON.Polygon).coordinates;
+      if (outerRing) {
+        shapes.push({
+          points: coordinatesToPoints(getScreenCoords, outerRing),
+          closed: true,
+        });
+      }
     } else if (geo.type === "MultiPolygon") {
       for (const poly of (geo as GeoJSON.MultiPolygon).coordinates) {
-        rings.push(projectRing(poly[0]));
+        const [outerRing] = poly;
+        if (outerRing) {
+          shapes.push({
+            points: coordinatesToPoints(getScreenCoords, outerRing),
+            closed: true,
+          });
+        }
+      }
+    } else if (geo.type === "LineString") {
+      shapes.push(
+        ...lineStringToShape(
+          getScreenCoords,
+          (geo as GeoJSON.LineString).coordinates,
+        ),
+      );
+    } else if (geo.type === "MultiLineString") {
+      for (const line of (geo as GeoJSON.MultiLineString).coordinates) {
+        shapes.push(...lineStringToShape(getScreenCoords, line));
+      }
+    } else if (geo.type === "Point") {
+      shapes.push({
+        points: pointToCircle(getScreenCoords, (geo as GeoJSON.Point).coordinates),
+        closed: true,
+      });
+    } else if (geo.type === "MultiPoint") {
+      for (const point of (geo as GeoJSON.MultiPoint).coordinates) {
+        shapes.push({
+          points: pointToCircle(getScreenCoords, point),
+          closed: true,
+        });
       }
     }
   }
 
-  return rings;
+  return shapes.filter((shape) => shape.points.length > 0);
 };
 
 const TreesLoadingOverlay = () => {
   const mapRef = useMapStore((s) => s.mapRef);
   const mapLoaded = useMapStore((s) => s.mapLoaded);
   const highlightedPolygon = useMapStore((s) => s.highlightedPolygon);
+  const treeOverlayReady = useMapStore((s) => s.treeOverlayReady);
   const treesAsync = useProjectOverlayStore((s) => s.treesAsync);
   const projectId = useProjectOverlayStore((s) => s.projectId);
-  const [rings, setRings] = useState<string[]>([]);
+  const [boundaryShapes, setBoundaryShapes] = useState<BoundaryShape[]>([]);
 
   const isLoading =
     projectId !== undefined &&
     (!treesAsync || treesAsync._status === "loading");
+  const hasRenderableTreeData =
+    treesAsync?._status === "success" && Boolean(treesAsync.data?.features.length);
+  const shouldShowLoadingOverlay =
+    isLoading || (hasRenderableTreeData && !treeOverlayReady);
 
   const update = useCallback(() => {
-    const map = mapRef?.current;
-    if (!map || !highlightedPolygon) {
-      setRings([]);
+    const globe = mapRef?.current;
+    if (!globe || !highlightedPolygon) {
+      setBoundaryShapes([]);
       return;
     }
-    setRings(computeClipRings(map, highlightedPolygon));
+
+    const nextBoundaryShapes = computeBoundaryShapes(
+      (lng, lat) => globe.getScreenCoords(lng, lat),
+      highlightedPolygon,
+    );
+
+    setBoundaryShapes(nextBoundaryShapes);
   }, [mapRef, highlightedPolygon]);
 
   useEffect(() => {
-    const map = mapRef?.current;
-    if (!mapLoaded || !map) return;
+    const globe = mapRef?.current;
+    if (!mapLoaded || !globe) return;
+
     update();
-    map.on("move", update);
-    return () => {
-      map.off("move", update);
-    };
+    return globe.onMove(update);
   }, [mapLoaded, mapRef, update]);
 
-  if (!isLoading || rings.length === 0) return null;
+  if (boundaryShapes.length === 0) return null;
+
+  const closedShapes = boundaryShapes.filter((shape) => shape.closed);
 
   return (
     <svg
       className="pointer-events-none"
+      data-testid="project-boundary-overlay"
       style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 10 }}
     >
       <defs>
@@ -82,22 +178,48 @@ const TreesLoadingOverlay = () => {
           <stop offset="100%" stopColor="rgba(255,255,255,0)" />
         </linearGradient>
         <clipPath id="trees-loading-clip">
-          {rings.map((pts, i) => (
-            <polygon key={i} points={pts} />
+          {closedShapes.map((shape, i) => (
+            <polygon key={i} points={shape.points} />
           ))}
         </clipPath>
       </defs>
 
-      {/* clipPath on the group so the polygon clip is fixed while the gradient sweeps inside */}
-      <g clipPath="url(#trees-loading-clip)">
-        <rect width="100%" height="100%" fill="rgba(255,255,255,0.07)" />
-        <rect
-          width="100%"
-          height="100%"
-          fill="url(#trees-shimmer-grad)"
-          className="trees-shimmer-sweep"
-        />
-      </g>
+      {shouldShowLoadingOverlay && closedShapes.length > 0 && (
+        <g clipPath="url(#trees-loading-clip)" data-testid="trees-loading-overlay">
+          <rect width="100%" height="100%" fill="rgba(255,255,255,0.07)" />
+          <rect
+            width="100%"
+            height="100%"
+            fill="url(#trees-shimmer-grad)"
+            className="trees-shimmer-sweep"
+          />
+        </g>
+      )}
+
+      {boundaryShapes.map((shape, i) =>
+        shape.closed ? (
+          <polygon
+            key={i}
+            points={shape.points}
+            fill="rgba(255, 234, 0, 0.08)"
+            stroke="#FFEA00"
+            strokeLinejoin="round"
+            strokeWidth={3}
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : (
+          <polyline
+            key={i}
+            points={shape.points}
+            fill="none"
+            stroke="#FFEA00"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            strokeWidth={3}
+            vectorEffect="non-scaling-stroke"
+          />
+        ),
+      )}
     </svg>
   );
 };

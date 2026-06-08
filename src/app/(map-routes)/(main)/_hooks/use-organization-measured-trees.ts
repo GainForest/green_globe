@@ -16,13 +16,14 @@ import {
   fetchMultimediaByOccurrence,
   type MultimediaByOccurrence,
 } from "@/lib/atproto/ac-multimedia";
-import { hyperindexClient } from "@/lib/hyperindex/client";
+import { requestHyperindex } from "@/lib/hyperindex/client";
 import { OCCURRENCES_BY_DID } from "@/lib/hyperindex/queries";
 import type { Connection, HiDwcOccurrence } from "@/lib/hyperindex/types";
 import usePreviewStore from "../_features/preview/store";
 
 const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
 const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
+const HYPERINDEX_PAGE_SIZE = 500;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -191,14 +192,15 @@ const fetchMeasuredTreeOccurrenceRecords = async (
 
   try {
     do {
-      const response: OccurrenceResponse = await hyperindexClient.request(
+      const response: OccurrenceResponse = await requestHyperindex<OccurrenceResponse>(
         OCCURRENCES_BY_DID,
         {
           did,
-          first: 100,
+          first: HYPERINDEX_PAGE_SIZE,
           after: cursor,
           basisOfRecord: "HumanObservation",
-        }
+        },
+        { label: "occurrences" },
       );
 
       const connection = response.appGainforestDwcOccurrence;
@@ -538,6 +540,24 @@ export const fetchMeasuredTreeOccurrences = async (
     ? fetchPdsOccurrenceRecords(agent, did)
     : Promise.resolve<RawOccurrenceRecord[]>([]);
 
+  const measurementIndexPromise = fetchMeasurementIndex(agent, did).catch(
+    (err) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[GG] measurement index fetch failed; continuing without measurements:", err);
+      }
+      return new Map() as MeasurementsByOccurrence;
+    },
+  );
+
+  const multimediaIndexPromise = fetchMultimediaByOccurrence(did).catch(
+    (err) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[GG] multimedia fetch failed; continuing without tree photos:", err);
+      }
+      return new Map() as MultimediaByOccurrence;
+    },
+  );
+
   // Fetch measurements, AC multimedia, and measured-tree occurrences in parallel.
   const [
     measurementIndex,
@@ -546,8 +566,8 @@ export const fetchMeasuredTreeOccurrences = async (
     previewPdsOccurrences,
     selectedPdsOccurrence,
   ] = await Promise.all([
-    fetchMeasurementIndex(agent, did),
-    fetchMultimediaByOccurrence(did),
+    measurementIndexPromise,
+    multimediaIndexPromise,
     fetchMeasuredTreeOccurrenceRecords(did),
     previewPdsOccurrencesPromise,
     treeUri && selectedTreeAgent

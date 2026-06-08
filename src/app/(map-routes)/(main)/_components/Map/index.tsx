@@ -1,30 +1,29 @@
 "use client";
 import React, { useRef } from "react";
 import "@/app/(map-routes)/_styles/map.css";
-import "mapbox-gl/dist/mapbox-gl.css";
 
 import { useHoveredTreeInfo } from "./hooks/useHoveredTreeInfo";
 import useProjectTrees from "./hooks/useProjectTrees";
-import useMapbox from "./hooks/useMapbox";
+import useGlobe from "./hooks/useGlobe";
 import useDynamicLayers from "./hooks/useDynamicLayers";
 import useBounds from "./hooks/useBounds";
 import useHighlightedPolygon from "./hooks/useHighlightedPolygon";
 import useLandcoverLayer from "./hooks/useLandcoverLayer";
 import useSelectedTreeHighlight from "./hooks/useSelectedTreeHighlight";
-import useTreesLoadingOverlay from "./hooks/useTreesLoadingOverlay";
+import useActiveProjectMarker from "./hooks/useActiveProjectMarker";
 
 const Map = () => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
-  useMapbox(mapContainerRef);
+  useGlobe(mapContainerRef);
   useBounds();
   useHighlightedPolygon();
+  useActiveProjectMarker();
   useProjectTrees();
   useHoveredTreeInfo();
   useSelectedTreeHighlight();
   useLandcoverLayer();
   useDynamicLayers();
-  useTreesLoadingOverlay();
 
   return (
     <div
@@ -32,7 +31,7 @@ const Map = () => {
       ref={mapContainerRef}
       data-testid="map-root"
       className="map-container flex-1"
-    ></div>
+    />
   );
 };
 

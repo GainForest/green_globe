@@ -78,14 +78,14 @@ const SmallerDeviceOverlay = () => {
   return (
     <>
       {!isFullHeight && (
-        <motion.div className="fixed -top-1 -left-1 -right-1 z-10">
+        <motion.div className="fixed -top-1 -left-1 -right-1 z-30">
           <UIBase innerClassName="p-3 rounded-none" className="rounded-none">
             <Header />
           </UIBase>
         </motion.div>
       )}
       <div
-        className="fixed left-0 right-0 z-10 flex flex-col items-center"
+        className="fixed left-0 right-0 z-30 flex flex-col items-center"
         style={{
           top: isFullHeight
             ? "0"

@@ -36,21 +36,6 @@ const FLAG_SVG = `
   <rect width="24" height="5.33" y="10.66" fill="#f59e0b" />
 </svg>`;
 
-const MAPBOX_STYLE = {
-  version: 8,
-  name: "e2e-style",
-  sources: {},
-  layers: [
-    {
-      id: "background",
-      type: "background",
-      paint: {
-        "background-color": "#0b0b19",
-      },
-    },
-  ],
-};
-
 const fulfillJson = async (route: Route, body: unknown, status = 200) =>
   route.fulfill({
     status,
@@ -70,12 +55,6 @@ const fulfillSvg = async (route: Route) =>
     status: 200,
     contentType: "image/svg+xml",
     body: FLAG_SVG,
-  });
-
-const fulfillNoContent = async (route: Route) =>
-  route.fulfill({
-    status: 204,
-    body: "",
   });
 
 const getGraphQLPayload = (route: Route): GraphQLPayload => {
@@ -197,37 +176,8 @@ export const installMockRoutes = async (page: Page) => {
       return fulfillJson(route, ORGANIZATIONS_RESPONSE);
     }
 
-    if (url.hostname === "api.mapbox.com") {
-      if (url.pathname.includes("/styles/v1/")) {
-        return fulfillJson(route, MAPBOX_STYLE);
-      }
-
-      if (url.pathname.includes("/fonts/v1/")) {
-        return route.fulfill({
-          status: 200,
-          contentType: "application/x-protobuf",
-          body: Buffer.alloc(0),
-        });
-      }
-
-      if (
-        url.pathname.includes("/map-sessions/v1") ||
-        url.pathname.endsWith(".png") ||
-        url.pathname.endsWith(".jpg") ||
-        url.pathname.endsWith(".webp")
-      ) {
-        return fulfillPng(route);
-      }
-
-      return fulfillNoContent(route);
-    }
-
     if (url.hostname === "api.hi.gainforest.app" && url.pathname === "/graphql") {
       return handleGraphql(route);
-    }
-
-    if (url.hostname === "events.mapbox.com") {
-      return fulfillNoContent(route);
     }
 
     if (url.hostname === "climateai.org" && url.pathname.startsWith("/xrpc/")) {
@@ -249,15 +199,21 @@ export const installMockRoutes = async (page: Page) => {
       return fulfillJson(route, { bounds: FIXTURE_LAYER_BOUNDS });
     }
 
-    if (url.hostname === "services.terrascope.be") {
+    if (
+      url.hostname === "services.terrascope.be" ||
+      url.hostname === "server.arcgisonline.com"
+    ) {
       return fulfillPng(route);
     }
 
-    if (
-      url.hostname === "cdn.jsdelivr.net" &&
-      url.pathname.includes("country-flag-emoji-json")
-    ) {
-      return fulfillSvg(route);
+    if (url.hostname === "cdn.jsdelivr.net") {
+      if (url.pathname.includes("country-flag-emoji-json")) {
+        return fulfillSvg(route);
+      }
+
+      if (url.pathname.includes("three-globe/example/img")) {
+        return fulfillPng(route);
+      }
     }
 
     return route.continue();

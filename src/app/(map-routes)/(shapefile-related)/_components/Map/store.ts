@@ -1,18 +1,18 @@
 import { AsyncData } from "@/lib/types";
-import { Map } from "mapbox-gl";
+import type { GlobeController } from "@/app/(map-routes)/_utils/GlobeController";
 import { create } from "zustand";
 import { Feature, FeatureCollection, MultiPolygon } from "geojson";
 
 export type SupportedGeoJSON = FeatureCollection | Feature<MultiPolygon>;
 
 export type MapStoreState = {
-  map: Map | null;
+  map: GlobeController | null;
   mapLoaded: boolean;
   asyncShapeData: AsyncData<SupportedGeoJSON>;
 };
 
 export type MapStoreActions = {
-  setMap: (map: Map) => void;
+  setMap: (map: GlobeController | null) => void;
   setMapLoaded: (mapLoaded: boolean) => void;
   setAsyncShapeData: (asyncShapeData: AsyncData<SupportedGeoJSON>) => void;
 };

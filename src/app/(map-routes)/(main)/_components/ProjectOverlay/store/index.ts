@@ -18,7 +18,7 @@ import { Agent } from "@atproto/api";
 import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
 import { computePolygonMetrics } from "@/lib/geojson";
 import { fetchMeasuredTreeOccurrences } from "../../../_hooks/use-organization-measured-trees";
-import { hyperindexClient } from "@/lib/hyperindex/client";
+import { requestHyperindex } from "@/lib/hyperindex/client";
 import {
   DEFAULT_SITE_BY_DID,
   LOCATIONS_BY_DID,
@@ -61,12 +61,13 @@ const normalizeCertifiedLocation = (location: HiCertifiedLocation): AtprotoSite 
 });
 
 const fetchAllAtprotoSites = async (did: string): Promise<AtprotoSite[]> => {
-  const response: LocationsResponse = await hyperindexClient.request(
+  const response: LocationsResponse = await requestHyperindex<LocationsResponse>(
     LOCATIONS_BY_DID,
     {
       did,
       first: 100,
-    }
+    },
+    { label: "certified locations" },
   );
 
   return response.appCertifiedLocation.edges.map((edge) =>
@@ -75,9 +76,10 @@ const fetchAllAtprotoSites = async (did: string): Promise<AtprotoSite[]> => {
 };
 
 const fetchDefaultSiteUri = async (did: string): Promise<string | null> => {
-  const response: DefaultSiteResponse = await hyperindexClient.request(
+  const response: DefaultSiteResponse = await requestHyperindex<DefaultSiteResponse>(
     DEFAULT_SITE_BY_DID,
-    { did }
+    { did },
+    { label: "default site" },
   );
 
   const defaultSite = response.appGainforestOrganizationDefaultSite.edges[0]?.node;
@@ -511,6 +513,7 @@ const useProjectOverlayStore = create<
       }
 
       // Set initial loading state
+      useMapStore.getState().setTreeOverlayReady(false);
       set({
         projectId,
         ...initialProjectState,
@@ -626,7 +629,10 @@ const useProjectOverlayStore = create<
 
       const selectedSite = atprotoSites.find((site) => site.uri === siteId);
 
-      useMapStore.getState().setCurrentView("project");
+      const mapStore = useMapStore.getState();
+      mapStore.setCurrentView("project");
+      mapStore.setTreeOverlayReady(false);
+      mapStore.setHighlightedPolygon(null);
 
       set({
         activeSite: selectedSite ?? null,
@@ -648,6 +654,7 @@ const useProjectOverlayStore = create<
 
           if (data === null) {
             set({ activeSiteAreaHectares: null });
+            useMapStore.getState().setHighlightedPolygon(null);
             return;
           }
 
@@ -697,6 +704,7 @@ const useProjectOverlayStore = create<
         return;
       }
 
+      useMapStore.getState().setTreeOverlayReady(false);
       set({ treesAsync: { _status: "loading", data: null } });
       void loadProjectTrees(
         projectId,
