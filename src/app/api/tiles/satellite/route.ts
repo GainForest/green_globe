@@ -1,9 +1,15 @@
 import { getRawSatelliteTileUrl } from "@/config/map";
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
+
+export const runtime = "nodejs";
 
 const TILE_SIZE = 256;
 const TILE_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
+
+type ImageTile = {
+  buffer: Buffer;
+  contentType: string;
+};
 
 const parseTileNumber = (
   request: NextRequest,
@@ -20,7 +26,7 @@ const fetchSatelliteTile = async (
   x: number,
   y: number,
   z: number,
-): Promise<Buffer | null> => {
+): Promise<ImageTile | null> => {
   const response = await fetch(getRawSatelliteTileUrl(x, y, z), {
     headers: {
       Accept: "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
@@ -34,8 +40,14 @@ const fetchSatelliteTile = async (
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("image/")) return null;
 
-  return Buffer.from(await response.arrayBuffer());
+  return {
+    buffer: Buffer.from(await response.arrayBuffer()),
+    contentType,
+  };
 };
+
+const toDataUri = ({ buffer, contentType }: ImageTile) =>
+  `data:${contentType};base64,${buffer.toString("base64")}`;
 
 const imageResponse = (buffer: Buffer, contentType = "image/jpeg") => {
   const body = buffer.buffer.slice(
@@ -47,6 +59,27 @@ const imageResponse = (buffer: Buffer, contentType = "image/jpeg") => {
     headers: {
       "Cache-Control": TILE_CACHE_CONTROL,
       "Content-Type": contentType,
+    },
+  });
+};
+
+const svgSupertileResponse = (
+  tiles: Array<ImageTile & { left: number; top: number }>,
+  scale: number,
+) => {
+  const size = TILE_SIZE * scale;
+  const images = tiles
+    .map(
+      (tile) =>
+        `<image href="${toDataUri(tile)}" x="${tile.left}" y="${tile.top}" width="${TILE_SIZE}" height="${TILE_SIZE}"/>`,
+    )
+    .join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${images}</svg>`;
+
+  return new NextResponse(svg, {
+    headers: {
+      "Cache-Control": TILE_CACHE_CONTROL,
+      "Content-Type": "image/svg+xml",
     },
   });
 };
@@ -70,7 +103,7 @@ export async function GET(request: NextRequest) {
     if (!tile) {
       return NextResponse.json({ error: "Tile unavailable" }, { status: 502 });
     }
-    return imageResponse(tile);
+    return imageResponse(tile.buffer, tile.contentType);
   }
 
   const scale = 2 ** sourceZoomOffset;
@@ -79,19 +112,19 @@ export async function GET(request: NextRequest) {
     Array.from({ length: scale * scale }, async (_, index) => {
       const dx = index % scale;
       const dy = Math.floor(index / scale);
-      const buffer = await fetchSatelliteTile(x * scale + dx, y * scale + dy, sourceZ);
+      const tile = await fetchSatelliteTile(x * scale + dx, y * scale + dy, sourceZ);
 
-      if (!buffer) return null;
+      if (!tile) return null;
 
       return {
-        input: buffer,
+        ...tile,
         left: dx * TILE_SIZE,
         top: dy * TILE_SIZE,
       };
     }),
   );
   const composites = childTiles.filter(
-    (tile): tile is { input: Buffer; left: number; top: number } => Boolean(tile),
+    (tile): tile is ImageTile & { left: number; top: number } => Boolean(tile),
   );
 
   if (!composites.length) {
@@ -99,20 +132,8 @@ export async function GET(request: NextRequest) {
     if (!fallbackTile) {
       return NextResponse.json({ error: "Tile unavailable" }, { status: 502 });
     }
-    return imageResponse(fallbackTile);
+    return imageResponse(fallbackTile.buffer, fallbackTile.contentType);
   }
 
-  const image = await sharp({
-    create: {
-      width: TILE_SIZE * scale,
-      height: TILE_SIZE * scale,
-      channels: 3,
-      background: { r: 0, g: 0, b: 0 },
-    },
-  })
-    .composite(composites)
-    .jpeg({ quality: 92 })
-    .toBuffer();
-
-  return imageResponse(image);
+  return svgSupertileResponse(composites, scale);
 }

@@ -1,6 +1,7 @@
 import { getRawSatelliteTileUrl } from "@/config/map";
 import { NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
+
+export const runtime = "nodejs";
 
 const TILE_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 const PRIVATE_HOST_PATTERNS = [
@@ -86,6 +87,11 @@ const fetchImageBuffer = async (url: string): Promise<{
   };
 };
 
+const toDataUri = ({ buffer, contentType }: {
+  buffer: Buffer;
+  contentType: string;
+}) => `data:${contentType};base64,${buffer.toString("base64")}`;
+
 const imageResponse = (buffer: Buffer, contentType = "image/png") => {
   const body = buffer.buffer.slice(
     buffer.byteOffset,
@@ -96,6 +102,20 @@ const imageResponse = (buffer: Buffer, contentType = "image/png") => {
     headers: {
       "Cache-Control": TILE_CACHE_CONTROL,
       "Content-Type": contentType,
+    },
+  });
+};
+
+const svgCompositeResponse = (
+  satelliteTile: { buffer: Buffer; contentType: string },
+  rasterTile: { buffer: Buffer; contentType: string },
+) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><image href="${toDataUri(satelliteTile)}" width="256" height="256"/><image href="${toDataUri(rasterTile)}" width="256" height="256"/></svg>`;
+
+  return new NextResponse(svg, {
+    headers: {
+      "Cache-Control": TILE_CACHE_CONTROL,
+      "Content-Type": "image/svg+xml",
     },
   });
 };
@@ -128,11 +148,7 @@ export async function GET(request: NextRequest) {
   const rasterTile = await fetchImageBuffer(remoteTileUrl);
 
   if (satelliteTile && rasterTile) {
-    const composite = await sharp(satelliteTile.buffer)
-      .composite([{ input: rasterTile.buffer }])
-      .png()
-      .toBuffer();
-    return imageResponse(composite);
+    return svgCompositeResponse(satelliteTile, rasterTile);
   }
 
   if (rasterTile) {
