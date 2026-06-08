@@ -3,7 +3,7 @@ import type { GlobePointOfView } from "@/app/(map-routes)/_utils/globe-data";
 export const GLOBE_INITIAL_POINT_OF_VIEW: GlobePointOfView = {
   lat: 9,
   lng: 102,
-  altitude: 2.25,
+  altitude: 2.5,
 };
 
 const GLOBE_VISUAL_PRESETS = {

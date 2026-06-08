@@ -295,9 +295,7 @@ export class GlobeController {
 
     this.stopAutoRotate();
     this.cameraTransitionEndsAt = performance.now() + transitionMs;
-    // When the desktop overlay is open, shift the globe toward the remaining
-    // visible map area instead of letting it sit under the left panel.
-    this.globe.globeOffset([options.extraLeftPadding ? -280 : 0, 0]);
+    this.globe.globeOffset([options.extraLeftPadding ? 240 : 0, 0]);
     this.animateCameraZoom(cameraZoom, transitionMs);
     this.globe.pointOfView(pov, transitionMs);
     window.setTimeout(() => {

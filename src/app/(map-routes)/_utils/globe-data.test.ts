@@ -144,7 +144,7 @@ describe("globe-data", () => {
 
     expect(pov.lat).toBeCloseTo(-1.15);
     expect(pov.lng).toBeCloseTo(36.85);
-    expect(pov.altitude).toBeCloseTo(0.00098);
+    expect(pov.altitude).toBeCloseTo(0.00108);
 
     expect(boundsToCameraZoom([36.8, -1.2, 36.9, -1.1])).toBeCloseTo(2 / 3);
 

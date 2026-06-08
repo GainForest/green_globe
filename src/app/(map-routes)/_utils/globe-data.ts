@@ -305,7 +305,7 @@ export const boundsToPointOfView = (
   return {
     lng: (west + east) / 2,
     lat: (south + north) / 2,
-    altitude: Math.max(minAltitude, Math.min(maxAltitude, maxSpan * 0.009 + 0.00008)),
+    altitude: Math.max(minAltitude, Math.min(maxAltitude, maxSpan * 0.01 + 0.00008)),
   };
 };
 
