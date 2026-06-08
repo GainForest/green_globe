@@ -3,6 +3,9 @@
 Issue:
 - PR deployment failed after `next build` reached lint/type checking warnings.
 - The same branch built successfully locally with `bun run build`, so the warnings were not the failure cause.
+- Vercel's concrete type error was:
+  - `Could not find a declaration file for module 'three'`
+  - import site: `src/app/(map-routes)/_utils/GlobeController.ts`
 
 Investigation:
 - `bun run build` passed locally.
@@ -10,7 +13,8 @@ Investigation:
   - `src/app/api/tiles/raster-with-basemap/route.ts`
   - `src/app/api/tiles/satellite/route.ts`
 - Local Next build traces before the first fix included native `sharp` / `libvips` packages in both route traces.
-- After removing `sharp`, all Vercel targets still failed. The local Next route table showed 13 dynamic/serverless routes with two separate tile API routes. That likely hit Vercel's Hobby 12 serverless-functions-per-deployment limit.
+- After removing `sharp`, all Vercel targets still failed. The local Next route table showed 13 dynamic/serverless routes with two separate tile API routes. That may have hit Vercel's Hobby 12 serverless-functions-per-deployment limit, so the routes were consolidated as a defensive deployment fix.
+- The actual pasted Vercel error confirmed the immediate blocker was missing `@types/three`.
 
 Fix:
 - Removed the `sharp` import from tile handling.
@@ -26,8 +30,10 @@ Fix:
   - `src/app/api/tiles/satellite/route.ts`
   - `src/app/api/tiles/raster-with-basemap/route.ts`
 - Added explicit `export const runtime = "nodejs"` to the consolidated route.
+- Added `@types/three` as an explicit dev dependency so Vercel's clean install has declarations for imports from `three`.
 
 Verification:
+- `bunx tsc --noEmit --pretty false` passed.
 - `bun run build` passed.
 - Build output now has a single `/api/tiles` route instead of two tile API routes.
 - Dynamic/serverless route count is back to 12.
