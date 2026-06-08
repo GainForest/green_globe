@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+const TILE_SIZE = 256;
 const TILE_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
 const PRIVATE_HOST_PATTERNS = [
   /^localhost$/i,
@@ -12,6 +13,12 @@ const PRIVATE_HOST_PATTERNS = [
   /^192\.168\./,
   /^0\./,
 ];
+
+type TileMode = "satellite" | "raster-with-basemap";
+type ImageTile = {
+  buffer: Buffer;
+  contentType: string;
+};
 
 const isPrivateHost = (hostname: string): boolean =>
   PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
@@ -64,10 +71,12 @@ const parseTileNumber = (
   return Number.isInteger(value) && value >= 0 ? value : null;
 };
 
-const fetchImageBuffer = async (url: string): Promise<{
-  buffer: Buffer;
-  contentType: string;
-} | null> => {
+const parseTileMode = (request: NextRequest): TileMode | null => {
+  const mode = request.nextUrl.searchParams.get("mode");
+  return mode === "satellite" || mode === "raster-with-basemap" ? mode : null;
+};
+
+const fetchImageBuffer = async (url: string): Promise<ImageTile | null> => {
   const response = await fetch(url, {
     headers: {
       Accept: "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
@@ -87,12 +96,16 @@ const fetchImageBuffer = async (url: string): Promise<{
   };
 };
 
-const toDataUri = ({ buffer, contentType }: {
-  buffer: Buffer;
-  contentType: string;
-}) => `data:${contentType};base64,${buffer.toString("base64")}`;
+const fetchSatelliteTile = async (
+  x: number,
+  y: number,
+  z: number,
+): Promise<ImageTile | null> => fetchImageBuffer(getRawSatelliteTileUrl(x, y, z));
 
-const imageResponse = (buffer: Buffer, contentType = "image/png") => {
+const toDataUri = ({ buffer, contentType }: ImageTile) =>
+  `data:${contentType};base64,${buffer.toString("base64")}`;
+
+const imageResponse = (buffer: Buffer, contentType = "image/jpeg") => {
   const body = buffer.buffer.slice(
     buffer.byteOffset,
     buffer.byteOffset + buffer.byteLength,
@@ -106,21 +119,94 @@ const imageResponse = (buffer: Buffer, contentType = "image/png") => {
   });
 };
 
-const svgCompositeResponse = (
-  satelliteTile: { buffer: Buffer; contentType: string },
-  rasterTile: { buffer: Buffer; contentType: string },
-) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><image href="${toDataUri(satelliteTile)}" width="256" height="256"/><image href="${toDataUri(rasterTile)}" width="256" height="256"/></svg>`;
-
-  return new NextResponse(svg, {
+const svgResponse = (svg: string) =>
+  new NextResponse(svg, {
     headers: {
       "Cache-Control": TILE_CACHE_CONTROL,
       "Content-Type": "image/svg+xml",
     },
   });
+
+const svgCompositeResponse = (
+  satelliteTile: ImageTile,
+  rasterTile: ImageTile,
+) =>
+  svgResponse(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><image href="${toDataUri(satelliteTile)}" width="256" height="256"/><image href="${toDataUri(rasterTile)}" width="256" height="256"/></svg>`,
+  );
+
+const svgSupertileResponse = (
+  tiles: Array<ImageTile & { left: number; top: number }>,
+  scale: number,
+) => {
+  const size = TILE_SIZE * scale;
+  const images = tiles
+    .map(
+      (tile) =>
+        `<image href="${toDataUri(tile)}" x="${tile.left}" y="${tile.top}" width="${TILE_SIZE}" height="${TILE_SIZE}"/>`,
+    )
+    .join("");
+
+  return svgResponse(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${images}</svg>`,
+  );
 };
 
-export async function GET(request: NextRequest) {
+const handleSatelliteTile = async (request: NextRequest) => {
+  const x = parseTileNumber(request, "x");
+  const y = parseTileNumber(request, "y");
+  const z = parseTileNumber(request, "z");
+  const requestedOffset = parseTileNumber(request, "sourceZoomOffset") ?? 1;
+  const sourceZoomOffset = Math.max(0, Math.min(2, requestedOffset));
+
+  if (x === null || y === null || z === null) {
+    return NextResponse.json(
+      { error: "Missing or invalid tile coordinates" },
+      { status: 400 },
+    );
+  }
+
+  if (sourceZoomOffset === 0) {
+    const tile = await fetchSatelliteTile(x, y, z);
+    if (!tile) {
+      return NextResponse.json({ error: "Tile unavailable" }, { status: 502 });
+    }
+    return imageResponse(tile.buffer, tile.contentType);
+  }
+
+  const scale = 2 ** sourceZoomOffset;
+  const sourceZ = z + sourceZoomOffset;
+  const childTiles = await Promise.all(
+    Array.from({ length: scale * scale }, async (_, index) => {
+      const dx = index % scale;
+      const dy = Math.floor(index / scale);
+      const tile = await fetchSatelliteTile(x * scale + dx, y * scale + dy, sourceZ);
+
+      if (!tile) return null;
+
+      return {
+        ...tile,
+        left: dx * TILE_SIZE,
+        top: dy * TILE_SIZE,
+      };
+    }),
+  );
+  const composites = childTiles.filter(
+    (tile): tile is ImageTile & { left: number; top: number } => Boolean(tile),
+  );
+
+  if (!composites.length) {
+    const fallbackTile = await fetchSatelliteTile(x, y, z);
+    if (!fallbackTile) {
+      return NextResponse.json({ error: "Tile unavailable" }, { status: 502 });
+    }
+    return imageResponse(fallbackTile.buffer, fallbackTile.contentType);
+  }
+
+  return svgSupertileResponse(composites, scale);
+};
+
+const handleRasterWithBasemapTile = async (request: NextRequest) => {
   const x = parseTileNumber(request, "x");
   const y = parseTileNumber(request, "y");
   const z = parseTileNumber(request, "z");
@@ -144,7 +230,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Disallowed tileUrl" }, { status: 400 });
   }
 
-  const satelliteTile = await fetchImageBuffer(getRawSatelliteTileUrl(x, y, z));
+  const satelliteTile = await fetchSatelliteTile(x, y, z);
   const rasterTile = await fetchImageBuffer(remoteTileUrl);
 
   if (satelliteTile && rasterTile) {
@@ -160,4 +246,18 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ error: "Tile unavailable" }, { status: 502 });
+};
+
+export async function GET(request: NextRequest) {
+  const mode = parseTileMode(request);
+
+  if (mode === "satellite") {
+    return handleSatelliteTile(request);
+  }
+
+  if (mode === "raster-with-basemap") {
+    return handleRasterWithBasemapTile(request);
+  }
+
+  return NextResponse.json({ error: "Missing or invalid tile mode" }, { status: 400 });
 }

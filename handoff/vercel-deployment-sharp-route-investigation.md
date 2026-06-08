@@ -6,26 +6,36 @@ Issue:
 
 Investigation:
 - `bun run build` passed locally.
-- The two new tile API routes imported `sharp` for server-side image compositing/stitching:
+- The two new tile API routes originally imported `sharp` for server-side image compositing/stitching:
   - `src/app/api/tiles/raster-with-basemap/route.ts`
   - `src/app/api/tiles/satellite/route.ts`
-- Local Next build traces before the fix included native `sharp` / `libvips` packages in both route traces.
-- That is the likely Vercel-specific failure source because native image libraries can fail or exceed/serverlessly bloat deployment function tracing even when local builds pass.
+- Local Next build traces before the first fix included native `sharp` / `libvips` packages in both route traces.
+- After removing `sharp`, all Vercel targets still failed. The local Next route table showed 13 dynamic/serverless routes with two separate tile API routes. That likely hit Vercel's Hobby 12 serverless-functions-per-deployment limit.
 
 Fix:
-- Removed the `sharp` import from both tile routes.
+- Removed the `sharp` import from tile handling.
 - Replaced native image compositing with SVG image composition:
-  - raster-over-basemap route returns an SVG with base64 inlined satellite + raster tile images when both are available;
-  - satellite supertile route returns an SVG with base64 inlined higher-zoom child tiles;
+  - raster-over-basemap mode returns an SVG with base64 inlined satellite + raster tile images when both are available;
+  - satellite supertile mode returns an SVG with base64 inlined higher-zoom child tiles;
   - direct/fallback tile responses still return the original image bytes.
-- Added explicit `export const runtime = "nodejs"` to both routes.
+- Consolidated the two tile routes into a single route:
+  - `src/app/api/tiles/route.ts`
+  - `mode=satellite`
+  - `mode=raster-with-basemap`
+- Removed the old route files:
+  - `src/app/api/tiles/satellite/route.ts`
+  - `src/app/api/tiles/raster-with-basemap/route.ts`
+- Added explicit `export const runtime = "nodejs"` to the consolidated route.
 
 Verification:
 - `bun run build` passed.
-- `.next/server/app/api/tiles/*/route.js.nft.json` now has zero `sharp`, `libvips`, or `@img` traced files.
-- Production local server on port 8911 rendered the homepage successfully.
-- `/api/tiles/satellite?...sourceZoomOffset=1` returned `200 image/svg+xml`.
+- Build output now has a single `/api/tiles` route instead of two tile API routes.
+- Dynamic/serverless route count is back to 12.
+- `.next/server/app/api/tiles/route.js.nft.json` has zero `sharp`, `libvips`, or `@img` traced files.
+- Production local server on port 8911 rendered the homepage successfully after route consolidation.
+- `/api/tiles?mode=satellite&...sourceZoomOffset=1` returns `200 image/svg+xml`.
 - Screenshot evidence:
+  - `reports/screenshots/vercel-function-count-fix-production-home.png`
   - `reports/screenshots/vercel-sharp-free-production-home.png`
 
 Checks:

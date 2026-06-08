@@ -119,7 +119,7 @@ export const getSatelliteTileUrl = (x: number, y: number, level: number) => {
     return getRawSatelliteTileUrl(x, y, level);
   }
 
-  return `/api/tiles/satellite?z=${level}&x=${x}&y=${y}&sourceZoomOffset=${GLOBE_CONFIG.satelliteSupertileZoomOffset}`;
+  return `/api/tiles?mode=satellite&z=${level}&x=${x}&y=${y}&sourceZoomOffset=${GLOBE_CONFIG.satelliteSupertileZoomOffset}`;
 };
 
 export const getLandcoverTileUrl = (x: number, y: number, level: number) => {

@@ -49,7 +49,7 @@ const createCompositeRasterTileUrl = (
   y: number,
   level: number,
 ) =>
-  `/api/tiles/raster-with-basemap?z=${level}&x=${x}&y=${y}&tileUrl=${encodeURIComponent(remoteTileUrl)}`;
+  `/api/tiles?mode=raster-with-basemap&z=${level}&x=${x}&y=${y}&tileUrl=${encodeURIComponent(remoteTileUrl)}`;
 
 const createRasterTileFactory = (layer: DynamicLayer): TileUrlFactory => {
   const endpoint = resolveLayerUrl(layer.endpoint);
