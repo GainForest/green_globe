@@ -308,6 +308,15 @@ const shouldUsePreviewBounds = (): boolean => {
   );
 };
 
+const shouldKeepActiveSiteBoundaryBounds = (): boolean => {
+  const { embedMode } = usePreviewStore.getState();
+
+  // Embedded previews should keep the project place boundary in view. Tree and
+  // tree-group filtering still controls which dots are shown, but once the
+  // selected place boundary is loaded it should remain the camera target.
+  return embedMode && useMapStore.getState().highlightedPolygon !== null;
+};
+
 // ---------------------------------------------------------------------------
 // Store types
 // ---------------------------------------------------------------------------
@@ -456,7 +465,8 @@ const useProjectOverlayStore = create<
 
         if (
           filteredOccurrenceData &&
-          (shouldUsePreviewBounds() || !shouldFitToSite)
+          (shouldUsePreviewBounds() || !shouldFitToSite) &&
+          !shouldKeepActiveSiteBoundaryBounds()
         ) {
           setMapBoundsFromTrees(getPreviewBoundsData(filteredOccurrenceData));
         }
@@ -491,7 +501,8 @@ const useProjectOverlayStore = create<
 
       if (
         filteredData &&
-        (shouldUsePreviewBounds() || !shouldFitToSite)
+        (shouldUsePreviewBounds() || !shouldFitToSite) &&
+        !shouldKeepActiveSiteBoundaryBounds()
       ) {
         setMapBoundsFromTrees(getPreviewBoundsData(filteredData));
       }
@@ -560,30 +571,27 @@ const useProjectOverlayStore = create<
 
       if (!isProjectStillActive(projectId)) return;
 
-      // Require at least a slug to proceed
-      if (!slug) {
-        set({
-          projectDataStatus: "error",
-          projectData: null,
-        });
-        return;
-      }
-
       // Build site options from ATProto site records
       const allSitesOptions: ProjectSiteOption[] = sites.map((site) => ({
         value: site.uri,
         label: site.name || site.rkey,
       }));
 
-      // Build backward-compat Project object for downstream stores
-      const projectData = buildCompatProject(projectId, slug);
+      const fallbackSlug = toKebabCase(sites[0]?.name ?? "") || "project";
+      const projectSlug = slug ?? fallbackSlug;
+
+      // Build backward-compat Project object for downstream stores. Some
+      // Bumicerts-only organizations do not have an organization info record
+      // yet, but their project places and tree records are still enough for an
+      // embedded preview.
+      const projectData = buildCompatProject(projectId, projectSlug);
 
       set({
         projectDataStatus: "success",
         projectData,
         allSitesOptions,
         atprotoSites: sites,
-        projectSlug: slug,
+        projectSlug,
         treesAsync: { _status: "loading", data: null },
       });
 
@@ -674,11 +682,11 @@ const useProjectOverlayStore = create<
             number,
             number,
           ];
-          if (zoomToSite && !shouldUsePreviewBounds()) {
+          if (zoomToSite) {
             useMapStore.getState().setMapBounds(boundingBox);
           }
           navigate?.((draft) => {
-            if (draft.map.bounds !== null && !shouldUsePreviewBounds()) {
+            if (draft.map.bounds !== null) {
               draft.map.bounds = null;
             }
           });
