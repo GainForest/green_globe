@@ -6,6 +6,7 @@ export type TreeInformation = {
   treeCommonName?: string;
   treeHeight: string;
   treeDBH: string;
+  treeRootCollarDiameter: string;
   treePhotos: string[];
   dateOfMeasurement: string;
 };

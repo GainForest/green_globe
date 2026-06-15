@@ -41,7 +41,7 @@ const VIEWPORT_PADDING_PX = 96;
 const TREE_DOT_RADIUS_PX = 4;
 const SELECTED_TREE_DOT_RADIUS_PX = 10;
 const CLOSE_VIEW_INDIVIDUAL_TREE_ALTITUDE = 0.0025;
-const MAX_TREE_OVERLAY_ALTITUDE = 0.05;
+const MAX_TREE_OVERLAY_ALTITUDE = 0.08;
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -203,6 +203,11 @@ const TreeClusterOverlay = () => {
     if (altitude > MAX_TREE_OVERLAY_ALTITUDE) {
       setItems([]);
       setTreeInformation(selectedTreeInformation);
+      // The dot overlay is intentionally hidden at wide site zooms. Mark the
+      // tree pass complete so the boundary shimmer does not persist forever.
+      if (!treeOverlayReady) {
+        setTreeOverlayReady(true);
+      }
       return;
     }
 
@@ -216,7 +221,7 @@ const TreeClusterOverlay = () => {
       altitude,
     );
     setItems(nextItems);
-    if (nextItems.length > 0 && !treeOverlayReady) {
+    if (!treeOverlayReady) {
       setTreeOverlayReady(true);
     }
   }, [

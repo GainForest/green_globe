@@ -88,7 +88,7 @@ const parseDynamicProperties = (
 
 type MeasurementsByOccurrence = Map<
   string,
-  { dbh?: string; height?: string }
+  { dbh?: string; height?: string; basalDiameter?: string }
 >;
 
 /**
@@ -136,25 +136,53 @@ const fetchMeasurementIndex = async (
             typeof result.totalHeight === "string"
               ? result.totalHeight
               : undefined;
+          const basalDiameter =
+            typeof result.basalDiameter === "string"
+              ? result.basalDiameter
+              : typeof result.rootCollarDiameter === "string"
+                ? result.rootCollarDiameter
+                : typeof result.diameter === "string"
+                  ? result.diameter
+                  : undefined;
           index.set(occurrenceRef, {
             ...existing,
             ...(dbh !== undefined ? { dbh } : {}),
             ...(height !== undefined ? { height } : {}),
+            ...(basalDiameter !== undefined ? { basalDiameter } : {}),
           });
         } else if (typeof v.measurementType === "string") {
           // Old per-measurement format: measurementType + measurementValue at top level
           const measurementType = v.measurementType.toLowerCase();
+          const normalizedMeasurementType = measurementType.replace(
+            /[^a-z0-9]/g,
+            "",
+          );
           const measurementValue =
             typeof v.measurementValue === "string" ? v.measurementValue : null;
           if (!measurementValue) continue;
 
-          if (measurementType === "dbh") {
+          if (
+            normalizedMeasurementType === "dbh" ||
+            normalizedMeasurementType === "diameteratbreastheight" ||
+            normalizedMeasurementType === "diameterbreastheight" ||
+            normalizedMeasurementType === "breastheightdiameter"
+          ) {
             index.set(occurrenceRef, { ...existing, dbh: measurementValue });
           } else if (
-            measurementType === "height" ||
-            measurementType === "tree height"
+            normalizedMeasurementType === "height" ||
+            normalizedMeasurementType === "treeheight"
           ) {
             index.set(occurrenceRef, { ...existing, height: measurementValue });
+          } else if (
+            normalizedMeasurementType === "diameter" ||
+            normalizedMeasurementType === "basaldiameter" ||
+            normalizedMeasurementType === "rootcollardiameter" ||
+            normalizedMeasurementType === "rcd"
+          ) {
+            index.set(occurrenceRef, {
+              ...existing,
+              basalDiameter: measurementValue,
+            });
           }
         }
       }
@@ -478,6 +506,8 @@ const buildTreeFeature = (
     // Measurements
     DBH: measurements.dbh,
     Height: measurements.height,
+    basalDiameter: measurements.basalDiameter,
+    diameter: measurements.basalDiameter,
   };
 
   const species =

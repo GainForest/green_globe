@@ -3,6 +3,7 @@ import {
   getTreeDBH,
   getTreeHeight,
   getTreePhotos,
+  getTreeRootCollarDiameter,
   getTreeSpeciesName,
 } from "./sources-and-layers/measured-trees";
 import type { NormalizedTreeFeature } from "../ProjectOverlay/store/types";
@@ -18,6 +19,9 @@ export const getTreeInformationFromFeature = (
   const treeCommonName = hoveredTreeFeature.properties?.commonName;
   const treeHeight = getTreeHeight(hoveredTreeFeature.properties);
   const treeDBH = getTreeDBH(hoveredTreeFeature.properties);
+  const treeRootCollarDiameter = getTreeRootCollarDiameter(
+    hoveredTreeFeature.properties,
+  );
   const dateOfMeasurement = getTreeDateOfMeasurement(
     hoveredTreeFeature.properties,
   );
@@ -42,6 +46,7 @@ export const getTreeInformationFromFeature = (
     treeCommonName,
     treeHeight,
     treeDBH,
+    treeRootCollarDiameter,
     treePhotos,
     dateOfMeasurement,
   };

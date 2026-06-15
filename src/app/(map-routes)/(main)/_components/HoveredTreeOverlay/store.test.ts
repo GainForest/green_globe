@@ -6,6 +6,7 @@ const treeA: TreeInformation = {
   treeSpecies: "Rhizophora mucronata",
   treeHeight: "2m",
   treeDBH: "10cm",
+  treeRootCollarDiameter: "4cm",
   treePhotos: ["/tree-a.jpg"],
   dateOfMeasurement: "2026-01-01",
 };
@@ -15,6 +16,7 @@ const treeB: TreeInformation = {
   treeSpecies: "Avicennia marina",
   treeHeight: "3m",
   treeDBH: "12cm",
+  treeRootCollarDiameter: "5cm",
   treePhotos: ["/tree-b.jpg"],
   dateOfMeasurement: "2026-01-02",
 };

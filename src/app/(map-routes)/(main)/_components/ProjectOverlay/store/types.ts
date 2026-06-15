@@ -114,6 +114,8 @@ export type TreeFeatureProperties = {
   Height?: string;
   height?: string;
   diameter?: string;
+  basalDiameter?: string;
+  rootCollarDiameter?: string;
   species: string;
   commonName?: string;
   dateMeasured?: string;

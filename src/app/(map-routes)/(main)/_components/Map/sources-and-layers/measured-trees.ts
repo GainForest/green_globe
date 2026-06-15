@@ -26,8 +26,17 @@ export const getTreeHeight = (tree: TreeFeature["properties"]) => {
 export const getTreeDBH = (tree: TreeFeature["properties"]) => {
   if (tree?.DBH) {
     return `${tree?.DBH}cm`;
-  } else if (tree?.diameter) {
-    return `${tree?.diameter}cm`;
+  } else {
+    return "unknown";
+  }
+};
+
+export const getTreeRootCollarDiameter = (tree: TreeFeature["properties"]) => {
+  const rootCollarDiameter =
+    tree?.rootCollarDiameter ?? tree?.basalDiameter ?? tree?.diameter;
+
+  if (rootCollarDiameter) {
+    return `${rootCollarDiameter}cm`;
   } else {
     return "unknown";
   }
