@@ -1,9 +1,14 @@
 import { create } from "zustand";
 
+export type PreviewMode = "all" | "only" | "none";
+
 export type PreviewState = {
   embedMode: boolean;
   treeUri: string | null;
-  datasetRef: string | null;
+  datasetRefs: string[];
+  focusedDatasetRef: string | null;
+  focusedSiteRef: string | null;
+  previewMode: PreviewMode;
 };
 
 type PreviewActions = {
@@ -13,7 +18,10 @@ type PreviewActions = {
 const initialState: PreviewState = {
   embedMode: false,
   treeUri: null,
-  datasetRef: null,
+  datasetRefs: [],
+  focusedDatasetRef: null,
+  focusedSiteRef: null,
+  previewMode: "all",
 };
 
 const usePreviewStore = create<PreviewState & PreviewActions>((set) => ({

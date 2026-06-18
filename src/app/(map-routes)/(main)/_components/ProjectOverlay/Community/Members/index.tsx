@@ -1,8 +1,10 @@
 "use client";
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import useProjectOverlayStore from "../../store";
 import useOrganizationMembers from "@/app/(map-routes)/(main)/_hooks/use-organization-members";
-import { getBlobUrl } from "@/lib/atproto/sdk-utils";
+import { buildBlobUrl, extractCid } from "@/lib/atproto/extract-cid";
+import { pdsEndpointForDid } from "@/lib/atproto/pds";
 import { BadgeDollarSign, CircleAlert, UserCircle2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Loading from "./loading";
@@ -11,6 +13,15 @@ import ErrorMessage from "../../ErrorMessage";
 const Members = () => {
   const projectId = useProjectOverlayStore((state) => state.projectId);
   const { members, isLoading, error } = useOrganizationMembers(projectId);
+  const { data: pdsEndpoint } = useQuery({
+    queryKey: ["pds-endpoint", projectId],
+    queryFn: async () => {
+      if (!projectId) return null;
+      return pdsEndpointForDid(projectId);
+    },
+    enabled: Boolean(projectId),
+    staleTime: Infinity,
+  });
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorMessage />;
@@ -66,19 +77,12 @@ const Members = () => {
                 [member.firstName, member.lastName].filter(Boolean).join(" ") ||
                 "Unknown Member";
 
+              const avatarCid = member.profileImage
+                ? extractCid(member.profileImage.image.ref)
+                : null;
               const avatarUrl =
-                member.profileImage && projectId
-                  ? (() => {
-                      try {
-                        return getBlobUrl(
-                          projectId,
-                          member.profileImage,
-                          "climateai.org",
-                        );
-                      } catch {
-                        return undefined;
-                      }
-                    })()
+                avatarCid && projectId && pdsEndpoint
+                  ? buildBlobUrl(pdsEndpoint, projectId, avatarCid)
                   : undefined;
 
               return (

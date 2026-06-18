@@ -1,63 +1,142 @@
-import { Map } from "mapbox-gl";
-import { addMeasuredTreesSourceAndLayer } from "../measured-trees";
+import type { Feature, FeatureCollection } from "geojson";
+import type { GlobeController, TileUrlFactory } from "@/app/(map-routes)/_utils/GlobeController";
+import {
+  featureCollectionToPaths,
+  featureCollectionToPolygons,
+  geoJsonToPointData,
+  SHANNON_INDEX_STOPS,
+  SPECIES_RICHNESS_STOPS,
+  steppedColor,
+} from "@/app/(map-routes)/_utils/globe-data";
 import { DynamicLayer } from "@/app/(map-routes)/(main)/_components/LayersOverlay/store/types";
-import addGeojsonPointSourceAndLayer from "./points";
-import addGeojsonLineSourceAndLayer from "./line";
-import addTMSTileSourceAndLayer from "./tms-tile";
-import addRasterSourceAndLayer from "./raster";
-import addChoroplethSourceAndLayers from "./chloropleth";
-import addShannonChoroplethSourceAndLayers from "./shannon-chloropleth";
+import { resolveLayerUrl } from "@/lib/utils";
 
-const safeMoveLayer = (map: Map, layerId: string, beforeId?: string) => {
-  if (!map.getLayer(layerId)) {
+const toFeatureCollection = (data: unknown): FeatureCollection => {
+  const value = data as FeatureCollection | Feature;
+
+  if (value?.type === "FeatureCollection") {
+    return value;
+  }
+
+  if (value?.type === "Feature") {
+    return {
+      type: "FeatureCollection",
+      features: [value],
+    };
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: [],
+  };
+};
+
+const fetchGeoJson = async (
+  endpoint: string,
+  signal?: AbortSignal,
+): Promise<FeatureCollection> => {
+  const response = await fetch(resolveLayerUrl(endpoint), { signal });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch layer GeoJSON (${response.status})`);
+  }
+
+  return toFeatureCollection(await response.json());
+};
+
+const createCompositeRasterTileUrl = (
+  remoteTileUrl: string,
+  x: number,
+  y: number,
+  level: number,
+) =>
+  `/api/tiles?mode=raster-with-basemap&z=${level}&x=${x}&y=${y}&tileUrl=${encodeURIComponent(remoteTileUrl)}`;
+
+const createRasterTileFactory = (layer: DynamicLayer): TileUrlFactory => {
+  const endpoint = resolveLayerUrl(layer.endpoint);
+
+  if (layer.type === "raster_tif") {
+    return (x, y, level) => {
+      const tileUrl = `${process.env.NEXT_PUBLIC_TITILER_ENDPOINT}/cog/tiles/WebMercatorQuad/${level}/${x}/${y}@1x?url=${encodeURIComponent(endpoint)}`;
+      return createCompositeRasterTileUrl(tileUrl, x, y, level);
+    };
+  }
+
+  return (x, y, level) => {
+    const tmsY = 2 ** level - 1 - y;
+    const tileUrl = endpoint
+      .replaceAll("{z}", String(level))
+      .replaceAll("{x}", String(x))
+      .replaceAll("{y}", String(tmsY));
+    return createCompositeRasterTileUrl(tileUrl, x, y, level);
+  };
+};
+
+const addNamedSource = async (
+  globe: GlobeController,
+  layer: DynamicLayer,
+  signal?: AbortSignal,
+) => {
+  if (layer.type === "geojson_points") {
+    const data = await fetchGeoJson(layer.endpoint, signal);
+    globe.setDynamicPointLayer(
+      layer.name,
+      geoJsonToPointData(data, {
+        kind: "dynamic-point",
+        layerName: layer.name,
+        radius: 0.08,
+      }),
+    );
     return;
   }
 
-  if (beforeId && map.getLayer(beforeId)) {
-    map.moveLayer(layerId, beforeId);
+  if (layer.type === "geojson_line") {
+    const data = await fetchGeoJson(layer.endpoint, signal);
+    globe.setPathLayer(
+      layer.name,
+      featureCollectionToPaths(data, {
+        layerName: layer.name,
+        color: "#AC4197",
+        stroke: 0.08,
+      }),
+    );
     return;
   }
 
-  map.moveLayer(layerId);
+  if (layer.type === "choropleth" || layer.type === "choropleth_shannon") {
+    const data = await fetchGeoJson(layer.endpoint, signal);
+    const propertyName =
+      layer.type === "choropleth_shannon" ? "shannon_index" : "species_richness";
+    const stops =
+      layer.type === "choropleth_shannon"
+        ? SHANNON_INDEX_STOPS
+        : SPECIES_RICHNESS_STOPS;
+
+    globe.setPolygonLayer(
+      layer.name,
+      featureCollectionToPolygons(data, {
+        kind: "dynamic-polygon",
+        layerName: layer.name,
+        capColor: (feature) => steppedColor(feature.properties?.[propertyName], stops),
+        sideColor: "rgba(255,255,255,0.12)",
+        strokeColor: "rgba(17,17,17,0.8)",
+        altitude: 0.01,
+      }),
+    );
+    return;
+  }
+
+  if (layer.type === "raster_tif" || layer.type === "tms_tile") {
+    globe.setRasterTileLayer(layer.name, createRasterTileFactory(layer));
+    return;
+  }
+
+  if (layer.type === "geojson_points_trees") {
+    globe.setTreesVisible(true);
+  }
 };
 
-const addNamedSource = async (map: Map, layer: DynamicLayer) => {
-  if (!map.getSource(layer.name)) {
-    if (layer.type == "geojson_points") {
-      await addGeojsonPointSourceAndLayer(map, layer);
-    }
-    if (layer.type == "geojson_line") {
-      await addGeojsonLineSourceAndLayer(map, layer);
-    }
-    if (layer.type == "tms_tile") {
-      addTMSTileSourceAndLayer(map, layer);
-    }
-    if (layer.type == "raster_tif") {
-      await addRasterSourceAndLayer(map, layer);
-    }
-    if (layer.type == "choropleth") {
-      addChoroplethSourceAndLayers(map, layer);
-    }
-    if (layer.type == "choropleth_shannon") {
-      addShannonChoroplethSourceAndLayers(map, layer);
-    }
-    if (layer.type == "geojson_points_trees") {
-      addMeasuredTreesSourceAndLayer(map);
-    }
-  }
-
-  safeMoveLayer(map, layer.name, "highlightedSiteOutline");
-  safeMoveLayer(map, "highlightedSiteOutline", "projectMarkerLayer");
-};
-
-export const removeNamedSource = (map: Map, layer: DynamicLayer) => {
-  if (map.getLayer(layer.name)) {
-    map.removeLayer(layer.name);
-  }
-
-  if (map.getSource(layer.name)) {
-    map.removeSource(layer.name);
-  }
+export const removeNamedSource = (globe: GlobeController, layer: DynamicLayer) => {
+  globe.removeDynamicLayer(layer.name);
 };
 
 export default addNamedSource;

@@ -1,6 +1,5 @@
-import ClimateAIAgent from "@/lib/atproto/agent";
-import { PDS_ENDPOINT } from "@/config/atproto";
-import { hyperindexClient } from "@/lib/hyperindex/client";
+import { agentForDid, blobUrlForDid } from "@/lib/atproto/pds";
+import { requestHyperindex } from "@/lib/hyperindex/client";
 import {
   ALL_ORGANIZATION_INFOS,
   ALL_DEFAULT_SITES,
@@ -89,11 +88,18 @@ async function fetchAllOrgInfos(): Promise<Edge<HiOrganizationInfo>[]> {
   let cursor: string | null = null;
 
   do {
-    const response: { appGainforestOrganizationInfo: Connection<HiOrganizationInfo> } =
-      await hyperindexClient.request(ALL_ORGANIZATION_INFOS, {
+    const response: {
+      appGainforestOrganizationInfo: Connection<HiOrganizationInfo>;
+    } = await requestHyperindex<{
+      appGainforestOrganizationInfo: Connection<HiOrganizationInfo>;
+    }>(
+      ALL_ORGANIZATION_INFOS,
+      {
         first: 100,
         after: cursor,
-      });
+      },
+      { label: "organization infos" },
+    );
 
     const connection = response.appGainforestOrganizationInfo;
     allEdges.push(...connection.edges);
@@ -120,10 +126,16 @@ async function fetchAllDefaultSites(): Promise<
   do {
     const response: {
       appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
-    } = await hyperindexClient.request(ALL_DEFAULT_SITES, {
-      first: 100,
-      after: cursor,
-    });
+    } = await requestHyperindex<{
+      appGainforestOrganizationDefaultSite: Connection<HiOrganizationDefaultSite>;
+    }>(
+      ALL_DEFAULT_SITES,
+      {
+        first: 100,
+        after: cursor,
+      },
+      { label: "default sites" },
+    );
 
     const connection = response.appGainforestOrganizationDefaultSite;
     allEdges.push(...connection.edges);
@@ -220,9 +232,15 @@ async function resolveCoordinatesFromSiteUri(
 async function resolveCoordinatesFromCertifiedLocationUri(
   locationUri: string
 ): Promise<{ lat: number; lon: number } | null> {
-  const response = await hyperindexClient.request<{
+  const response: {
     appCertifiedLocationByUri: HiCertifiedLocation | null;
-  }>(CERTIFIED_LOCATION_BY_URI, { uri: locationUri });
+  } = await requestHyperindex<{
+    appCertifiedLocationByUri: HiCertifiedLocation | null;
+  }>(
+    CERTIFIED_LOCATION_BY_URI,
+    { uri: locationUri },
+    { label: "certified location by URI" },
+  );
 
   const targetLocation = response.appCertifiedLocationByUri;
   if (!targetLocation) return null;
@@ -236,8 +254,8 @@ async function resolveCoordinatesFromCertifiedLocationUri(
   const cid = decodeBlobCid(blobRef);
   if (!cid) return null;
 
-  // Download GeoJSON blob from PDS
-  const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${cid}`;
+  // Download GeoJSON blob from the DID's current PDS.
+  const blobUrl = await blobUrlForDid(did, cid);
   const blobResponse = await fetch(blobUrl);
   if (!blobResponse.ok) return null;
 
@@ -269,7 +287,8 @@ async function resolveFromLegacySite(
   const rkey = atURI.split("app.gainforest.organization.site/")[1];
   if (!rkey) return null;
 
-  const siteData = await ClimateAIAgent.com.atproto.repo.getRecord({
+  const agent = await agentForDid(did);
+  const siteData = await agent.com.atproto.repo.getRecord({
     repo: did,
     collection: "app.gainforest.organization.site",
     rkey,

@@ -1,4 +1,4 @@
-import ClimateAIAgent from "@/lib/atproto/agent";
+import { agentForDid } from "@/lib/atproto/pds";
 import { useQuery } from "@tanstack/react-query";
 
 type OrganizationHandleResult = {
@@ -12,7 +12,8 @@ const useOrganizationHandle = (did: string | null | undefined): OrganizationHand
   const { data, isLoading, error } = useQuery({
     queryKey: ["organization-handle", did],
     queryFn: async () => {
-      const response = await ClimateAIAgent.com.atproto.repo.describeRepo({
+      const agent = await agentForDid(did!);
+      const response = await agent.com.atproto.repo.describeRepo({
         repo: did!,
       });
       return response.data.handle ?? null;

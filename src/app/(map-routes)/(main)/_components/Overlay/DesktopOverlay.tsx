@@ -34,7 +34,7 @@ const DesktopOverlay = () => {
   return (
     <motion.div
       data-testid="desktop-overlay"
-      className="fixed top-2 left-2 bottom-2 flex items-start gap-2"
+      className="fixed top-2 left-2 bottom-2 z-30 flex items-start gap-2"
       initial={{ opacity: 0, x: `-${computedSidebarWidth}` }}
       animate={{ opacity: 1, x: isOpen ? 0 : `-${computedSidebarWidth}` }}
       transition={{ duration: 0.3 }}

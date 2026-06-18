@@ -1,6 +1,6 @@
 import { Agent } from "@atproto/api";
 import { TID } from "@atproto/common-web";
-import { PDS_ENDPOINT } from "@/config/atproto";
+import { agentForDid } from "@/lib/atproto/pds";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -201,7 +201,7 @@ export async function updateGbifDatasetRecord(
 export async function listGbifDatasetRecords(
   did: string
 ): Promise<GbifDatasetRecord[]> {
-  const agent = new Agent(PDS_ENDPOINT);
+  const agent = await agentForDid(did);
   const records: GbifDatasetRecord[] = [];
   let cursor: string | undefined = undefined;
 

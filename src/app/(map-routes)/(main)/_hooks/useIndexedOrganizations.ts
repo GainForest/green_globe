@@ -18,7 +18,7 @@ const useIndexedOrganizations = () => {
     });
 
   const validOrganizations = useMemo(() => {
-    if (!data) return undefined;
+    if (!Array.isArray(data)) return undefined;
     return data.filter(
       (organization) =>
         organization.mapPoint !== null && organization.info !== null

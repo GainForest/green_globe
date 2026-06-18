@@ -14,14 +14,17 @@ import useHoveredTreeOverlayStore from "./store";
 import useOverlayStore from "../Overlay/store";
 import { cn } from "@/lib/utils";
 import useBlurAnimate from "../../_hooks/useBlurAnimate";
+import usePreviewStore from "../../_features/preview/store";
 const HoveredTreeOverlay = () => {
   const { animate, onAnimationComplete } = useBlurAnimate(
     { opacity: 1, scale: 1, filter: "blur(0px)" },
     { opacity: 1, scale: 1, filter: "unset" }
   );
   const overlaySize = useOverlayStore((state) => state.size);
+  const embedMode = usePreviewStore((state) => state.embedMode);
+  const shouldUseCompactTopOffset = embedMode || overlaySize === "desktop";
   const hoveredTree = useHoveredTreeOverlayStore(
-    (state) => state.treeInformation
+    (state) => state.treeInformation ?? state.selectedTreeInformation
   );
   const isExpanded = useHoveredTreeOverlayStore((state) => state.isExpanded);
   const setIsExpanded = useHoveredTreeOverlayStore(
@@ -40,8 +43,8 @@ const HoveredTreeOverlay = () => {
           exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           onAnimationComplete={onAnimationComplete}
           className={cn(
-            "fixed right-2 w-[25%] max-w-[280px] min-w-[180px]",
-            overlaySize === "desktop" ? "top-2" : "top-16"
+            "fixed right-2 z-40 w-[25%] max-w-[280px] min-w-[180px]",
+            shouldUseCompactTopOffset ? "top-2" : "top-16"
           )}
         >
           <UIBase innerClassName="p-0 overflow-hidden relative">
@@ -75,8 +78,8 @@ const HoveredTreeOverlay = () => {
                     "Unknown"}
                 </h1>
               </div>
-              <div className="flex items-center justify-stretch gap-2">
-                <div className="flex-1 flex flex-col bg-muted rounded-xl p-2 gap-1">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col bg-muted rounded-xl p-2 gap-1">
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <MoveVertical size={12} />
                     Height
@@ -85,13 +88,22 @@ const HoveredTreeOverlay = () => {
                     {hoveredTree.treeHeight}
                   </span>
                 </div>
-                <div className="flex-1 flex flex-col bg-muted rounded-xl p-2 gap-1">
+                <div className="flex flex-col bg-muted rounded-xl p-2 gap-1">
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <MoveHorizontal size={12} />
                     DBH
                   </span>
                   <span className="font-bold text-lg">
                     {hoveredTree.treeDBH}
+                  </span>
+                </div>
+                <div className="col-span-2 flex flex-col bg-muted rounded-xl p-2 gap-1">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <MoveHorizontal size={12} />
+                    Root collar diameter
+                  </span>
+                  <span className="font-bold text-lg">
+                    {hoveredTree.treeRootCollarDiameter}
                   </span>
                 </div>
               </div>
@@ -121,8 +133,8 @@ const HoveredTreeOverlay = () => {
           exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
           onAnimationComplete={onAnimationComplete}
           className={cn(
-            "fixed right-2 flex flex-col items-end gap-2",
-            overlaySize === "desktop" ? "top-2" : "top-16"
+            "fixed right-2 z-40 flex flex-col items-end gap-2",
+            shouldUseCompactTopOffset ? "top-2" : "top-16"
           )}
         >
           <UIBase innerClassName="w-28 p-0 overflow-hidden">

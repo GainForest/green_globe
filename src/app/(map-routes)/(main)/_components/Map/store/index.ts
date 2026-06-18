@@ -1,21 +1,25 @@
 import { create } from "zustand";
-import { Map } from "mapbox-gl";
+import type { GlobeController } from "@/app/(map-routes)/_utils/GlobeController";
+import type { GlobeBounds } from "@/app/(map-routes)/_utils/globe-data";
 import { ProjectPolygonAPIResponse } from "../../ProjectOverlay/store/types";
+
 export type MapState = {
   currentView: "project";
-  mapBounds: [number, number, number, number] | null;
-  mapRef: React.RefObject<Map | null> | null;
+  mapBounds: GlobeBounds | null;
+  mapRef: React.RefObject<GlobeController | null> | null;
   mapLoaded: boolean;
   highlightedPolygon: ProjectPolygonAPIResponse | null;
+  treeOverlayReady: boolean;
 };
 
 export type MapActions = {
-  getMapBounds: () => [number, number, number, number] | null;
-  setMapBounds: (bounds: [number, number, number, number] | null) => void;
+  getMapBounds: () => GlobeBounds | null;
+  setMapBounds: (bounds: GlobeBounds | null) => void;
   setCurrentView: (currentView: "project") => void;
-  setMapRef: (mapRef: React.RefObject<Map | null>) => void;
+  setMapRef: (mapRef: React.RefObject<GlobeController | null> | null) => void;
   setMapLoaded: (mapLoaded: boolean) => void;
   setHighlightedPolygon: (polygon: ProjectPolygonAPIResponse | null) => void;
+  setTreeOverlayReady: (ready: boolean) => void;
 };
 
 const initialState: MapState = {
@@ -24,23 +28,13 @@ const initialState: MapState = {
   mapBounds: null,
   mapRef: null,
   mapLoaded: false,
+  treeOverlayReady: false,
 };
 
 const useMapStore = create<MapState & MapActions>((set, get) => {
   return {
     ...initialState,
-    getMapBounds: () => {
-      const map = get().mapRef?.current;
-      if (!map) return null;
-      const bounds = map.getBounds();
-      if (!bounds) return null;
-      return [
-        bounds.getNorthEast().lng,
-        bounds.getNorthEast().lat,
-        bounds.getSouthWest().lng,
-        bounds.getSouthWest().lat,
-      ];
-    },
+    getMapBounds: () => get().mapRef?.current?.getApproxBounds() ?? null,
     setMapBounds: (bounds) => {
       set({ mapBounds: bounds });
     },
@@ -55,6 +49,9 @@ const useMapStore = create<MapState & MapActions>((set, get) => {
     },
     setHighlightedPolygon: (highlightedPolygon) => {
       set({ highlightedPolygon });
+    },
+    setTreeOverlayReady: (treeOverlayReady) => {
+      set({ treeOverlayReady });
     },
   };
 });

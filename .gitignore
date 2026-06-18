@@ -31,6 +31,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.har
+pi-session-*.html
 
 # env files (can opt-in for committing if needed)
 .env*

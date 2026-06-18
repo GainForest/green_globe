@@ -1,140 +1,72 @@
-import { Map as MapInterface, Marker } from "mapbox-gl";
-import { Feature } from "geojson";
-import { bbox } from "@turf/turf";
-import { centroid } from "@turf/turf";
+import type { Feature, FeatureCollection } from "geojson";
+import { bbox, centroid } from "@turf/turf";
+import type { GlobeController } from "@/app/(map-routes)/_utils/GlobeController";
+import type { GlobeBounds, GlobeHtmlDatum } from "@/app/(map-routes)/_utils/globe-data";
+import { featureCollectionToPolygons } from "@/app/(map-routes)/_utils/globe-data";
 
-function createCustomMarkerElement() {
-  const markerRoot = document.createElement("div");
-  markerRoot.style.boxSizing = "border-box";
+const SHAPEFILE_LAYER = "customGeojson";
+const SHAPEFILE_MARKER_LAYER = "customGeojsonMarkers";
 
-  const markerLayout = document.createElement("div");
-  markerLayout.style.position = "relative";
-  markerLayout.style.boxSizing = "border-box";
-
-  const marker = document.createElement("div");
-  marker.style.boxSizing = "border-box";
-  marker.style.position = "absolute";
-  marker.style.bottom = "0";
-  marker.style.left = "50%";
-  marker.style.backgroundColor = "#FF00FF";
-  marker.style.width = "20px";
-  marker.style.height = "20px";
-  marker.style.borderRadius = "50%";
-  marker.style.borderBottomRightRadius = "10%";
-  marker.style.border = "2px solid #FFFFFF";
-  marker.style.transform = "translateX(-50%) rotateZ(45deg)";
-
-  const markerDot = document.createElement("div");
-  markerDot.style.boxSizing = "border-box";
-  markerDot.style.position = "absolute";
-  markerDot.style.bottom = "7px";
-  markerDot.style.left = "50%";
-  markerDot.style.transform = "translateX(-50%)";
-  markerDot.style.borderRadius = "100%";
-  markerDot.style.backgroundColor = "#FFFFFF";
-  markerDot.style.width = "8px";
-  markerDot.style.height = "8px";
-
-  markerLayout.appendChild(marker);
-  markerLayout.appendChild(markerDot);
-  markerRoot.appendChild(markerLayout);
-  return markerRoot;
-}
+const toFeatureCollection = (features: Feature[]): FeatureCollection => ({
+  type: "FeatureCollection",
+  features,
+});
 
 export function addShapefileSourceAndLayers(
-  map: MapInterface,
-  features: Feature[]
+  globe: GlobeController,
+  features: Feature[],
 ) {
-  if (!map.getSource("customGeojson")) {
-    map.addSource("customGeojson", {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: features,
-      },
-    });
+  const collection = toFeatureCollection(features);
 
-    // Add fill layer
-    map.addLayer({
-      id: "customGeojsonFill",
-      type: "fill",
-      source: "customGeojson",
-      paint: {
-        "fill-color": "#FF00FF",
-        "fill-opacity": 0.15,
-      },
-    });
+  globe.setPolygonLayer(
+    SHAPEFILE_LAYER,
+    featureCollectionToPolygons(collection, {
+      kind: "shapefile",
+      layerName: SHAPEFILE_LAYER,
+      capColor: "rgba(255, 0, 255, 0.15)",
+      sideColor: "rgba(255, 0, 255, 0.1)",
+      strokeColor: "#FF00FF",
+      altitude: 0.006,
+    }),
+  );
 
-    // Add outline layer
-    map.addLayer({
-      id: "customGeojsonOutline",
-      type: "line",
-      source: "customGeojson",
-      layout: {
-        "line-cap": "round",
-        "line-join": "round",
-        visibility: "visible",
-      },
-      paint: {
-        "line-color": "#FF00FF",
-        "line-width": 2,
-      },
-    });
-
-    // Create centroids for each polygon
-    const centroids = {
-      type: "FeatureCollection",
-      features: features.map((feature) => {
-        if (feature.geometry.type === "MultiPolygon") {
-          return {
-            type: "Feature",
-            properties: feature.properties,
-            geometry: {
-              type: "Point",
-              coordinates: feature.geometry.coordinates[0][0][0],
-            },
-          };
+  const markers: GlobeHtmlDatum[] = features.flatMap((feature, index) => {
+    const point = feature.geometry.type === "MultiPolygon"
+      ? {
+          type: "Feature" as const,
+          properties: feature.properties,
+          geometry: {
+            type: "Point" as const,
+            coordinates: feature.geometry.coordinates[0][0][0],
+          },
         }
-        return centroid(feature);
-      }),
-    };
+      : centroid(feature);
 
-    // Add markers for each centroid
-    centroids.features.forEach((point) => {
-      new Marker({
-        color: "#FFFFFF",
-        scale: 0.75,
-        pitchAlignment: "map",
-        rotationAlignment: "map",
-        element: createCustomMarkerElement(),
-      })
-        .setLngLat(point.geometry.coordinates as [number, number])
-        .addTo(map);
-    });
+    const coordinates = point.geometry.coordinates;
+    if (coordinates.length < 2) return [];
 
-    // Fit bounds to the shapefile
-    const bounds = bbox({
-      type: "FeatureCollection",
-      features: features,
-    });
-    map.fitBounds(
-      [
-        [bounds[0], bounds[1]],
-        [bounds[2], bounds[3]],
-      ],
+    return [
       {
-        padding: { top: 40, bottom: 40, left: 40, right: 40 },
-        animate: true,
-      }
-    );
-  }
+        id: `shapefile-marker-${index}`,
+        kind: "centroid-marker" as const,
+        lng: coordinates[0],
+        lat: coordinates[1],
+        label:
+          typeof feature.properties?.name === "string"
+            ? feature.properties.name
+            : "Shapefile feature",
+        color: "#FF00FF",
+      },
+    ];
+  });
+
+  globe.setHtmlLayer(SHAPEFILE_MARKER_LAYER, markers);
+
+  const bounds = bbox(collection).slice(0, 4) as GlobeBounds;
+  globe.fitBounds(bounds);
 }
 
-export function removeShapefileLayers(map: MapInterface) {
-  if (map.getSource("customGeojson")) {
-    if (map.getLayer("customGeojsonFill")) map.removeLayer("customGeojsonFill");
-    if (map.getLayer("customGeojsonOutline"))
-      map.removeLayer("customGeojsonOutline");
-    map.removeSource("customGeojson");
-  }
+export function removeShapefileLayers(globe: GlobeController) {
+  globe.removeDynamicLayer(SHAPEFILE_LAYER);
+  globe.removeHtmlLayer(SHAPEFILE_MARKER_LAYER);
 }

@@ -23,6 +23,9 @@ export type Layer = {
   /** Legend entries for the layer. Array format comes from ATProto lexicon. */
   legend?: LegendEntry[];
   isDefault?: boolean;
+  displayOrder?: number;
+  /** Bounding box as "west,south,east,north" from the ATProto layer record. */
+  bounds?: string;
   tilePattern?: string;
   tileRange?: {
     x: { min: number; max: number };

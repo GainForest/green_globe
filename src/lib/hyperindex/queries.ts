@@ -35,6 +35,22 @@ export const ALL_ORGANIZATION_INFOS = gql`
 `;
 
 /**
+ * Fetch one organization info record by DID.
+ */
+export const ORGANIZATION_INFO_BY_DID = gql`
+  query OrganizationInfoByDid($did: String!) {
+    appGainforestOrganizationInfo(where: { did: { eq: $did } } first: 1) {
+      edges {
+        node {
+          did
+          displayName
+        }
+      }
+    }
+  }
+`;
+
+/**
  * Fetch all default site pointers.
  * Each record links an org DID to its default site AT-URI.
  */

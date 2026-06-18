@@ -8,11 +8,12 @@ import addNamedSource, {
 
 const useDynamicLayers = () => {
   const mapRef = useMapStore((state) => state.mapRef);
+  const mapLoaded = useMapStore((state) => state.mapLoaded);
   const categorizedDynamicLayers = useLayersOverlayStore(
-    (state) => state.categorizedDynamicLayers
+    (state) => state.categorizedDynamicLayers,
   );
   const projectSpecificLayers = useLayersOverlayStore(
-    (state) => state.projectSpecificLayers
+    (state) => state.projectSpecificLayers,
   );
 
   const flatMapLayers = useMemo(() => {
@@ -26,21 +27,27 @@ const useDynamicLayers = () => {
   }, [categorizedDynamicLayers, projectSpecificLayers]);
 
   useEffect(() => {
-    const map = mapRef?.current;
-    if (!map) return;
+    const globe = mapRef?.current;
+    if (!mapLoaded || !globe) return;
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     const syncDynamicLayers = async () => {
       for (const layer of flatMapLayers) {
-        if (cancelled) {
+        if (controller.signal.aborted) {
           return;
         }
 
-        if (layer.visible) {
-          await addNamedSource(map, layer);
-        } else {
-          removeNamedSource(map, layer);
+        try {
+          if (layer.visible) {
+            await addNamedSource(globe, layer, controller.signal);
+          } else {
+            removeNamedSource(globe, layer);
+          }
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            console.error(`Error syncing dynamic layer ${layer.name}`, error);
+          }
         }
       }
     };
@@ -48,9 +55,9 @@ const useDynamicLayers = () => {
     void syncDynamicLayers();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [mapRef, flatMapLayers]);
+  }, [mapLoaded, mapRef, flatMapLayers]);
 };
 
 export default useDynamicLayers;

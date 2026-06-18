@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import ClimateAIAgent from "@/lib/atproto/agent";
+import { agentForDid } from "@/lib/atproto/pds";
 
 const SITE_COLLECTION = "app.gainforest.organization.site";
 const DEFAULT_SITE_COLLECTION = "app.gainforest.organization.defaultSite";
@@ -58,8 +58,10 @@ const fetchAllSiteRecords = async (did: string): Promise<SiteRecord[]> => {
   const records: SiteRecord[] = [];
   let cursor: string | undefined;
 
+  const agent = await agentForDid(did);
+
   do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
+    const response = await agent.com.atproto.repo.listRecords({
       repo: did,
       collection: SITE_COLLECTION,
       limit: 100,
@@ -79,7 +81,8 @@ const fetchAllSiteRecords = async (did: string): Promise<SiteRecord[]> => {
 
 const fetchDefaultSiteUri = async (did: string): Promise<string | null> => {
   try {
-    const response = await ClimateAIAgent.com.atproto.repo.getRecord({
+    const agent = await agentForDid(did);
+    const response = await agent.com.atproto.repo.getRecord({
       repo: did,
       collection: DEFAULT_SITE_COLLECTION,
       rkey: DEFAULT_SITE_RKEY,

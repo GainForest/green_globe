@@ -113,7 +113,7 @@ const useLayersOverlayStore = create<LayersOverlayState & LayersOverlayActions>(
       fetchProjectSpecificLayers: async () => {
         const overlayState = useProjectOverlayStore.getState();
         const { projectId: did, projectSlug } = overlayState;
-        if (!did || !projectSlug) {
+        if (!did) {
           set({
             projectSpecificLayers: {
               projectId: null,

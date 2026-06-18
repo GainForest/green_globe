@@ -1,125 +1,5 @@
-import {
-  CircleLayerSpecification,
-  GeoJSONSourceSpecification,
-  Map,
-} from "mapbox-gl";
 import { formatOccurrenceEventDate } from "@/lib/occurrence-event-date";
 import { TreeFeature } from "../../ProjectOverlay/store/types";
-
-export const treesSource: GeoJSONSourceSpecification = {
-  type: "geojson",
-  data: {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [0, 0],
-        },
-        properties: {
-          data: "Dummy Source for initialization",
-        },
-      },
-    ],
-  },
-  cluster: true,
-  clusterMaxZoom: 15, // Max zoom to cluster points on
-  clusterRadius: 50, // Radius of each cluster when clustering points (defaults to 50)
-};
-
-export const clusteredTreesLayer: CircleLayerSpecification = {
-  id: "clusteredTrees",
-  type: "circle" as const,
-  source: "trees",
-  filter: ["has", "point_count"],
-  paint: {
-    "circle-radius": ["step", ["get", "point_count"], 20, 100, 30, 750, 40],
-    "circle-opacity": 0.5,
-    "circle-color": "#ff77c1",
-    "circle-stroke-color": "#ff77c1",
-    "circle-stroke-opacity": 1,
-  },
-};
-
-export const clusteredTreesCountTextLayer = {
-  id: "clusteredTreesCountText",
-  type: "symbol" as const,
-  source: "trees",
-  filter: ["has", "point_count"],
-  layout: {
-    "text-field": "{point_count_abbreviated}",
-    "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
-    "text-size": 12,
-  },
-};
-
-export const unclusteredTreesLayer: CircleLayerSpecification = {
-  id: "unclusteredTrees",
-  type: "circle",
-  source: "trees",
-  filter: ["!", ["has", "point_count"]],
-  paint: {
-    "circle-color": [
-      "case",
-      ["boolean", ["feature-state", "selected"], false],
-      "#ec4899",
-      ["boolean", ["feature-state", "hover"], false],
-      "#0883fe",
-      "#ff77c1",
-    ],
-    "circle-radius": [
-      "case",
-      ["boolean", ["feature-state", "selected"], false],
-      10,
-      ["boolean", ["feature-state", "hover"], false],
-      8,
-      4,
-    ],
-    "circle-stroke-width": [
-      "case",
-      ["boolean", ["feature-state", "selected"], false],
-      3,
-      1,
-    ],
-    "circle-stroke-color": [
-      "case",
-      ["boolean", ["feature-state", "selected"], false],
-      "#ffffff",
-      "#000000",
-    ],
-  },
-};
-
-export const addMeasuredTreesSourceAndLayer = (map: Map) => {
-  if (!map.getSource("trees")) {
-    map.addSource("trees", treesSource);
-  }
-  if (!map.getLayer("clusteredTrees")) {
-    map.addLayer(clusteredTreesLayer);
-  }
-  if (!map.getLayer("clusteredTreesCountText")) {
-    map.addLayer(clusteredTreesCountTextLayer);
-  }
-  if (!map.getLayer("unclusteredTrees")) {
-    map.addLayer(unclusteredTreesLayer);
-  }
-};
-
-export const toggleMeasuredTreesLayer = (
-  map: mapboxgl.Map,
-  visibility: "visible" | "none"
-) => {
-  if (map.getLayer("clusteredTrees")) {
-    map.setLayoutProperty("clusteredTrees", "visibility", visibility);
-  }
-  if (map.getLayer("clusteredTreesCountText")) {
-    map.setLayoutProperty("clusteredTreesCountText", "visibility", visibility);
-  }
-  if (map.getLayer("unclusteredTrees")) {
-    map.setLayoutProperty("unclusteredTrees", "visibility", visibility);
-  }
-};
 
 export const getTreeSpeciesName = (tree: TreeFeature["properties"]) => {
   const upperCaseEveryWord = (name: string) =>
@@ -135,7 +15,6 @@ export const getTreeSpeciesName = (tree: TreeFeature["properties"]) => {
 
 export const getTreeHeight = (tree: TreeFeature["properties"]) => {
   if (tree?.Height) {
-    // iNaturalist API
     return `${tree?.Height}m`;
   } else if (tree?.height) {
     return `${tree?.height}m`;
@@ -146,11 +25,18 @@ export const getTreeHeight = (tree: TreeFeature["properties"]) => {
 
 export const getTreeDBH = (tree: TreeFeature["properties"]) => {
   if (tree?.DBH) {
-    // iNaturalist API
     return `${tree?.DBH}cm`;
-  } else if (tree?.diameter) {
-    // kobo API
-    return `${tree?.diameter}cm`;
+  } else {
+    return "unknown";
+  }
+};
+
+export const getTreeRootCollarDiameter = (tree: TreeFeature["properties"]) => {
+  const rootCollarDiameter =
+    tree?.rootCollarDiameter ?? tree?.basalDiameter ?? tree?.diameter;
+
+  if (rootCollarDiameter) {
+    return `${rootCollarDiameter}cm`;
   } else {
     return "unknown";
   }
@@ -170,10 +56,6 @@ export const getTreeDateOfMeasurement = (tree: TreeFeature["properties"]) => {
   }
 };
 
-/**
- * Returns true if the URL is a PDS blob URL (climateai.org/xrpc/com.atproto.sync.getBlob).
- * PDS blob URLs are used directly without any S3 fallback.
- */
 const isPdsBlobUrl = (url: string): boolean =>
   url.includes("com.atproto.sync.getBlob");
 
@@ -188,16 +70,15 @@ const appendUniquePhoto = (result: string[], url: string | undefined) => {
 export const getTreePhotos = (
   tree: TreeFeature["properties"],
   activeProject: string,
-  treeID: string
+  treeID: string,
 ) => {
   const result: string[] = [];
   if (tree?.tree_photo) {
     return [tree?.tree_photo];
   }
 
-  // Prefer any PDS blob-backed tree angle before falling back to legacy URLs.
   const primaryPdsPhoto = [tree?.awsUrl, tree?.leafAwsUrl, tree?.barkAwsUrl].find(
-    (url): url is string => typeof url === "string" && isPdsBlobUrl(url)
+    (url): url is string => typeof url === "string" && isPdsBlobUrl(url),
   );
   if (primaryPdsPhoto) {
     appendUniquePhoto(result, primaryPdsPhoto);
@@ -211,11 +92,9 @@ export const getTreePhotos = (
       "40367dfcbafa0a8d1fa26ff481d6b2609536c0e14719f8e88060a9aee8c8ab0a" &&
     treeID !== "unknown"
   ) {
-    {
-      return [
-        `${process.env.NEXT_PUBLIC_AWS_STORAGE}/trees-measured/${treeID}.jpg`,
-      ];
-    }
+    return [
+      `${process.env.NEXT_PUBLIC_AWS_STORAGE}/trees-measured/${treeID}.jpg`,
+    ];
   }
   if (tree?.awsUrl) {
     appendUniquePhoto(result, tree?.awsUrl);
@@ -236,7 +115,7 @@ export const getTreePhotos = (
   }
   if (result.length == 0) {
     result.push(
-      `${process.env.NEXT_PUBLIC_AWS_STORAGE}/miscellaneous/placeholders/taxa_plants.png`
+      `${process.env.NEXT_PUBLIC_AWS_STORAGE}/miscellaneous/placeholders/taxa_plants.png`,
     );
   }
   return result;

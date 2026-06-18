@@ -2,7 +2,7 @@
 // Handles uploading ZIP archives as blobs to the ATProto PDS and constructing public URLs.
 
 import type { Agent } from '@atproto/api'
-import { PDS_ENDPOINT } from '@/config/atproto'
+import { blobUrlForDid } from '@/lib/atproto/pds'
 
 // ---------------------------------------------------------------------------
 // uploadDwcaBlob
@@ -46,16 +46,10 @@ export async function uploadDwcaBlob(
  *
  * @param did - The DID of the account that owns the blob
  * @param cid - The blob CID returned from uploadDwcaBlob
- * @returns Fully-qualified public URL for the blob
+ * @returns Promise resolving to the fully-qualified public URL for the blob
  */
-export function buildBlobUrl(did: string, cid: string): string {
-  return (
-    PDS_ENDPOINT +
-    '/xrpc/com.atproto.sync.getBlob?did=' +
-    encodeURIComponent(did) +
-    '&cid=' +
-    encodeURIComponent(cid)
-  )
+export function buildBlobUrl(did: string, cid: string): Promise<string> {
+  return blobUrlForDid(did, cid)
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +73,6 @@ export async function uploadAndGetUrl(
   archiveBuffer: Uint8Array
 ): Promise<{ cid: string; url: string; blob: unknown }> {
   const { cid, blob } = await uploadDwcaBlob(agent, archiveBuffer)
-  const url = buildBlobUrl(did, cid)
+  const url = await buildBlobUrl(did, cid)
   return { cid, url, blob }
 }

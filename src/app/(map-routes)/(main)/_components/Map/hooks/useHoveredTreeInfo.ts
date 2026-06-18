@@ -1,32 +1,29 @@
 import { useCallback, useEffect, useRef } from "react";
-import { MapMouseEvent } from "mapbox-gl";
 
-import { getTreeInformation } from "../utils";
+import type { GlobePointDatum } from "@/app/(map-routes)/_utils/globe-data";
+import { getTreeInformationFromFeature } from "../utils";
 import useHoveredTreeOverlayStore, {
   HoveredTreeOverlayState,
 } from "../../HoveredTreeOverlay/store";
 import useMapStore from "../store";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
-import { toggleMeasuredTreesLayer } from "../sources-and-layers/measured-trees";
-import { NormalizedTreeFeature } from "../../ProjectOverlay/store/types";
+import type { NormalizedTreeFeature } from "../../ProjectOverlay/store/types";
 
 export function useHoveredTreeInfo() {
   const currentView = useMapStore((state) => state.currentView);
   const activeProjectId = useProjectOverlayStore((state) => state.projectId);
   const mapRef = useMapStore((state) => state.mapRef);
+  const mapLoaded = useMapStore((state) => state.mapLoaded);
 
-  // Get the setter from the store
   const setTreeInformation = useHoveredTreeOverlayStore(
-    (actions) => actions.setTreeInformation
+    (actions) => actions.setTreeInformation,
+  );
+  const clearSelectedTreeInformation = useHoveredTreeOverlayStore(
+    (actions) => actions.clearSelectedTreeInformation,
   );
 
-  // Debounce timeout ref
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Create a ref to track the currently hovered tree ID
-  const hoveredTreeIdRef = useRef<string | number | null>(null);
-
-  // Debounced version of setTreeInformation
   const debouncedSetTreesInformation = useCallback(
     (treeInfo: HoveredTreeOverlayState["treeInformation"]) => {
       if (debounceTimeoutRef.current) {
@@ -37,83 +34,43 @@ export function useHoveredTreeInfo() {
         setTreeInformation(treeInfo);
       }, 150);
     },
-    [setTreeInformation]
+    [setTreeInformation],
   );
 
-  // Handler for mouse move events
-  const handleMouseMoveUnclusteredTrees = useCallback(
-    (e: MapMouseEvent, map: mapboxgl.Map, activeProjectId: string) => {
-      if (!e.features || e.features.length <= 0) return;
-
-      const treeInformation = getTreeInformation(e, activeProjectId);
-      debouncedSetTreesInformation(treeInformation);
-
-      if (hoveredTreeIdRef.current != null) {
-        map.setFeatureState(
-          { source: "trees", id: hoveredTreeIdRef.current },
-          { hover: false }
-        );
-        hoveredTreeIdRef.current = null;
-      }
-
-      const hoveredTreeFeature = e.features.find((feature) => {
-        if (!feature.properties) return null;
-        return (
-          "type" in feature.properties &&
-          feature.properties.type === "measured-tree"
-        );
-      }) as NormalizedTreeFeature | undefined;
-
-      if (!hoveredTreeFeature) return;
-      // Mapbox's Supercluster pipeline can drop string feature ids, leaving
-      // `id` undefined on the rendered feature. setFeatureState throws on
-      // null/undefined ids, so skip the hover-state write when that happens.
-      if (hoveredTreeFeature.id == null) return;
-      hoveredTreeIdRef.current = hoveredTreeFeature.id;
-      map.setFeatureState(
-        { source: "trees", id: hoveredTreeFeature.id },
-        { hover: true }
-      );
-    },
-    [debouncedSetTreesInformation]
-  );
-
-  // Cleanup function
   const cleanup = useCallback(() => {
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
 
-    // Reset the hovered tree ID ref
-    hoveredTreeIdRef.current = null;
-
-    // Clear the overlay panel
     setTreeInformation(null);
-  }, [setTreeInformation]);
+    clearSelectedTreeInformation();
+  }, [clearSelectedTreeInformation, setTreeInformation]);
 
   useEffect(() => {
     if (currentView !== "project" || !activeProjectId) return;
-    const map = mapRef?.current;
-    if (!map) return;
+    const globe = mapRef?.current;
+    if (!mapLoaded || !globe) return;
 
-    const onClickProjectFill = () => {
-      toggleMeasuredTreesLayer(map, "visible");
-    };
-
-    const onMouseMoveUnclusteredTrees = (e: MapMouseEvent) => {
-      handleMouseMoveUnclusteredTrees(e, map, activeProjectId);
-    };
-
-    map.on("click", "projectFill", onClickProjectFill);
-    map.on("mousemove", "unclusteredTrees", onMouseMoveUnclusteredTrees);
+    globe.setCallbacks({
+      onHighlightedPolygonClick: () => globe.setTreesVisible(true),
+      onTreeHover: (point: GlobePointDatum | null) => {
+        const treeInformation = getTreeInformationFromFeature(
+          point?.feature as NormalizedTreeFeature | undefined,
+          activeProjectId,
+        );
+        debouncedSetTreesInformation(treeInformation);
+      },
+    });
 
     return () => {
-      if (map) {
-        map.off("click", "projectFill", onClickProjectFill);
-        map.off("mousemove", "unclusteredTrees", onMouseMoveUnclusteredTrees);
-      }
-      // Clean up the hovered tree info
       cleanup();
     };
-  }, [currentView, activeProjectId, handleMouseMoveUnclusteredTrees, cleanup]);
+  }, [
+    currentView,
+    activeProjectId,
+    mapLoaded,
+    mapRef,
+    debouncedSetTreesInformation,
+    cleanup,
+  ]);
 }

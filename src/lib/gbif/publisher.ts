@@ -4,7 +4,7 @@
 
 import type { Agent } from '@atproto/api'
 import { gbifConfig } from '@/config/gbif'
-import { PDS_ENDPOINT } from '@/config/atproto'
+import { pdsEndpointForDid } from '@/lib/atproto/pds'
 import { fetchDwcaRecords, assembleDwca } from '@/lib/gbif/dwca/index'
 import type { DwcaEmlInput } from '@/lib/gbif/dwca/index'
 import { buildZip } from '@/lib/gbif/dwca/zip-builder'
@@ -121,6 +121,8 @@ export async function publishToGbif(
     dryRun = false,
   } = options
 
+  const pdsEndpoint = await pdsEndpointForDid(did)
+
   // -------------------------------------------------------------------------
   // Step 1: Generate DwC-A archive
   // -------------------------------------------------------------------------
@@ -128,9 +130,9 @@ export async function publishToGbif(
 
   let archiveBuffer: Uint8Array
   try {
-    // Fetch records from PDS
+    // Fetch records from the DID's current PDS.
     const fetchResult = await fetchDwcaRecords({
-      pdsEndpoint: PDS_ENDPOINT,
+      pdsEndpoint,
       orgIdentifier: did,
     })
 
@@ -149,7 +151,7 @@ export async function publishToGbif(
     const archiveFiles = assembleDwca({
       data: fetchResult,
       eml: emlInput,
-      pdsEndpoint: PDS_ENDPOINT,
+      pdsEndpoint,
       defaultMultimediaLicense:
         'http://creativecommons.org/licenses/by/4.0/legalcode',
     })

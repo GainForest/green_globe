@@ -8,6 +8,9 @@ type PlcService = {
   serviceEndpoint?: string;
 };
 
+export const normalizePdsEndpoint = (endpoint: string): string =>
+  endpoint.replace(/\/+$/, "");
+
 /**
  * Resolve a DID to its home PDS endpoint.
  *
@@ -48,7 +51,7 @@ export const resolvePdsEndpoint = async (did: string): Promise<string> => {
               pds.serviceEndpoint,
             );
           }
-          return pds.serviceEndpoint;
+          return normalizePdsEndpoint(pds.serviceEndpoint);
         }
       }
     } catch (err) {
@@ -56,7 +59,7 @@ export const resolvePdsEndpoint = async (did: string): Promise<string> => {
         console.warn("[GG] PDS resolution failed for", did, err);
       }
     }
-    return PDS_ENDPOINT;
+    return normalizePdsEndpoint(PDS_ENDPOINT);
   })();
 
   cache.set(did, promise);

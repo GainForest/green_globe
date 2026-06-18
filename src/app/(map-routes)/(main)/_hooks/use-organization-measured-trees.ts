@@ -16,13 +16,14 @@ import {
   fetchMultimediaByOccurrence,
   type MultimediaByOccurrence,
 } from "@/lib/atproto/ac-multimedia";
-import { hyperindexClient } from "@/lib/hyperindex/client";
+import { requestHyperindex } from "@/lib/hyperindex/client";
 import { OCCURRENCES_BY_DID } from "@/lib/hyperindex/queries";
 import type { Connection, HiDwcOccurrence } from "@/lib/hyperindex/types";
 import usePreviewStore from "../_features/preview/store";
 
 const MEASUREMENT_COLLECTION = "app.gainforest.dwc.measurement";
 const OCCURRENCE_COLLECTION = "app.gainforest.dwc.occurrence";
+const HYPERINDEX_PAGE_SIZE = 500;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ const parseDynamicProperties = (
 
 type MeasurementsByOccurrence = Map<
   string,
-  { dbh?: string; height?: string }
+  { dbh?: string; height?: string; basalDiameter?: string }
 >;
 
 /**
@@ -135,25 +136,53 @@ const fetchMeasurementIndex = async (
             typeof result.totalHeight === "string"
               ? result.totalHeight
               : undefined;
+          const basalDiameter =
+            typeof result.basalDiameter === "string"
+              ? result.basalDiameter
+              : typeof result.rootCollarDiameter === "string"
+                ? result.rootCollarDiameter
+                : typeof result.diameter === "string"
+                  ? result.diameter
+                  : undefined;
           index.set(occurrenceRef, {
             ...existing,
             ...(dbh !== undefined ? { dbh } : {}),
             ...(height !== undefined ? { height } : {}),
+            ...(basalDiameter !== undefined ? { basalDiameter } : {}),
           });
         } else if (typeof v.measurementType === "string") {
           // Old per-measurement format: measurementType + measurementValue at top level
           const measurementType = v.measurementType.toLowerCase();
+          const normalizedMeasurementType = measurementType.replace(
+            /[^a-z0-9]/g,
+            "",
+          );
           const measurementValue =
             typeof v.measurementValue === "string" ? v.measurementValue : null;
           if (!measurementValue) continue;
 
-          if (measurementType === "dbh") {
+          if (
+            normalizedMeasurementType === "dbh" ||
+            normalizedMeasurementType === "diameteratbreastheight" ||
+            normalizedMeasurementType === "diameterbreastheight" ||
+            normalizedMeasurementType === "breastheightdiameter"
+          ) {
             index.set(occurrenceRef, { ...existing, dbh: measurementValue });
           } else if (
-            measurementType === "height" ||
-            measurementType === "tree height"
+            normalizedMeasurementType === "height" ||
+            normalizedMeasurementType === "treeheight"
           ) {
             index.set(occurrenceRef, { ...existing, height: measurementValue });
+          } else if (
+            normalizedMeasurementType === "diameter" ||
+            normalizedMeasurementType === "basaldiameter" ||
+            normalizedMeasurementType === "rootcollardiameter" ||
+            normalizedMeasurementType === "rcd"
+          ) {
+            index.set(occurrenceRef, {
+              ...existing,
+              basalDiameter: measurementValue,
+            });
           }
         }
       }
@@ -191,14 +220,15 @@ const fetchMeasuredTreeOccurrenceRecords = async (
 
   try {
     do {
-      const response: OccurrenceResponse = await hyperindexClient.request(
+      const response: OccurrenceResponse = await requestHyperindex<OccurrenceResponse>(
         OCCURRENCES_BY_DID,
         {
           did,
-          first: 100,
+          first: HYPERINDEX_PAGE_SIZE,
           after: cursor,
           basisOfRecord: "HumanObservation",
-        }
+        },
+        { label: "occurrences" },
       );
 
       const connection = response.appGainforestDwcOccurrence;
@@ -476,6 +506,8 @@ const buildTreeFeature = (
     // Measurements
     DBH: measurements.dbh,
     Height: measurements.height,
+    basalDiameter: measurements.basalDiameter,
+    diameter: measurements.basalDiameter,
   };
 
   const species =
@@ -510,9 +542,9 @@ const buildTreeFeature = (
 export const fetchMeasuredTreeOccurrences = async (
   did: string,
 ): Promise<MeasuredTreesGeoJSON | null> => {
-  const { datasetRef, treeUri } = usePreviewStore.getState();
+  const { datasetRefs, previewMode, treeUri } = usePreviewStore.getState();
   const shouldFetchPdsPreviewOccurrences =
-    datasetRef !== null || treeUri !== null;
+    (previewMode === "only" && datasetRefs.length > 0) || treeUri !== null;
 
   // Resolve the org DID to its home PDS. Records for Bumicerts-certified orgs
   // live on PDSes other than the default (e.g. gainforest.id), so using the
@@ -538,6 +570,24 @@ export const fetchMeasuredTreeOccurrences = async (
     ? fetchPdsOccurrenceRecords(agent, did)
     : Promise.resolve<RawOccurrenceRecord[]>([]);
 
+  const measurementIndexPromise = fetchMeasurementIndex(agent, did).catch(
+    (err) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[GG] measurement index fetch failed; continuing without measurements:", err);
+      }
+      return new Map() as MeasurementsByOccurrence;
+    },
+  );
+
+  const multimediaIndexPromise = fetchMultimediaByOccurrence(did).catch(
+    (err) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[GG] multimedia fetch failed; continuing without tree photos:", err);
+      }
+      return new Map() as MultimediaByOccurrence;
+    },
+  );
+
   // Fetch measurements, AC multimedia, and measured-tree occurrences in parallel.
   const [
     measurementIndex,
@@ -546,8 +596,8 @@ export const fetchMeasuredTreeOccurrences = async (
     previewPdsOccurrences,
     selectedPdsOccurrence,
   ] = await Promise.all([
-    fetchMeasurementIndex(agent, did),
-    fetchMultimediaByOccurrence(did),
+    measurementIndexPromise,
+    multimediaIndexPromise,
     fetchMeasuredTreeOccurrenceRecords(did),
     previewPdsOccurrencesPromise,
     treeUri && selectedTreeAgent
@@ -664,8 +714,12 @@ export type UseOrganizationMeasuredTreesResult = {
 const useOrganizationMeasuredTrees = (
   did: string | null | undefined,
 ): UseOrganizationMeasuredTreesResult => {
+  const datasetRefs = usePreviewStore((state) => state.datasetRefs);
+  const previewMode = usePreviewStore((state) => state.previewMode);
+  const treeUri = usePreviewStore((state) => state.treeUri);
+
   const query = useQuery({
-    queryKey: ["organization-measured-trees", did],
+    queryKey: ["organization-measured-trees", did, datasetRefs, previewMode, treeUri],
     queryFn: async () => {
       if (!did) return null;
       return fetchMeasuredTreeOccurrences(did);

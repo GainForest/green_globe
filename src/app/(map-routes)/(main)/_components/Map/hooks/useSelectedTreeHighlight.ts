@@ -1,9 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import useMapStore from "../store";
 import useProjectOverlayStore from "../../ProjectOverlay/store";
 import usePreviewStore from "../../../_features/preview/store";
-
-type FeatureIdentifier = string | number;
 
 const useSelectedTreeHighlight = () => {
   const currentView = useMapStore((state) => state.currentView);
@@ -13,28 +11,14 @@ const useSelectedTreeHighlight = () => {
   const treesAsync = useProjectOverlayStore((state) => state.treesAsync);
   const selectedTreeUri = usePreviewStore((state) => state.treeUri);
 
-  const selectedFeatureIdRef = useRef<FeatureIdentifier | null>(null);
-
   useEffect(() => {
-    if (currentView !== "project" || !activeProjectId) {
+    const globe = mapRef?.current;
+    if (currentView !== "project" || !activeProjectId || !mapLoaded || !globe) {
       return;
-    }
-
-    const map = mapRef?.current;
-    if (!mapLoaded || !map || !map.getSource("trees")) {
-      return;
-    }
-
-    const previousFeatureId = selectedFeatureIdRef.current;
-    if (previousFeatureId !== null) {
-      map.setFeatureState(
-        { source: "trees", id: previousFeatureId },
-        { selected: false },
-      );
-      selectedFeatureIdRef.current = null;
     }
 
     if (treesAsync?._status !== "success" || !selectedTreeUri) {
+      globe.setSelectedTreeId(null);
       return;
     }
 
@@ -42,22 +26,10 @@ const useSelectedTreeHighlight = () => {
       (feature) => feature.properties.occurrenceUri === selectedTreeUri,
     );
 
-    if (!matchingFeature) {
-      return;
-    }
-
-    map.setFeatureState(
-      { source: "trees", id: matchingFeature.id },
-      { selected: true },
-    );
-    selectedFeatureIdRef.current = matchingFeature.id;
+    globe.setSelectedTreeId(matchingFeature?.id ?? null);
 
     return () => {
-      const featureId = selectedFeatureIdRef.current;
-      if (featureId !== null && map.getSource("trees")) {
-        map.setFeatureState({ source: "trees", id: featureId }, { selected: false });
-      }
-      selectedFeatureIdRef.current = null;
+      globe.setSelectedTreeId(null);
     };
   }, [activeProjectId, currentView, mapLoaded, mapRef, selectedTreeUri, treesAsync]);
 };
