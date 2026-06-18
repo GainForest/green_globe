@@ -28,6 +28,14 @@ export const treesSource: GeoJSONSourceSpecification = {
   clusterRadius: 50, // Radius of each cluster when clustering points (defaults to 50)
 };
 
+export const selectedTreeSource: GeoJSONSourceSpecification = {
+  type: "geojson",
+  data: {
+    type: "FeatureCollection",
+    features: [],
+  },
+};
+
 export const clusteredTreesLayer: CircleLayerSpecification = {
   id: "clusteredTrees",
   type: "circle" as const,
@@ -91,9 +99,38 @@ export const unclusteredTreesLayer: CircleLayerSpecification = {
   },
 };
 
+export const selectedTreeHaloLayer: CircleLayerSpecification = {
+  id: "selectedTreeHalo",
+  type: "circle",
+  source: "selectedTreeSource",
+  paint: {
+    "circle-color": "#facc15",
+    "circle-opacity": 0.35,
+    "circle-radius": 18,
+    "circle-stroke-color": "#ffffff",
+    "circle-stroke-width": 2,
+    "circle-stroke-opacity": 0.95,
+  },
+};
+
+export const selectedTreePointLayer: CircleLayerSpecification = {
+  id: "selectedTreePoint",
+  type: "circle",
+  source: "selectedTreeSource",
+  paint: {
+    "circle-color": "#ec4899",
+    "circle-radius": 8,
+    "circle-stroke-color": "#ffffff",
+    "circle-stroke-width": 3,
+  },
+};
+
 export const addMeasuredTreesSourceAndLayer = (map: Map) => {
   if (!map.getSource("trees")) {
     map.addSource("trees", treesSource);
+  }
+  if (!map.getSource("selectedTreeSource")) {
+    map.addSource("selectedTreeSource", selectedTreeSource);
   }
   if (!map.getLayer("clusteredTrees")) {
     map.addLayer(clusteredTreesLayer);
@@ -103,6 +140,12 @@ export const addMeasuredTreesSourceAndLayer = (map: Map) => {
   }
   if (!map.getLayer("unclusteredTrees")) {
     map.addLayer(unclusteredTreesLayer);
+  }
+  if (!map.getLayer("selectedTreeHalo")) {
+    map.addLayer(selectedTreeHaloLayer);
+  }
+  if (!map.getLayer("selectedTreePoint")) {
+    map.addLayer(selectedTreePointLayer);
   }
 };
 
