@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import ClimateAIAgent from "@/lib/atproto/agent";
-import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
+import { agentForDid, pdsEndpointForDid } from "@/lib/atproto/pds";
 import type {
   BiodiversityAnimal,
   BiodiversityPlant,
@@ -154,6 +153,7 @@ type PlantWithDataType = BiodiversityPlant & { _dataType: string };
 const normalizePlantRecord = (
   raw: RawOccurrenceRecord,
   did: string,
+  pdsEndpoint: string,
   multimediaIndex: MultimediaIndex,
   occurrenceUri: string,
 ): PlantWithDataType | null => {
@@ -181,7 +181,7 @@ const normalizePlantRecord = (
     const imageEvidenceRef = v.imageEvidence?.file?.ref;
     const blobCid = extractCid(imageEvidenceRef);
     if (blobCid) {
-      imageUrl = buildBlobUrl(PDS_ENDPOINT, did, blobCid);
+      imageUrl = buildBlobUrl(pdsEndpoint, did, blobCid);
     } else {
       const speciesImageUrl =
         typeof v.speciesImageUrl === "string" ? v.speciesImageUrl : undefined;
@@ -277,13 +277,17 @@ const fetchAllOccurrenceRecords = async (
   const herbs: BiodiversityPlant[] = [];
   const animals: BiodiversityAnimal[] = [];
 
-  // Fetch multimedia index in parallel with the first page of occurrences
-  const multimediaIndex = await fetchMultimediaIndex(did);
+  // Fetch multimedia and direct PDS reads from the DID's current PDS.
+  const [multimediaIndex, pdsEndpoint, agent] = await Promise.all([
+    fetchMultimediaIndex(did),
+    pdsEndpointForDid(did),
+    agentForDid(did),
+  ]);
 
   let cursor: string | undefined;
 
   do {
-    const response = await ClimateAIAgent.com.atproto.repo.listRecords({
+    const response = await agent.com.atproto.repo.listRecords({
       repo: did,
       collection: OCCURRENCE_COLLECTION,
       limit: 100,
@@ -314,6 +318,7 @@ const fetchAllOccurrenceRecords = async (
           const plant = normalizePlantRecord(
             record,
             did,
+            pdsEndpoint,
             multimediaIndex,
             record.uri,
           );

@@ -12,7 +12,8 @@ import { useQuery } from "@tanstack/react-query";
 import getRecord from "@/lib/atproto/getRecord";
 import { validateRecord } from "@/../lexicon-api/types/app/gainforest/organization/info";
 import { AppGainforestOrganizationInfo } from "@/../lexicon-api";
-import { PDS_ENDPOINT } from "@/config/atproto";
+import { extractCid } from "@/lib/atproto/extract-cid";
+import { blobUrlForDid } from "@/lib/atproto/pds";
 
 const ProjectOverlay = () => {
   const organizationDid = useProjectOverlayStore((state) => state.projectId);
@@ -42,12 +43,24 @@ const ProjectOverlay = () => {
     { opacity: 1, scale: 1, filter: "unset" }
   );
 
-  const coverImage = info?.coverImage;
-  const coverImageCID = coverImage ? coverImage.image.ref : null;
+  const coverImageCID = info?.coverImage
+    ? extractCid(info.coverImage.image.ref)
+    : null;
+  const { data: resolvedCoverImageUrl } = useQuery({
+    queryKey: ["organization-cover-image", organizationDid, coverImageCID],
+    queryFn: async () => {
+      if (!organizationDid || !coverImageCID) {
+        return "/assets/placeholders/cover-image.png";
+      }
+      return blobUrlForDid(organizationDid, coverImageCID);
+    },
+    enabled: Boolean(organizationDid && coverImageCID),
+    staleTime: Infinity,
+  });
   const coverImageUrl =
-    coverImageCID ?
-      `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(organizationDid ?? "")}&cid=${encodeURIComponent(String(coverImageCID))}`
-    : "/assets/placeholders/cover-image.png";
+    coverImageCID && resolvedCoverImageUrl
+      ? resolvedCoverImageUrl
+      : "/assets/placeholders/cover-image.png";
 
   return (
     <motion.div

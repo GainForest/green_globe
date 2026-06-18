@@ -1,5 +1,4 @@
-import ClimateAIAgent from "@/lib/atproto/agent";
-import { PDS_ENDPOINT } from "@/config/atproto";
+import { agentForDid, blobUrlForDid } from "@/lib/atproto/pds";
 import { requestHyperindex } from "@/lib/hyperindex/client";
 import {
   ALL_ORGANIZATION_INFOS,
@@ -255,8 +254,8 @@ async function resolveCoordinatesFromCertifiedLocationUri(
   const cid = decodeBlobCid(blobRef);
   if (!cid) return null;
 
-  // Download GeoJSON blob from PDS
-  const blobUrl = `${PDS_ENDPOINT}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${cid}`;
+  // Download GeoJSON blob from the DID's current PDS.
+  const blobUrl = await blobUrlForDid(did, cid);
   const blobResponse = await fetch(blobUrl);
   if (!blobResponse.ok) return null;
 
@@ -288,7 +287,8 @@ async function resolveFromLegacySite(
   const rkey = atURI.split("app.gainforest.organization.site/")[1];
   if (!rkey) return null;
 
-  const siteData = await ClimateAIAgent.com.atproto.repo.getRecord({
+  const agent = await agentForDid(did);
+  const siteData = await agent.com.atproto.repo.getRecord({
     repo: did,
     collection: "app.gainforest.organization.site",
     rkey,

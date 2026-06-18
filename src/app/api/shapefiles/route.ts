@@ -7,13 +7,12 @@ import {
   computePolygonMetrics,
   type Coordinates,
 } from "@/lib/geojson";
+import { agentForDid, pdsEndpointForDid } from "@/lib/atproto/pds";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SITE_COLLECTION = "app.gainforest.organization.site";
-const ATPROTO_SERVICE =
-  process.env.NEXT_PUBLIC_ATPROTO_SERVICE_URL ?? "https://climateai.org";
 
 type MetricsStatus =
   | "computed"
@@ -390,7 +389,7 @@ export const GET = async (request: NextRequest) => {
     );
   }
 
-  const agent = new Agent(ATPROTO_SERVICE);
+  const serviceByDid: Record<string, string> = {};
   const summaryByDid = new Map<string, MetricsSummary>();
   const results: ShapefileMetricResult[] = [];
   const errors: Record<string, string> = {};
@@ -398,6 +397,20 @@ export const GET = async (request: NextRequest) => {
   for (const did of dids) {
     const summary = initSummary();
     summaryByDid.set(did, summary);
+
+    let agent: Agent;
+    try {
+      const [resolvedAgent, pdsEndpoint] = await Promise.all([
+        agentForDid(did),
+        pdsEndpointForDid(did),
+      ]);
+      agent = resolvedAgent;
+      serviceByDid[did] = pdsEndpoint;
+    } catch (error) {
+      summary.total = 0;
+      errors[did] = error instanceof Error ? error.message : String(error);
+      continue;
+    }
 
     let handle: string | null = null;
     try {
@@ -433,7 +446,7 @@ export const GET = async (request: NextRequest) => {
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
-    service: ATPROTO_SERVICE,
+    services: serviceByDid,
     requestedDids: dids,
     stats: Object.fromEntries(summaryByDid.entries()),
     totals: Array.from(summaryByDid.values()).reduce(

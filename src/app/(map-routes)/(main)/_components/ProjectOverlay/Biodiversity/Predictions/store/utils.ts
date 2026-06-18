@@ -4,7 +4,6 @@ import { BiodiversityAnimal, BiodiversityPlant } from "./types";
 import * as d3 from "d3";
 import { Agent } from "@atproto/api";
 import { resolvePdsEndpoint } from "@/lib/atproto/resolve-pds";
-import { PDS_ENDPOINT } from "@/config/atproto";
 import { extractCid, buildBlobUrl } from "@/lib/atproto/extract-cid";
 import {
   fetchMultimediaIndex,
@@ -150,6 +149,7 @@ type PlantWithDataType = BiodiversityPlant & { _dataType: string };
 const normalizePlantRecord = (
   raw: RawOccurrenceRecord,
   did: string,
+  pdsEndpoint: string,
   multimediaIndex: MultimediaIndex,
   occurrenceUri: string,
 ): PlantWithDataType | null => {
@@ -176,7 +176,7 @@ const normalizePlantRecord = (
     const imageEvidenceRef = v.imageEvidence?.file?.ref;
     const blobCid = extractCid(imageEvidenceRef);
     if (blobCid) {
-      imageUrl = buildBlobUrl(PDS_ENDPOINT, did, blobCid);
+      imageUrl = buildBlobUrl(pdsEndpoint, did, blobCid);
     }
   }
 
@@ -304,9 +304,10 @@ export const fetchPlantsFromATProto = async (
     const trees: BiodiversityPlant[] = [];
     const herbs: BiodiversityPlant[] = [];
 
-    const [multimediaIndex, occurrences] = await Promise.all([
+    const [multimediaIndex, occurrences, pdsEndpoint] = await Promise.all([
       fetchMultimediaIndex(did),
       fetchOccurrencesByKingdom(did, "Plantae"),
+      resolvePdsEndpoint(did),
     ]);
 
     for (const record of occurrences) {
@@ -319,6 +320,7 @@ export const fetchPlantsFromATProto = async (
       const plant = normalizePlantRecord(
         record,
         did,
+        pdsEndpoint,
         multimediaIndex,
         record.uri,
       );
